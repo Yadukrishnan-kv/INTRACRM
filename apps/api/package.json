@@ -1,0 +1,130 @@
+{
+  "name": "intra-leads-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "INTRA LEADS NestJS API",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main.js",
+    "start:worker": "node dist/worker.js",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "ci": "npm run lint && npm run typecheck && npm run test:cov",
+    "lint": "eslint \"{src,test}/**/*.ts\" --max-warnings 0",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "test": "jest --forceExit",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage --forceExit --ci",
+    "test:e2e": "jest --config ./test/jest-e2e.json --forceExit --ci",
+    "test:integration": "jest --config ./test/jest-integration.json --forceExit --ci",
+    "test:security": "jest --config ./test/jest-security.json --forceExit --ci",
+    "test:load": "npx tsx test/load/run-load.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "db:seed": "tsx prisma/seed/seed.ts",
+    "start:redis": "node scripts/start-local-redis.mjs"
+  },
+  "dependencies": {
+    "@nestjs/bullmq": "^11.0.4",
+    "@nestjs/common": "^11.2.1",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.2.1",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/platform-express": "^11.2.1",
+    "@nestjs/swagger": "^11.2.1",
+    "@nestjs/terminus": "^11.0.0",
+    "@prisma/client": "^6.13.0",
+    "argon2": "^0.45.1",
+    "bullmq": "^5.56.4",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "exceljs": "^4.4.0",
+    "firebase-admin": "^14.2.0",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.6.1",
+    "jsqr": "^1.4.0",
+    "pdfkit": "^0.19.1",
+    "pino": "^9.7.0",
+    "pino-http": "^10.5.0",
+    "pino-pretty": "^13.0.0",
+    "qrcode": "^1.5.4",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "uuid": "^11.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@nestjs/cli": "^11.0.10",
+    "@nestjs/schematics": "^11.0.7",
+    "@nestjs/testing": "^11.2.1",
+    "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.2.0",
+    "@types/pdfkit": "^0.17.6",
+    "@types/qrcode": "^1.5.6",
+    "@types/supertest": "^6.0.3",
+    "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.3.0",
+    "jest": "^30.0.5",
+    "prettier": "^3.6.2",
+    "prisma": "^6.13.0",
+    "redis-memory-server": "^0.17.1",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "diagnostics": false,
+          "isolatedModules": true
+        }
+      ]
+    },
+    "collectCoverageFrom": [
+      "**/*.ts",
+      "!**/*.module.ts",
+      "!main.ts",
+      "!worker.ts",
+      "!**/*.dto.ts",
+      "!**/dto/**",
+      "!**/testing/**",
+      "!**/openapi/**"
+    ],
+    "coverageDirectory": "../coverage",
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "json-summary"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 90,
+        "branches": 60,
+        "functions": 90,
+        "lines": 90
+      }
+    },
+    "testEnvironment": "node",
+    "testTimeout": 120000
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed/seed.ts"
+  }
+}

@@ -1,0 +1,1560 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TenantStatus {
+  provisioning
+  active
+  suspended
+  offboarding
+  closed
+
+  @@map("tenant_status")
+}
+
+enum UserStatus {
+  active
+  invited
+  locked
+  disabled
+
+  @@map("user_status")
+}
+
+enum MembershipStatus {
+  invited
+  active
+  suspended
+  ended
+
+  @@map("membership_status")
+}
+
+model Tenant {
+  id        String       @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  slug      String
+  name      String
+  status    TenantStatus @default(provisioning)
+  timezone  String       @default("Asia/Kolkata")
+  locale    String       @default("en-IN")
+  currency  String       @default("INR") @db.Char(3)
+  settings  Json         @default("{}")
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?      @map("created_by") @db.Uuid
+  updatedBy String?      @map("updated_by") @db.Uuid
+  deletedAt DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  deletedBy String?      @map("deleted_by") @db.Uuid
+  version   Int          @default(1)
+
+  memberships Membership[]
+  roles       Role[]
+  sessions    AuthSession[]
+  teams       Team[]
+  leadSources LeadSource[]
+  leadQualities LeadQualityOption[]
+  pipelines    Pipeline[]
+  leads        Lead[]
+  followUps    FollowUp[]
+  lossReasons  LossReason[]
+  quotations   Quotation[]
+  quotationItems QuotationItem[]
+  productCategories ProductCategory[]
+  products     Product[]
+  warrantyPeriods WarrantyPeriod[]
+  taxRates     TaxRate[]
+  targets      Target[]
+  achievements Achievement[]
+  warrantyCards WarrantyCard[]
+  warrantyCardItems WarrantyCardItem[]
+  siteVisits   SiteVisit[]
+  siteVisitPhotos SiteVisitPhoto[]
+  attendanceSessions AttendanceSession[]
+  files        StoredFile[]
+  notifications Notification[]
+  notificationPreferences NotificationPreference[]
+  devicePushTokens DevicePushToken[]
+  engineEvents FollowUpEngineEvent[]
+  quotationFollowUpEvents QuotationFollowUpEvent[]
+  auditLogs    AuditLog[]
+  messageTemplates MessageTemplate[]
+  outboundMessages OutboundMessage[]
+  billingCustomers BillingCustomer[]
+  billingInvoices  BillingInvoice[]
+  billingPayments  BillingPayment[]
+  billingSyncJobs  BillingSyncJob[]
+
+  @@map("tenants")
+}
+
+model User {
+  id              String     @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  email           String?    @db.Citext
+  phoneE164       String?    @map("phone_e164")
+  fullName        String     @map("full_name")
+  status          UserStatus @default(invited)
+  isPlatformAdmin Boolean    @default(false) @map("is_platform_admin")
+  emailVerifiedAt DateTime?  @map("email_verified_at") @db.Timestamptz(6)
+  phoneVerifiedAt DateTime?  @map("phone_verified_at") @db.Timestamptz(6)
+  lastLoginAt     DateTime?  @map("last_login_at") @db.Timestamptz(6)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy       String?    @map("created_by") @db.Uuid
+  updatedBy       String?    @map("updated_by") @db.Uuid
+  deletedAt       DateTime?  @map("deleted_at") @db.Timestamptz(6)
+  deletedBy       String?    @map("deleted_by") @db.Uuid
+  version         Int        @default(1)
+
+  credential     UserCredential?
+  memberships    Membership[]
+  sessions       AuthSession[]
+  refreshTokens  RefreshToken[]
+  otpChallenges  OtpChallenge[]
+  loginHistory   LoginHistory[]
+  notifications  Notification[]
+  notificationPreferences NotificationPreference[]
+  devicePushTokens DevicePushToken[]
+  engineEvents   FollowUpEngineEvent[]
+  quotationFollowUpEvents QuotationFollowUpEvent[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model UserCredential {
+  userId             String    @id @map("user_id") @db.Uuid
+  passwordHash       String    @map("password_hash")
+  passwordAlgo       String    @default("argon2id") @map("password_algo")
+  passwordUpdatedAt  DateTime  @default(now()) @map("password_updated_at") @db.Timestamptz(6)
+  failedAttempts     Int       @default(0) @map("failed_attempts")
+  lockedUntil        DateTime? @map("locked_until") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("user_credentials")
+}
+
+model Permission {
+  id          String   @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  code        String   @unique
+  resource    String
+  action      String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model Role {
+  id          String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId    String?   @map("tenant_id") @db.Uuid
+  code        String
+  name        String
+  description String?
+  isSystem    Boolean   @default(false) @map("is_system")
+  isDefault   Boolean   @default(false) @map("is_default")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy   String?   @map("deleted_by") @db.Uuid
+  version     Int       @default(1)
+
+  tenant      Tenant?          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  permissions RolePermission[]
+  members     MembershipRole[]
+
+  @@map("roles")
+}
+
+model RolePermission {
+  roleId       String   @map("role_id") @db.Uuid
+  permissionId String   @map("permission_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Membership {
+  id           String           @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId     String           @map("tenant_id") @db.Uuid
+  userId       String           @map("user_id") @db.Uuid
+  status       MembershipStatus @default(invited)
+  employeeCode String?          @map("employee_code")
+  designation  String?
+  branchId     String?          @map("branch_id") @db.Uuid
+  teamId       String?          @map("team_id") @db.Uuid
+  joinedAt     DateTime?        @map("joined_at") @db.Timestamptz(6)
+  suspendedAt  DateTime?        @map("suspended_at") @db.Timestamptz(6)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy    String?          @map("created_by") @db.Uuid
+  updatedBy    String?          @map("updated_by") @db.Uuid
+  deletedAt    DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  deletedBy    String?          @map("deleted_by") @db.Uuid
+  version      Int              @default(1)
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  team      Team?            @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  roles           MembershipRole[]
+  teamLinks       TeamMember[]
+  ownedLeads      Lead[]           @relation("LeadOwner")
+  assignmentsFrom LeadAssignment[] @relation("AssignmentFrom")
+  assignmentsTo   LeadAssignment[] @relation("AssignmentTo")
+  assignmentsBy   LeadAssignment[] @relation("AssignmentBy")
+  activities      LeadActivity[]
+  followUps       FollowUp[]
+  stageChanges    LeadStageChange[]
+  siteVisits      SiteVisit[]
+  attendanceSessions AttendanceSession[]
+  quotations      Quotation[]  @relation("QuotationAssignee")
+  issuedWarranties WarrantyCard[] @relation("WarrantyIssuer")
+
+  @@map("memberships")
+}
+
+model MembershipRole {
+  membershipId String   @map("membership_id") @db.Uuid
+  roleId       String   @map("role_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([membershipId, roleId])
+  @@map("membership_roles")
+}
+
+model Team {
+  id        String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  branchId  String?   @map("branch_id") @db.Uuid
+  code      String
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  version   Int       @default(1)
+
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  members         TeamMember[]
+  primaryMembers  Membership[]
+
+  @@index([tenantId, isActive])
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId       String   @map("team_id") @db.Uuid
+  membershipId String   @map("membership_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, membershipId])
+  @@map("team_members")
+}
+
+enum AuthSessionStatus {
+  active
+  revoked
+  expired
+
+  @@map("auth_session_status")
+}
+
+enum OtpPurpose {
+  login
+  password_reset
+  step_up
+  verify_email
+  verify_phone
+
+  @@map("otp_purpose")
+}
+
+enum LoginEventResult {
+  success
+  failure
+  locked
+
+  @@map("login_event_result")
+}
+
+model AuthSession {
+  id               String            @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  userId           String            @map("user_id") @db.Uuid
+  tenantId         String?           @map("tenant_id") @db.Uuid
+  deviceId         String            @map("device_id")
+  deviceName       String?           @map("device_name")
+  userAgent        String?           @map("user_agent")
+  ipAddress        String?           @map("ip_address") @db.Inet
+  refreshFamilyId  String            @map("refresh_family_id") @db.Uuid
+  status           AuthSessionStatus @default(active)
+  expiresAt        DateTime          @map("expires_at") @db.Timestamptz(6)
+  revokedAt        DateTime?         @map("revoked_at") @db.Timestamptz(6)
+  lastSeenAt       DateTime          @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tenant        Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  refreshTokens RefreshToken[]
+  loginHistory  LoginHistory[]
+
+  @@index([userId, status])
+  @@index([refreshFamilyId])
+  @@index([userId, deviceId])
+  @@map("auth_sessions")
+}
+
+model RefreshToken {
+  id         String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  sessionId  String    @map("session_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  familyId   String    @map("family_id") @db.Uuid
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  replacedBy String?   @map("replaced_by") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  authSession AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+model OtpChallenge {
+  id          String     @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  userId      String?    @map("user_id") @db.Uuid
+  tenantId    String?    @map("tenant_id") @db.Uuid
+  destination String
+  purpose     OtpPurpose
+  codeHash    String     @map("code_hash")
+  attempts    Int        @default(0)
+  maxAttempts Int        @default(5) @map("max_attempts")
+  expiresAt   DateTime   @map("expires_at") @db.Timestamptz(6)
+  consumedAt  DateTime?  @map("consumed_at") @db.Timestamptz(6)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([destination, purpose, createdAt])
+  @@map("otp_challenges")
+}
+
+model LoginHistory {
+  id             String           @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  userId         String?          @map("user_id") @db.Uuid
+  tenantId       String?          @map("tenant_id") @db.Uuid
+  sessionId      String?          @map("session_id") @db.Uuid
+  email          String?          @db.Citext
+  deviceId       String?          @map("device_id")
+  deviceName     String?          @map("device_name")
+  ipAddress      String?          @map("ip_address") @db.Inet
+  userAgent      String?          @map("user_agent")
+  result         LoginEventResult
+  failureReason  String?          @map("failure_reason")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user    User?        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  session AuthSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([email, createdAt])
+  @@map("login_history")
+}
+
+enum LeadLifecycleStatus {
+  open
+  won
+  lost
+  unqualified
+  recycled
+
+  @@map("lead_lifecycle_status")
+}
+
+enum ActivityType {
+  note
+  call
+  email
+  meeting
+  sms
+  whatsapp
+  system
+
+  @@map("activity_type")
+}
+
+enum FollowUpStatus {
+  pending
+  completed
+  cancelled
+  skipped
+
+  @@map("follow_up_status")
+}
+
+enum FollowUpType {
+  call
+  whatsapp
+  visit
+  meeting
+
+  @@map("follow_up_type")
+}
+
+model LeadSource {
+  id        String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  code      String
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  version   Int       @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  leads  Lead[]
+
+  @@index([tenantId, code])
+  @@map("lead_sources")
+}
+
+model LeadQualityOption {
+  id        String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  code      String
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  version   Int       @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, code])
+  @@map("lead_qualities")
+}
+
+model Pipeline {
+  id        String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  code      String
+  name      String
+  isDefault Boolean   @default(false) @map("is_default")
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  version   Int       @default(1)
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  stages PipelineStage[]
+  leads  Lead[]
+
+  @@index([tenantId, code])
+  @@map("pipelines")
+}
+
+model PipelineStage {
+  id                 String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  pipelineId         String    @map("pipeline_id") @db.Uuid
+  code               String
+  name               String
+  sortOrder          Int       @default(0) @map("sort_order")
+  winProbabilityBps  Int       @default(0) @map("win_probability_bps")
+  isOpen             Boolean   @default(true) @map("is_open")
+  isWon              Boolean   @default(false) @map("is_won")
+  isLost             Boolean   @default(false) @map("is_lost")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy          String?   @map("created_by") @db.Uuid
+  updatedBy          String?   @map("updated_by") @db.Uuid
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy          String?   @map("deleted_by") @db.Uuid
+  version            Int       @default(1)
+
+  pipeline    Pipeline          @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  leads       Lead[]
+  fromChanges LeadStageChange[] @relation("StageChangeFrom")
+  toChanges   LeadStageChange[] @relation("StageChangeTo")
+
+  @@index([pipelineId, code])
+  @@map("pipeline_stages")
+}
+
+model LossReason {
+  id        String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  code      String
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  version   Int       @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  leads  Lead[]
+
+  @@index([tenantId, code])
+  @@map("loss_reasons")
+}
+
+model Lead {
+  id                  String              @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId            String              @map("tenant_id") @db.Uuid
+  leadNumber          String              @map("lead_number")
+  title               String
+  customerName        String?             @map("customer_name")
+  requirement         String?
+  contactId           String?             @map("contact_id") @db.Uuid
+  accountId           String?             @map("account_id") @db.Uuid
+  primaryPhone        String?             @map("primary_phone")
+  primaryEmail        String?             @map("primary_email") @db.Citext
+  sourceId            String?             @map("source_id") @db.Uuid
+  pipelineId          String              @map("pipeline_id") @db.Uuid
+  stageId             String              @map("stage_id") @db.Uuid
+  ownerMembershipId   String?             @map("owner_membership_id") @db.Uuid
+  lifecycleStatus     LeadLifecycleStatus @default(open) @map("lifecycle_status")
+  quality             String?
+  score               Int?
+  estimatedValueMinor BigInt?             @map("estimated_value_minor")
+  currency            String              @default("INR") @db.Char(3)
+  expectedCloseOn     DateTime?           @map("expected_close_on") @db.Date
+  lostReasonId        String?             @map("lost_reason_id") @db.Uuid
+  unqualifiedReason   String?             @map("unqualified_reason")
+  addressLine1        String?             @map("address_line1")
+  addressLine2        String?             @map("address_line2")
+  city                String?
+  state               String?
+  postalCode          String?             @map("postal_code")
+  countryCode         String?             @map("country_code") @db.Char(2)
+  firstAssignedAt     DateTime?           @map("first_assigned_at") @db.Timestamptz(6)
+  lastActivityAt      DateTime?           @map("last_activity_at") @db.Timestamptz(6)
+  customFields        Json                @default("{}") @map("custom_fields")
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy           String?             @map("created_by") @db.Uuid
+  updatedBy           String?             @map("updated_by") @db.Uuid
+  deletedAt           DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  deletedBy           String?             @map("deleted_by") @db.Uuid
+  version             Int                 @default(1)
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  source      LeadSource?      @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  pipeline    Pipeline         @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  stage       PipelineStage    @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  owner        Membership?       @relation("LeadOwner", fields: [ownerMembershipId], references: [id], onDelete: Restrict)
+  lostReason   LossReason?       @relation(fields: [lostReasonId], references: [id], onDelete: Restrict)
+  assignments  LeadAssignment[]
+  activities   LeadActivity[]
+  followUps    FollowUp[]
+  stageChanges LeadStageChange[]
+  quotations   Quotation[]
+  siteVisits   SiteVisit[]
+  warrantyCards WarrantyCard[]
+  outboundMessages OutboundMessage[]
+  billingCustomers BillingCustomer[]
+  billingInvoices  BillingInvoice[]
+
+  @@index([tenantId, leadNumber])
+  @@index([tenantId, ownerMembershipId, lifecycleStatus])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("leads")
+}
+
+model LeadAssignment {
+  id                       String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId                 String    @map("tenant_id") @db.Uuid
+  leadId                   String    @map("lead_id") @db.Uuid
+  assignedFromMembershipId String?   @map("assigned_from_membership_id") @db.Uuid
+  assignedToMembershipId   String?   @map("assigned_to_membership_id") @db.Uuid
+  assignedByMembershipId   String?   @map("assigned_by_membership_id") @db.Uuid
+  reason                   String?
+  isCurrent                Boolean   @default(true) @map("is_current")
+  assignedAt               DateTime  @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy                String?   @map("created_by") @db.Uuid
+  updatedBy                String?   @map("updated_by") @db.Uuid
+  deletedAt                DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy                String?   @map("deleted_by") @db.Uuid
+  version                  Int       @default(1)
+
+  from Membership? @relation("AssignmentFrom", fields: [assignedFromMembershipId], references: [id], onDelete: Restrict)
+  to   Membership? @relation("AssignmentTo", fields: [assignedToMembershipId], references: [id], onDelete: Restrict)
+  by   Membership? @relation("AssignmentBy", fields: [assignedByMembershipId], references: [id], onDelete: Restrict)
+  lead Lead        @relation(fields: [leadId], references: [id], onDelete: Restrict)
+
+  @@index([leadId, assignedAt])
+  @@map("lead_assignments")
+}
+
+model LeadStageChange {
+  id                     String              @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId               String              @map("tenant_id") @db.Uuid
+  leadId                 String              @map("lead_id") @db.Uuid
+  fromStageId            String?             @map("from_stage_id") @db.Uuid
+  toStageId              String              @map("to_stage_id") @db.Uuid
+  fromLifecycleStatus    LeadLifecycleStatus? @map("from_lifecycle_status")
+  toLifecycleStatus      LeadLifecycleStatus @map("to_lifecycle_status")
+  changedByMembershipId  String?             @map("changed_by_membership_id") @db.Uuid
+  reason                 String?
+  changedAt              DateTime            @default(now()) @map("changed_at") @db.Timestamptz(6)
+  createdAt              DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy              String?             @map("created_by") @db.Uuid
+
+  lead      Lead           @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  fromStage PipelineStage? @relation("StageChangeFrom", fields: [fromStageId], references: [id], onDelete: Restrict)
+  toStage   PipelineStage  @relation("StageChangeTo", fields: [toStageId], references: [id], onDelete: Restrict)
+  changedBy Membership?    @relation(fields: [changedByMembershipId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, leadId, changedAt(sort: Desc)])
+  @@map("lead_stage_changes")
+}
+
+model LeadActivity {
+  id                       String       @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId                 String       @map("tenant_id") @db.Uuid
+  leadId                   String       @map("lead_id") @db.Uuid
+  type                     ActivityType
+  eventCode                String       @default("system") @map("event_code")
+  subject                  String?
+  body                     String?
+  occurredAt               DateTime     @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  durationMinutes          Int?         @map("duration_minutes")
+  outcome                  String?
+  performedByMembershipId  String?      @map("performed_by_membership_id") @db.Uuid
+  metadata                 Json         @default("{}")
+  createdAt                DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy                String?      @map("created_by") @db.Uuid
+  updatedBy                String?      @map("updated_by") @db.Uuid
+  deletedAt                DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  deletedBy                String?      @map("deleted_by") @db.Uuid
+  version                  Int          @default(1)
+
+  lead  Lead        @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  actor Membership? @relation(fields: [performedByMembershipId], references: [id], onDelete: Restrict)
+  outboundMessages OutboundMessage[]
+
+  @@index([leadId, occurredAt(sort: Desc)])
+  @@index([tenantId, eventCode, occurredAt(sort: Desc)])
+  @@map("lead_activities")
+}
+
+model MessageTemplate {
+  id        String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  channel   String
+  code      String
+  name      String
+  body      String
+  isActive  Boolean   @default(true) @map("is_active")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  version   Int       @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, channel, code])
+  @@map("message_templates")
+}
+
+model OutboundMessage {
+  id                 String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  leadId             String    @map("lead_id") @db.Uuid
+  activityId         String?   @map("activity_id") @db.Uuid
+  channel            String
+  toE164             String    @map("to_e164")
+  body               String?
+  status             String
+  mode               String
+  provider           String
+  providerMessageId  String?   @map("provider_message_id")
+  launchUri          String?   @map("launch_uri")
+  error              String?
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy          String?   @map("created_by") @db.Uuid
+  updatedBy          String?   @map("updated_by") @db.Uuid
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy          String?   @map("deleted_by") @db.Uuid
+  version            Int       @default(1)
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  lead     Lead          @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  activity LeadActivity? @relation(fields: [activityId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, leadId, createdAt(sort: Desc)])
+  @@map("outbound_messages")
+}
+
+model BillingCustomer {
+  id           String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  leadId       String    @map("lead_id") @db.Uuid
+  provider     String
+  externalId   String    @map("external_id")
+  displayName  String    @map("display_name")
+  phoneE164    String?   @map("phone_e164")
+  email        String?   @db.Citext
+  city         String?
+  syncStatus   String    @default("pending") @map("sync_status")
+  lastSyncedAt DateTime? @map("last_synced_at") @db.Timestamptz(6)
+  lastError    String?   @map("last_error")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy    String?   @map("deleted_by") @db.Uuid
+  version      Int       @default(1)
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  lead     Lead             @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  invoices BillingInvoice[]
+
+  @@index([tenantId, leadId])
+  @@map("billing_customers")
+}
+
+model BillingInvoice {
+  id                String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  leadId            String    @map("lead_id") @db.Uuid
+  quotationId       String?   @map("quotation_id") @db.Uuid
+  billingCustomerId String    @map("billing_customer_id") @db.Uuid
+  provider          String
+  externalId        String    @map("external_id")
+  invoiceNumber     String    @map("invoice_number")
+  status            String    @default("issued")
+  paymentStatus     String    @default("unpaid") @map("payment_status")
+  currency          String    @default("INR") @db.Char(3)
+  totalMinor        BigInt    @default(0) @map("total_minor")
+  balanceMinor      BigInt    @default(0) @map("balance_minor")
+  issuedOn          DateTime? @map("issued_on") @db.Date
+  dueOn             DateTime? @map("due_on") @db.Date
+  paidAt            DateTime? @map("paid_at") @db.Timestamptz(6)
+  syncStatus        String    @default("pending") @map("sync_status")
+  lastSyncedAt      DateTime? @map("last_synced_at") @db.Timestamptz(6)
+  lastError         String?   @map("last_error")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy         String?   @map("created_by") @db.Uuid
+  updatedBy         String?   @map("updated_by") @db.Uuid
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy         String?   @map("deleted_by") @db.Uuid
+  version           Int       @default(1)
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  lead     Lead            @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  quotation Quotation?     @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  customer BillingCustomer @relation(fields: [billingCustomerId], references: [id], onDelete: Restrict)
+  payments BillingPayment[]
+
+  @@index([tenantId, leadId, createdAt(sort: Desc)])
+  @@map("billing_invoices")
+}
+
+model BillingPayment {
+  id          String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  invoiceId   String    @map("invoice_id") @db.Uuid
+  provider    String
+  externalId  String    @map("external_id")
+  amountMinor BigInt    @map("amount_minor")
+  currency    String    @default("INR") @db.Char(3)
+  method      String?
+  status      String?
+  paidOn      DateTime  @map("paid_on") @db.Date
+  receivedAt  DateTime  @default(now()) @map("received_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy   String?   @map("deleted_by") @db.Uuid
+  version     Int       @default(1)
+
+  tenant  Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice BillingInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId, paidOn(sort: Desc)])
+  @@map("billing_payments")
+}
+
+model BillingSyncJob {
+  id         String   @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  resource   String
+  direction  String
+  provider   String
+  localId    String?  @map("local_id") @db.Uuid
+  externalId String?  @map("external_id")
+  status     String
+  error      String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("billing_sync_jobs")
+}
+
+enum FileStatus {
+  pending
+  uploaded
+  available
+  rejected
+  deleted
+
+  @@map("file_status")
+}
+
+enum SiteVisitStatus {
+  scheduled
+  in_progress
+  completed
+  cancelled
+  no_show
+
+  @@map("site_visit_status")
+}
+
+enum QuotationStatus {
+  draft
+  sent
+  follow_up
+  customer_deciding
+  negotiation
+  approved
+  won
+  lost
+
+  @@map("quotation_status")
+}
+
+model StoredFile {
+  id               String     @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId         String     @map("tenant_id") @db.Uuid
+  storageKey       String     @map("storage_key")
+  bucket           String
+  originalFilename String?    @map("original_filename")
+  contentType      String     @map("content_type")
+  byteSize         BigInt     @map("byte_size")
+  checksumSha256   String?    @map("checksum_sha256")
+  status           FileStatus @default(pending)
+  resourceType     String?    @map("resource_type")
+  resourceId       String?    @map("resource_id") @db.Uuid
+  uploadedBy       String?    @map("uploaded_by") @db.Uuid
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy        String?    @map("created_by") @db.Uuid
+  updatedBy        String?    @map("updated_by") @db.Uuid
+  deletedAt        DateTime?  @map("deleted_at") @db.Timestamptz(6)
+  deletedBy        String?    @map("deleted_by") @db.Uuid
+  version          Int        @default(1)
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  photos SiteVisitPhoto[]
+
+  @@index([tenantId, resourceType, resourceId])
+  @@map("files")
+}
+
+model SiteVisit {
+  id                     String          @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId               String          @map("tenant_id") @db.Uuid
+  leadId                 String          @map("lead_id") @db.Uuid
+  assignedToMembershipId String          @map("assigned_to_membership_id") @db.Uuid
+  purpose                String?
+  notes                  String?
+  outcome                String?
+  status                 SiteVisitStatus @default(scheduled)
+  scheduledAt            DateTime        @map("scheduled_at") @db.Timestamptz(6)
+  checkedInAt            DateTime?       @map("checked_in_at") @db.Timestamptz(6)
+  checkedOutAt           DateTime?       @map("checked_out_at") @db.Timestamptz(6)
+  addressLine1           String?         @map("address_line1")
+  city                   String?
+  state                  String?
+  postalCode             String?         @map("postal_code")
+  scheduledLat           Decimal?        @map("scheduled_lat") @db.Decimal(9, 6)
+  scheduledLng           Decimal?        @map("scheduled_lng") @db.Decimal(9, 6)
+  checkInLat             Decimal?        @map("check_in_lat") @db.Decimal(9, 6)
+  checkInLng             Decimal?        @map("check_in_lng") @db.Decimal(9, 6)
+  checkInAccuracyM       Decimal?        @map("check_in_accuracy_m") @db.Decimal(8, 2)
+  checkOutLat            Decimal?        @map("check_out_lat") @db.Decimal(9, 6)
+  checkOutLng            Decimal?        @map("check_out_lng") @db.Decimal(9, 6)
+  checkOutAccuracyM      Decimal?        @map("check_out_accuracy_m") @db.Decimal(8, 2)
+  customerFeedback       String?         @map("customer_feedback")
+  customerRating         Int?            @map("customer_rating") @db.SmallInt
+  feedbackCapturedAt     DateTime?       @map("feedback_captured_at") @db.Timestamptz(6)
+  createdAt              DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy              String?         @map("created_by") @db.Uuid
+  updatedBy              String?         @map("updated_by") @db.Uuid
+  deletedAt              DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  deletedBy              String?         @map("deleted_by") @db.Uuid
+  version                Int             @default(1)
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  lead     Lead             @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  assignee Membership       @relation(fields: [assignedToMembershipId], references: [id], onDelete: Restrict)
+  photos   SiteVisitPhoto[]
+
+  @@index([tenantId, leadId, scheduledAt])
+  @@map("site_visits")
+}
+
+model AttendanceSession {
+  id           String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  membershipId String    @map("membership_id") @db.Uuid
+  workDate     DateTime  @map("work_date") @db.Date
+  punchedInAt  DateTime  @map("punched_in_at") @db.Timestamptz(6)
+  punchedOutAt DateTime? @map("punched_out_at") @db.Timestamptz(6)
+  inLat        Decimal?  @map("in_lat") @db.Decimal(9, 6)
+  inLng        Decimal?  @map("in_lng") @db.Decimal(9, 6)
+  inAccuracyM  Decimal?  @map("in_accuracy_m") @db.Decimal(8, 2)
+  outLat       Decimal?  @map("out_lat") @db.Decimal(9, 6)
+  outLng       Decimal?  @map("out_lng") @db.Decimal(9, 6)
+  outAccuracyM Decimal?  @map("out_accuracy_m") @db.Decimal(8, 2)
+  notes        String?
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy    String?   @map("deleted_by") @db.Uuid
+  version      Int       @default(1)
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, membershipId, workDate(sort: Desc)])
+  @@map("attendance_sessions")
+}
+
+model SiteVisitPhoto {
+  id                String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  siteVisitId       String    @map("site_visit_id") @db.Uuid
+  fileId            String    @map("file_id") @db.Uuid
+  caption           String?
+  capturedAt        DateTime  @default(now()) @map("captured_at") @db.Timestamptz(6)
+  capturedLat       Decimal?  @map("captured_lat") @db.Decimal(9, 6)
+  capturedLng       Decimal?  @map("captured_lng") @db.Decimal(9, 6)
+  capturedAccuracyM Decimal?  @map("captured_accuracy_m") @db.Decimal(8, 2)
+  sortOrder         Int       @default(0) @map("sort_order") @db.SmallInt
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy         String?   @map("created_by") @db.Uuid
+  updatedBy         String?   @map("updated_by") @db.Uuid
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy         String?   @map("deleted_by") @db.Uuid
+  version           Int       @default(1)
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  visit  SiteVisit  @relation(fields: [siteVisitId], references: [id], onDelete: Restrict)
+  file   StoredFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, siteVisitId, sortOrder])
+  @@map("site_visit_photos")
+}
+
+model ProductCategory {
+  id        String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  parentId  String?   @map("parent_id") @db.Uuid
+  code      String
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  version   Int       @default(1)
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  parent   ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children ProductCategory[] @relation("CategoryTree")
+  products Product[]
+
+  @@index([tenantId, code])
+  @@map("product_categories")
+}
+
+model WarrantyPeriod {
+  id        String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  code      String
+  name      String
+  months    Int
+  isActive  Boolean   @default(true) @map("is_active")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  version   Int       @default(1)
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  products Product[]
+
+  @@index([tenantId, code])
+  @@map("warranty_periods")
+}
+
+model TaxRate {
+  id        String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  code      String
+  name      String
+  rateBps   Int       @default(0) @map("rate_bps")
+  isActive  Boolean   @default(true) @map("is_active")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  version   Int       @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, code])
+  @@map("tax_rates")
+}
+
+model Product {
+  id               String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  categoryId       String?   @map("category_id") @db.Uuid
+  warrantyPeriodId String?   @map("warranty_period_id") @db.Uuid
+  sku              String
+  name             String
+  description      String?
+  unitPriceMinor   BigInt?   @map("unit_price_minor")
+  currency         String    @default("INR") @db.Char(3)
+  warrantyMonths   Int?      @map("warranty_months")
+  isActive         Boolean   @default(true) @map("is_active")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy        String?   @map("created_by") @db.Uuid
+  updatedBy        String?   @map("updated_by") @db.Uuid
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy        String?   @map("deleted_by") @db.Uuid
+  version          Int       @default(1)
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  category       ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  warrantyPeriod WarrantyPeriod?  @relation(fields: [warrantyPeriodId], references: [id], onDelete: Restrict)
+  items          QuotationItem[]
+  targets        Target[]
+  warrantyItems  WarrantyCardItem[]
+
+  @@index([tenantId, sku])
+  @@map("products")
+}
+
+model Quotation {
+  id                     String          @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId               String          @map("tenant_id") @db.Uuid
+  leadId                 String          @map("lead_id") @db.Uuid
+  contactId              String?         @map("contact_id") @db.Uuid
+  accountId              String?         @map("account_id") @db.Uuid
+  assignedToMembershipId String?         @map("assigned_to_membership_id") @db.Uuid
+  quotationNumber        String          @map("quotation_number")
+  title                  String?
+  status                 QuotationStatus @default(draft)
+  currency               String          @default("INR") @db.Char(3)
+  subtotalMinor          BigInt          @default(0) @map("subtotal_minor")
+  discountMinor          BigInt          @default(0) @map("discount_minor")
+  taxMinor               BigInt          @default(0) @map("tax_minor")
+  totalMinor             BigInt          @default(0) @map("total_minor")
+  validUntilOn           DateTime?       @map("valid_until_on") @db.Date
+  notes                  String?
+  terms                  String?
+  sentAt                 DateTime?       @map("sent_at") @db.Timestamptz(6)
+  viewedAt               DateTime?       @map("viewed_at") @db.Timestamptz(6)
+  acceptedAt             DateTime?       @map("accepted_at") @db.Timestamptz(6)
+  rejectedAt             DateTime?       @map("rejected_at") @db.Timestamptz(6)
+  followUpAt             DateTime?       @map("follow_up_at") @db.Timestamptz(6)
+  customerDecidingAt     DateTime?       @map("customer_deciding_at") @db.Timestamptz(6)
+  negotiationAt          DateTime?       @map("negotiation_at") @db.Timestamptz(6)
+  approvedAt             DateTime?       @map("approved_at") @db.Timestamptz(6)
+  wonAt                  DateTime?       @map("won_at") @db.Timestamptz(6)
+  lostAt                 DateTime?       @map("lost_at") @db.Timestamptz(6)
+  lostReason             String?         @map("lost_reason")
+  nextFollowUpAt         DateTime?       @map("next_follow_up_at") @db.Timestamptz(6)
+  remindAt               DateTime?       @map("remind_at") @db.Timestamptz(6)
+  expectedCloseOn        DateTime?       @map("expected_close_on") @db.Date
+  lastFollowedUpAt       DateTime?       @map("last_followed_up_at") @db.Timestamptz(6)
+  followUpNote           String?         @map("follow_up_note")
+  createdAt              DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy              String?         @map("created_by") @db.Uuid
+  updatedBy              String?         @map("updated_by") @db.Uuid
+  deletedAt              DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  deletedBy              String?         @map("deleted_by") @db.Uuid
+  version                Int             @default(1)
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  lead     Lead             @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  assignee Membership?      @relation("QuotationAssignee", fields: [assignedToMembershipId], references: [id], onDelete: Restrict)
+  items    QuotationItem[]
+  followUpEvents QuotationFollowUpEvent[]
+  warrantyCards WarrantyCard[]
+  billingInvoices BillingInvoice[]
+
+  @@index([tenantId, quotationNumber])
+  @@index([tenantId, nextFollowUpAt])
+  @@index([tenantId, expectedCloseOn])
+  @@map("quotations")
+}
+
+model QuotationFollowUpEvent {
+  id               String   @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  quotationId      String   @map("quotation_id") @db.Uuid
+  eventType        String   @map("event_type")
+  bucket           String
+  escalationLevel  Int      @default(0) @map("escalation_level") @db.SmallInt
+  windowDate       DateTime @map("window_date") @db.Date
+  recipientUserId  String   @map("recipient_user_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  quotation  Quotation @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  recipient  User      @relation(fields: [recipientUserId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, quotationId, eventType, escalationLevel, windowDate, recipientUserId])
+  @@index([tenantId, windowDate, eventType])
+  @@map("quotation_follow_up_events")
+}
+
+model QuotationItem {
+  id             String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  quotationId    String    @map("quotation_id") @db.Uuid
+  productId      String?   @map("product_id") @db.Uuid
+  description    String
+  quantity       Int       @default(1)
+  unitPriceMinor BigInt    @default(0) @map("unit_price_minor")
+  discountMinor  BigInt    @default(0) @map("discount_minor")
+  taxBps         Int       @default(0) @map("tax_bps")
+  taxRateIds     Json      @default("[]") @map("tax_rate_ids")
+  lineTotalMinor BigInt    @default(0) @map("line_total_minor")
+  sortOrder      Int       @default(0) @map("sort_order")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy      String?   @map("deleted_by") @db.Uuid
+  version        Int       @default(1)
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  quotation Quotation  @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  product   Product?   @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([quotationId, sortOrder])
+  @@map("quotation_items")
+}
+
+model FollowUp {
+  id                      String         @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId                String         @map("tenant_id") @db.Uuid
+  leadId                  String         @map("lead_id") @db.Uuid
+  assignedToMembershipId  String         @map("assigned_to_membership_id") @db.Uuid
+  type                    FollowUpType   @default(call)
+  title                   String
+  notes                   String?
+  dueAt                   DateTime       @map("due_at") @db.Timestamptz(6)
+  remindAt                DateTime?      @map("remind_at") @db.Timestamptz(6)
+  priority                Int            @default(2) @db.SmallInt
+  status                  FollowUpStatus @default(pending)
+  completedAt             DateTime?      @map("completed_at") @db.Timestamptz(6)
+  completedActivityId     String?        @map("completed_activity_id") @db.Uuid
+  rescheduleCount         Int            @default(0) @map("reschedule_count")
+  lastRescheduledAt       DateTime?      @map("last_rescheduled_at") @db.Timestamptz(6)
+  createdAt               DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy               String?        @map("created_by") @db.Uuid
+  updatedBy               String?        @map("updated_by") @db.Uuid
+  deletedAt               DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  deletedBy               String?        @map("deleted_by") @db.Uuid
+  version                 Int            @default(1)
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  lead     Lead       @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  assignee Membership @relation(fields: [assignedToMembershipId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, assignedToMembershipId, status, dueAt])
+  @@index([tenantId, type, status, dueAt])
+  @@map("follow_ups")
+}
+
+enum NotificationChannel {
+  in_app
+  push
+
+  @@map("notification_channel")
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+
+  @@map("notification_status")
+}
+
+model Notification {
+  id             String              @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId       String              @map("tenant_id") @db.Uuid
+  userId         String              @map("user_id") @db.Uuid
+  eventType      String              @map("event_type")
+  title          String
+  body           String?
+  resourceType   String?             @map("resource_type")
+  resourceId     String?             @map("resource_id") @db.Uuid
+  channel        NotificationChannel @default(in_app)
+  status         NotificationStatus  @default(pending)
+  payload        Json                @default("{}")
+  readAt         DateTime?           @map("read_at") @db.Timestamptz(6)
+  sentAt         DateTime?           @map("sent_at") @db.Timestamptz(6)
+  failedAt       DateTime?           @map("failed_at") @db.Timestamptz(6)
+  failureReason  String?             @map("failure_reason")
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy      String?             @map("created_by") @db.Uuid
+  updatedBy      String?             @map("updated_by") @db.Uuid
+  deletedAt      DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  deletedBy      String?             @map("deleted_by") @db.Uuid
+  version        Int                 @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([id, createdAt])
+  @@index([tenantId, userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id           String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  eventType    String    @map("event_type")
+  inAppEnabled Boolean   @default(true) @map("in_app_enabled")
+  pushEnabled  Boolean   @default(true) @map("push_enabled")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy    String?   @map("deleted_by") @db.Uuid
+  version      Int       @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("notification_preferences")
+}
+
+model DevicePushToken {
+  id         String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tenantId   String?   @map("tenant_id") @db.Uuid
+  deviceId   String    @map("device_id")
+  platform   String
+  token      String
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([userId, deviceId])
+  @@index([token])
+  @@map("device_push_tokens")
+}
+
+model FollowUpEngineEvent {
+  id               String   @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  resourceType     String   @map("resource_type")
+  resourceId       String   @map("resource_id") @db.Uuid
+  eventType        String   @map("event_type")
+  bucket           String
+  escalationLevel  Int      @default(0) @map("escalation_level") @db.SmallInt
+  windowDate       DateTime @map("window_date") @db.Date
+  recipientUserId  String   @map("recipient_user_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  recipient User   @relation(fields: [recipientUserId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, resourceType, resourceId, eventType, escalationLevel, windowDate, recipientUserId])
+  @@index([tenantId, windowDate, eventType])
+  @@map("follow_up_engine_events")
+}
+
+enum TargetScopeType {
+  tenant
+  branch
+  team
+  membership
+
+  @@map("target_scope_type")
+}
+
+enum PeriodType {
+  monthly
+  quarterly
+  yearly
+  custom
+  daily
+
+  @@map("period_type")
+}
+
+enum AchievementSource {
+  computed
+  manual
+
+  @@map("achievement_source")
+}
+
+model KpiDefinition {
+  code        String   @id
+  name        String
+  description String?
+  unit        String
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  targets Target[]
+
+  @@map("kpi_definitions")
+}
+
+model Target {
+  id          String          @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId    String          @map("tenant_id") @db.Uuid
+  scopeType   TargetScopeType @map("scope_type")
+  scopeId     String?         @map("scope_id") @db.Uuid
+  productId   String?         @map("product_id") @db.Uuid
+  metricCode  String          @map("metric_code")
+  periodType  PeriodType      @map("period_type")
+  periodStart DateTime        @map("period_start") @db.Date
+  periodEnd   DateTime        @map("period_end") @db.Date
+  targetValue Decimal         @map("target_value") @db.Decimal(18, 4)
+  notes       String?
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy   String?         @map("created_by") @db.Uuid
+  updatedBy   String?         @map("updated_by") @db.Uuid
+  deletedAt   DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  deletedBy   String?         @map("deleted_by") @db.Uuid
+  version     Int             @default(1)
+
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  product      Product?       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  kpi          KpiDefinition  @relation(fields: [metricCode], references: [code], onDelete: Restrict)
+  achievements Achievement[]
+
+  @@index([tenantId, periodStart, periodEnd])
+  @@index([tenantId, scopeType, scopeId])
+  @@index([tenantId, productId, periodStart])
+  @@index([tenantId, periodType, periodStart, periodEnd])
+  @@map("targets")
+}
+
+enum WarrantyStatus {
+  active
+  expired
+  claimed
+  void
+
+  @@map("warranty_status")
+}
+
+model WarrantyCard {
+  id                    String         @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId              String         @map("tenant_id") @db.Uuid
+  cardNumber            String         @map("card_number")
+  verifyToken           String         @map("verify_token")
+  leadId                String?        @map("lead_id") @db.Uuid
+  quotationId           String?        @map("quotation_id") @db.Uuid
+  contactId             String?        @map("contact_id") @db.Uuid
+  accountId             String?        @map("account_id") @db.Uuid
+  serialNumber          String?        @map("serial_number")
+  purchasedOn           DateTime?      @map("purchased_on") @db.Date
+  warrantyStartOn       DateTime       @map("warranty_start_on") @db.Date
+  warrantyEndOn         DateTime       @map("warranty_end_on") @db.Date
+  status                WarrantyStatus @default(active)
+  coverageNotes         String?        @map("coverage_notes")
+  issuedByMembershipId  String?        @map("issued_by_membership_id") @db.Uuid
+  createdAt             DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy             String?        @map("created_by") @db.Uuid
+  updatedBy             String?        @map("updated_by") @db.Uuid
+  deletedAt             DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  deletedBy             String?        @map("deleted_by") @db.Uuid
+  version               Int            @default(1)
+
+  tenant   Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  lead     Lead?       @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  quotation Quotation? @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  issuer   Membership? @relation("WarrantyIssuer", fields: [issuedByMembershipId], references: [id], onDelete: Restrict)
+  items    WarrantyCardItem[]
+
+  @@index([tenantId, cardNumber])
+  @@index([tenantId, warrantyEndOn])
+  @@index([tenantId, leadId])
+  @@map("warranty_cards")
+}
+
+model WarrantyCardItem {
+  id             String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  warrantyCardId String    @map("warranty_card_id") @db.Uuid
+  productId      String?   @map("product_id") @db.Uuid
+  description    String
+  serialNumber   String?   @map("serial_number")
+  quantity       Int       @default(1)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy      String?   @map("created_by") @db.Uuid
+  updatedBy      String?   @map("updated_by") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy      String?   @map("deleted_by") @db.Uuid
+  version        Int       @default(1)
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  card    WarrantyCard @relation(fields: [warrantyCardId], references: [id], onDelete: Cascade)
+  product Product?     @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([warrantyCardId])
+  @@map("warranty_card_items")
+}
+
+model Achievement {
+  id            String            @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId      String            @map("tenant_id") @db.Uuid
+  targetId      String            @map("target_id") @db.Uuid
+  membershipId  String?           @map("membership_id") @db.Uuid
+  achievedValue Decimal           @map("achieved_value") @db.Decimal(18, 4)
+  source        AchievementSource @default(computed)
+  recordedOn    DateTime          @default(dbgenerated("(timezone('utc', now()))::date")) @map("recorded_on") @db.Date
+  notes         String?
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy     String?           @map("created_by") @db.Uuid
+  updatedBy     String?           @map("updated_by") @db.Uuid
+  deletedAt     DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  deletedBy     String?           @map("deleted_by") @db.Uuid
+  version       Int               @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  target Target @relation(fields: [targetId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, targetId, recordedOn(sort: Desc)])
+  @@map("achievements")
+}
+
+enum AuditActorType {
+  user
+  system
+  integration
+
+  @@map("audit_actor_type")
+}
+
+model AuditLog {
+  id           String         @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId     String?        @map("tenant_id") @db.Uuid
+  actorId      String?        @map("actor_id") @db.Uuid
+  actorType    AuditActorType @map("actor_type")
+  action       String
+  resourceType String         @map("resource_type")
+  resourceId   String?        @map("resource_id") @db.Uuid
+  beforeData   Json?          @map("before_data")
+  afterData    Json?          @map("after_data")
+  requestId    String?        @map("request_id")
+  deviceId     String?        @map("device_id")
+  ipAddress    String?        @map("ip_address") @db.Inet
+  userAgent    String?        @map("user_agent")
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  actor  User?   @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@id([id, createdAt])
+  @@index([tenantId, resourceType, resourceId, createdAt(sort: Desc)])
+  @@index([tenantId, actorId, createdAt(sort: Desc)])
+  @@index([tenantId, action, createdAt(sort: Desc)])
+  @@map("audit_logs")
+}

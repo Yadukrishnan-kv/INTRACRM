@@ -1,0 +1,78 @@
+name: CD
+
+on:
+  push:
+    branches: [develop, main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options: [dev, staging, prod]
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build, migrate, deploy ECS
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'prod') || (github.ref == 'refs/heads/main' && 'staging') || 'dev' }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve environment
+        id: meta
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          if [ -z "$ENV" ]; then
+            if [[ "${{ github.ref }}" == refs/tags/v* ]]; then ENV=prod
+            elif [ "${{ github.ref }}" = "refs/heads/main" ]; then ENV=staging
+            else ENV=dev
+            fi
+          fi
+          echo "environment=$ENV" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      - name: Build and push API image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
+          ENV_NAME: ${{ steps.meta.outputs.environment }}
+        run: |
+          IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY"
+          docker build -f apps/api/Dockerfile -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:$ENV_NAME" .
+          docker push "$IMAGE:$IMAGE_TAG"
+          docker push "$IMAGE:$ENV_NAME"
+          echo "IMAGE=$IMAGE:$IMAGE_TAG" >> "$GITHUB_ENV"
+
+      - name: Apply schema and roll ECS
+        env:
+          IMAGE: ${{ env.IMAGE }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_API_FAMILY: ${{ vars.ECS_API_FAMILY }}
+          ECS_WORKER_FAMILY: ${{ vars.ECS_WORKER_FAMILY }}
+          ECS_MIGRATE_FAMILY: ${{ vars.ECS_MIGRATE_FAMILY }}
+          ECS_API_SERVICE: ${{ vars.ECS_API_SERVICE }}
+          ECS_WORKER_SERVICE: ${{ vars.ECS_WORKER_SERVICE }}
+          ECS_SUBNETS: ${{ vars.ECS_SUBNETS }}
+          ECS_SECURITY_GROUP: ${{ vars.ECS_SECURITY_GROUP }}
+        run: bash scripts/ecs-release.sh

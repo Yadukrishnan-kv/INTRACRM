@@ -1,0 +1,13 @@
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.idea/
+.vscode/
+*.iml
+*.lock
+.packages
+build/
+coverage/
+*.g.dart
+*.freezed.dart
+.DS_Store
