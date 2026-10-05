@@ -35,6 +35,7 @@ intra_leads_comms.sql
 intra_leads_billing.sql
 intra_leads_quotation_follow_up.sql
 intra_leads_targets.sql
+intra_leads_incentives.sql
 intra_leads_staff_performance.sql
 intra_leads_warranty.sql
 intra_leads_seed_rbac.sql

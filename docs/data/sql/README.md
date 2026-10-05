@@ -20,12 +20,13 @@ Production-grade PostgreSQL 17 schema for INTRA LEADS.
 13. intra_leads_billing.sql
 14. intra_leads_quotation_follow_up.sql
 15. intra_leads_targets.sql
-16. intra_leads_staff_performance.sql
-17. intra_leads_warranty.sql
-18. intra_leads_seed_rbac.sql
-19. intra_leads_rbac_product_roles.sql
-20. intra_leads_grants.sql
-21. intra_leads_rls.sql          # optional at launch
+16. intra_leads_incentives.sql
+17. intra_leads_staff_performance.sql
+18. intra_leads_warranty.sql
+19. intra_leads_seed_rbac.sql
+20. intra_leads_rbac_product_roles.sql
+21. intra_leads_grants.sql
+22. intra_leads_rls.sql          # optional at launch
 ```
 
 Example (local):
