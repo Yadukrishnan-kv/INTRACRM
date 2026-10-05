@@ -146,3 +146,121 @@ export function personalKpiItems(input: {
   ];
 }
 
+
+export const FOUNDER_KPI_CODES = [
+  'todays_follow_ups',
+  'mtd_billing',
+  'target_achieved',
+  'active_leads',
+  'pending_quotations',
+  'won_this_month',
+] as const;
+
+export type FounderKpiCode = (typeof FOUNDER_KPI_CODES)[number];
+
+/**
+ * How the client renders the figure. `money` values are minor currency,
+ * `percent` values are basis points, `count` values are plain integers.
+ */
+export type KpiFormat = 'count' | 'money' | 'percent';
+
+export type FounderKpiItem = {
+  code: FounderKpiCode;
+  title: string;
+  value: number;
+  format: KpiFormat;
+  /** Same-period comparison against the previous window; null when there is no base. */
+  deltaBps: number | null;
+  detail: string;
+};
+
+export function isFounderKpiCode(value: string): value is FounderKpiCode {
+  return (FOUNDER_KPI_CODES as readonly string[]).includes(value);
+}
+
+export type FounderKpiInput = {
+  followUpsDueToday: number;
+  followUpsOverdue: number;
+  billingMtdMinor: number;
+  billingPreviousMtdMinor: number;
+  salesTargetMinor: number;
+  salesAchievedMinor: number;
+  activeLeads: number;
+  activeLeadsPrevious: number;
+  pendingQuotations: number;
+  pendingQuotationValueMinor: number;
+  wonThisMonth: number;
+  wonPreviousMonth: number;
+};
+
+/**
+ * The six tiles at the top of the founder dashboard. Every tile carries its
+ * own format and a one-line detail, so the client renders the row without
+ * knowing what any individual metric means.
+ */
+export function founderKpiItems(input: FounderKpiInput): FounderKpiItem[] {
+  const targetBps =
+    input.salesTargetMinor <= 0
+      ? null
+      : Math.round((input.salesAchievedMinor / input.salesTargetMinor) * 10000);
+
+  return [
+    {
+      code: 'todays_follow_ups',
+      title: "Today's Follow-ups",
+      value: input.followUpsDueToday,
+      format: 'count',
+      deltaBps: null,
+      detail:
+        input.followUpsOverdue > 0
+          ? `${input.followUpsOverdue} overdue alongside today's queue`
+          : 'Nothing overdue',
+    },
+    {
+      code: 'mtd_billing',
+      title: 'MTD Billing',
+      value: input.billingMtdMinor,
+      format: 'money',
+      deltaBps: deltaBps(input.billingMtdMinor, input.billingPreviousMtdMinor),
+      detail: 'Invoiced this month to date',
+    },
+    {
+      code: 'target_achieved',
+      title: 'Target Achieved',
+      value: targetBps ?? 0,
+      format: 'percent',
+      deltaBps: null,
+      detail:
+        targetBps == null
+          ? 'No company revenue target this month'
+          : 'Company revenue target, month to date',
+    },
+    {
+      code: 'active_leads',
+      title: 'Active Leads',
+      value: input.activeLeads,
+      format: 'count',
+      deltaBps: deltaBps(input.activeLeads, input.activeLeadsPrevious),
+      detail: 'Open leads not won or lost',
+    },
+    {
+      code: 'pending_quotations',
+      title: 'Pending Quotations',
+      value: input.pendingQuotations,
+      format: 'count',
+      deltaBps: null,
+      detail:
+        input.pendingQuotationValueMinor > 0
+          ? 'Sent or negotiating, awaiting a decision'
+          : 'Nothing awaiting a decision',
+    },
+    {
+      code: 'won_this_month',
+      title: 'Won This Month',
+      value: input.wonThisMonth,
+      format: 'count',
+      deltaBps: deltaBps(input.wonThisMonth, input.wonPreviousMonth),
+      detail: 'Leads marked won since the first',
+    },
+  ];
+}

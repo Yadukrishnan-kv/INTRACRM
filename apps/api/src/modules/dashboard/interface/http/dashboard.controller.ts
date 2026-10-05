@@ -17,6 +17,12 @@ export class DashboardController {
     return this.dashboard.catalog();
   }
 
+  @Get('kpis')
+  @RequirePermissions(PERMISSION.dashboardRead)
+  kpis(@CurrentUser() actor: AuthUser) {
+    return this.dashboard.kpis(actor);
+  }
+
   @Get('me')
   @RequirePermissions(PERMISSION.dashboardSelf)
   mine(@CurrentUser() actor: AuthUser) {

@@ -33,6 +33,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 import { ReportingModule } from './modules/reporting/reporting.module';
 import { QuotationsModule } from './modules/quotations/quotations.module';
 import { TargetsModule } from './modules/targets/targets.module';
+import { IncentivesModule } from './modules/incentives/incentives.module';
 import { PerformanceModule } from './modules/performance/performance.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
@@ -73,6 +74,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AttendanceModule,
     QuotationsModule,
     TargetsModule,
+    IncentivesModule,
     PerformanceModule,
     DashboardModule,
     AnalyticsModule,

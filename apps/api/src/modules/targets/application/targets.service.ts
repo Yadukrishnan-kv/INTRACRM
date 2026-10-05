@@ -21,20 +21,43 @@ import {
 import { PrismaService } from '../../../prisma/prisma.service';
 import { formatYmd } from '../../tasks/domain/zoned-day';
 import {
+  BOARD_PERIOD_CATALOG,
+  BOARD_SCOPE_CATALOG,
+  BoardPeriodCode,
+  BoardScopeCode,
+  InsightRow,
+  Standing,
+  Suggestion,
+  buildInsights,
+  dailyAverage,
+  paceNote,
+  podium,
+  rankStandings,
+  suggestionsFor,
+} from '../domain/sales-board';
+import {
   PERIOD_CATALOG,
   PeriodTypeCode,
   SCOPE_CATALOG,
   ScopeTypeCode,
+  TargetAchievement,
+  addDaysYmd,
+  computeAchievement,
   dateToYmd,
+  daysInclusive,
   monthBoundsFromYmd,
+  periodLabel,
   periodRangeUtc,
+  quarterBoundsFromYmd,
   resolvePeriod,
+  yearBoundsFromYmd,
   ymdToUtcDate,
 } from '../domain/target-period';
 import { summarizeTargets } from '../domain/target-report';
 import { TargetMappedRow, TargetView, toTargetView } from './target.mapper';
 import {
   CreateTargetRequest,
+  SalesBoardQuery,
   TargetListQuery,
   TargetReportQuery,
   UpdateTargetRequest,
@@ -46,6 +69,86 @@ const targetInclude = {
 } satisfies Prisma.TargetInclude;
 
 type TargetRow = Prisma.TargetGetPayload<{ include: typeof targetInclude }>;
+
+const SALES_BOARD_LIMIT = 20;
+const SALES_BOARD_MEMBER_CAP = 500;
+const SALES_BOARD_SERIES_CAP = 5000;
+/** Enough rows to read the trail without shipping a whole year of days. */
+const SALES_BOARD_TRAIL_DAYS = 31;
+
+export type SalesBoardCard = TargetAchievement & {
+  membershipId: string | null;
+  name: string;
+  targetValue: number;
+  achievedValue: number;
+  dailyAverage: number;
+  rank: number | null;
+  rankOf: number;
+  pace: { status: 'on_track' | 'trailing'; title: string; detail: string };
+  forecastDelta: number | null;
+  achievement: TargetAchievement;
+};
+
+export type SalesBoardView = {
+  generatedAt: string;
+  timeZone: string;
+  today: string;
+  period: { code: BoardPeriodCode; title: string; start: string; end: string; label: string };
+  periods: typeof BOARD_PERIOD_CATALOG;
+  scopes: typeof BOARD_SCOPE_CATALOG;
+  scope: BoardScopeCode;
+  metric: { code: string; name: string; unit: string };
+  /** The viewer's own card, when they have a membership on the board. */
+  me: SalesBoardCard | null;
+  /** The company or team roll-up, shown when "My Target" is off. */
+  overall: SalesBoardCard;
+  standings: Standing[];
+  podium: Standing[];
+  insights: InsightRow[];
+  suggestions: Suggestion[];
+};
+
+/** Resolves a board period code against today in the tenant zone. */
+export function boardPeriodBounds(
+  code: BoardPeriodCode,
+  today: string,
+): { start: string; end: string; label: string } {
+  switch (code) {
+    case 'this_month': {
+      const bounds = monthBoundsFromYmd(today);
+      return { ...bounds, label: periodLabel('monthly', bounds.start, bounds.end) };
+    }
+    case 'last_month': {
+      const thisMonth = monthBoundsFromYmd(today);
+      const bounds = monthBoundsFromYmd(addDaysYmd(thisMonth.start, -1));
+      return { ...bounds, label: periodLabel('monthly', bounds.start, bounds.end) };
+    }
+    case 'this_quarter': {
+      const bounds = quarterBoundsFromYmd(today);
+      return { ...bounds, label: periodLabel('quarterly', bounds.start, bounds.end) };
+    }
+    case 'this_year': {
+      const bounds = yearBoundsFromYmd(today);
+      return { ...bounds, label: today.slice(0, 4) };
+    }
+  }
+}
+
+/**
+ * The days the Insights table covers: everything elapsed, trimmed to the most
+ * recent window so a yearly board does not ship 365 rows. A period that has
+ * not opened yet has no trail.
+ */
+export function boardDays(periodStart: string, periodEnd: string, today: string): string[] {
+  if (today < periodStart) {
+    return [];
+  }
+  const last = today > periodEnd ? periodEnd : today;
+  const span = daysInclusive(periodStart, last);
+  const count = Math.min(span, SALES_BOARD_TRAIL_DAYS);
+  const first = addDaysYmd(last, -(count - 1));
+  return Array.from({ length: count }, (_, index) => addDaysYmd(first, index));
+}
 
 @Injectable()
 export class TargetsService {
@@ -489,6 +592,535 @@ export class TargetsService {
       })),
       now,
     );
+  }
+
+  /**
+   * The monthly sales-target board: the viewer's gauge, the company or team
+   * roll-up behind the "My Target" toggle, the ranking everyone is measured
+   * on, the day-by-day trail, and the nudges that close the gap.
+   *
+   * Both cards come back in one response so flipping the toggle is free.
+   */
+  async salesBoard(actor: AuthUser, query: SalesBoardQuery): Promise<SalesBoardView> {
+    const tenantId = this.requireTenant(actor);
+    const timeZone = await this.tenantZone(tenantId);
+    const now = new Date();
+    const today = formatYmd(now, timeZone);
+    const periodCode: BoardPeriodCode = query.period ?? 'this_month';
+    const scopeCode: BoardScopeCode = query.scope ?? 'tenant';
+    const metricCode = query.metricCode ?? 'revenue';
+    const limit = query.limit ?? SALES_BOARD_LIMIT;
+    const period = boardPeriodBounds(periodCode, today);
+    const range = periodRangeUtc(period.start, period.end, timeZone);
+
+    const kpi = await this.prisma.kpiDefinition.findUnique({
+      where: { code: metricCode },
+      select: { code: true, name: true, unit: true },
+    });
+    if (!kpi) {
+      throw new AppException(HttpStatus.BAD_REQUEST, 'Unknown metric', {
+        code: ErrorCodes.BAD_REQUEST,
+      });
+    }
+
+    const viewerMembershipId = actor.membershipId ?? null;
+    const viewer = viewerMembershipId
+      ? await this.prisma.membership.findFirst({
+          where: { id: viewerMembershipId, tenantId, deletedAt: null },
+          select: { id: true, teamId: true },
+        })
+      : null;
+
+    // 'team' narrows the board to the viewer's team; without a team it is the
+    // same board as 'tenant' rather than an empty one.
+    const teamId = scopeCode === 'team' ? (viewer?.teamId ?? null) : null;
+    const members = await this.prisma.membership.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: MembershipStatus.active,
+        ...(teamId ? { OR: [{ teamId }, { teamLinks: { some: { teamId } } }] } : {}),
+      },
+      select: {
+        id: true,
+        designation: true,
+        user: { select: { fullName: true } },
+        team: { select: { name: true } },
+      },
+      take: SALES_BOARD_MEMBER_CAP,
+    });
+    const memberIds = members.map((member) => member.id);
+
+    const [memberTargets, scopeTargets, achievedByMember] = await Promise.all([
+      this.prisma.target.findMany({
+        where: {
+          tenantId,
+          deletedAt: null,
+          metricCode,
+          scopeType: TargetScopeType.membership,
+          scopeId: { in: memberIds },
+          periodStart: { lte: ymdToUtcDate(period.end) },
+          periodEnd: { gte: ymdToUtcDate(period.start) },
+        },
+        select: { scopeId: true, targetValue: true },
+      }),
+      this.prisma.target.findMany({
+        where: {
+          tenantId,
+          deletedAt: null,
+          metricCode,
+          scopeType: teamId ? TargetScopeType.team : TargetScopeType.tenant,
+          ...(teamId ? { scopeId: teamId } : {}),
+          periodStart: { lte: ymdToUtcDate(period.end) },
+          periodEnd: { gte: ymdToUtcDate(period.start) },
+        },
+        select: { id: true, targetValue: true },
+      }),
+      this.achievedByMember({
+        tenantId,
+        metricCode,
+        membershipIds: memberIds,
+        from: range.from,
+        toExclusive: range.toExclusive,
+      }),
+    ]);
+
+    const targetByMember = new Map<string, number>();
+    for (const row of memberTargets) {
+      if (!row.scopeId) {
+        continue;
+      }
+      targetByMember.set(
+        row.scopeId,
+        (targetByMember.get(row.scopeId) ?? 0) + Number(row.targetValue),
+      );
+    }
+
+    const standings = rankStandings(
+      members.map((member) => {
+        const targetValue = targetByMember.get(member.id) ?? 0;
+        const achievedValue = achievedByMember.get(member.id) ?? 0;
+        const achievement = computeAchievement({
+          achievedValue,
+          targetValue,
+          periodStart: period.start,
+          periodEnd: period.end,
+          today,
+        });
+        return {
+          membershipId: member.id,
+          name: member.user.fullName,
+          designation: member.designation,
+          teamName: member.team?.name ?? null,
+          targetValue,
+          achievedValue,
+          achievementBps: achievement.achievementBps,
+          onTrack: achievement.onTrack,
+        };
+      }),
+    );
+
+    // A scope-level target is authoritative when one is set; otherwise the
+    // roll-up is the sum of the individual quotas, which is what the ranking
+    // already adds up to.
+    const scopeTargetValue = scopeTargets.reduce((sum, row) => sum + Number(row.targetValue), 0);
+    const overallTarget =
+      scopeTargetValue > 0
+        ? scopeTargetValue
+        : standings.reduce((sum, row) => sum + row.targetValue, 0);
+    const overallAchieved = standings.reduce((sum, row) => sum + row.achievedValue, 0);
+
+    const mine = viewerMembershipId
+      ? (standings.find((row) => row.membershipId === viewerMembershipId) ?? null)
+      : null;
+
+    // The insights trail and the suggestions follow whichever card the viewer
+    // is looking at: their own row when they have one, the roll-up otherwise.
+    const focusMemberIds = mine ? [mine.membershipId] : memberIds;
+    const [points, rates] = await Promise.all([
+      this.dailyPoints({
+        tenantId,
+        metricCode,
+        membershipIds: focusMemberIds,
+        from: range.from,
+        toExclusive: range.toExclusive,
+        timeZone,
+        days: boardDays(period.start, period.end, today),
+      }),
+      this.activityRates({
+        tenantId,
+        membershipIds: focusMemberIds,
+        from: range.from,
+        toExclusive: range.toExclusive,
+      }),
+    ]);
+
+    const focusCard = mine
+      ? this.boardCard({
+          membershipId: mine.membershipId,
+          name: mine.name,
+          targetValue: mine.targetValue,
+          achievedValue: mine.achievedValue,
+          period,
+          today,
+          rank: mine.rank,
+          rankOf: standings.length,
+        })
+      : null;
+    const overallCard = this.boardCard({
+      membershipId: null,
+      name: teamId ? (members[0]?.team?.name ?? 'Team') : 'Company',
+      targetValue: overallTarget,
+      achievedValue: overallAchieved,
+      period,
+      today,
+      rank: null,
+      rankOf: standings.length,
+    });
+
+    const focus = focusCard ?? overallCard;
+    return {
+      generatedAt: now.toISOString(),
+      timeZone,
+      today,
+      period: {
+        code: periodCode,
+        title: BOARD_PERIOD_CATALOG.find((entry) => entry.code === periodCode)?.title ?? periodCode,
+        start: period.start,
+        end: period.end,
+        label: period.label,
+      },
+      periods: BOARD_PERIOD_CATALOG,
+      scopes: BOARD_SCOPE_CATALOG,
+      scope: scopeCode,
+      metric: { code: kpi.code, name: kpi.name, unit: kpi.unit },
+      me: focusCard,
+      overall: overallCard,
+      standings: standings.slice(0, limit),
+      podium: podium(standings),
+      insights: buildInsights(points),
+      suggestions: suggestionsFor({
+        achievement: focus.achievement,
+        dailyAverage: focus.dailyAverage,
+        followUpCompletionBps: rates.followUpCompletionBps,
+        visitCompletionBps: rates.visitCompletionBps,
+      }),
+    };
+  }
+
+  /**
+   * Achieved value per membership over a calendar period, in the tenant zone.
+   * Public because the incentive engine measures the same thing the board
+   * does, and both must agree to the rupee.
+   */
+  async achievedForMembers(params: {
+    tenantId: string;
+    metricCode: string;
+    membershipIds: string[];
+    periodStart: string;
+    periodEnd: string;
+    timeZone: string;
+  }): Promise<Map<string, number>> {
+    const range = periodRangeUtc(params.periodStart, params.periodEnd, params.timeZone);
+    return this.achievedByMember({
+      tenantId: params.tenantId,
+      metricCode: params.metricCode,
+      membershipIds: params.membershipIds,
+      from: range.from,
+      toExclusive: range.toExclusive,
+    });
+  }
+
+  /** The tenant's configured time zone; shared with modules that report on periods. */
+  async timeZoneFor(tenantId: string): Promise<string> {
+    return this.tenantZone(tenantId);
+  }
+
+  private boardCard(input: {
+    membershipId: string | null;
+    name: string;
+    targetValue: number;
+    achievedValue: number;
+    period: { start: string; end: string; label: string };
+    today: string;
+    rank: number | null;
+    rankOf: number;
+  }): SalesBoardCard {
+    const achievement = computeAchievement({
+      achievedValue: input.achievedValue,
+      targetValue: input.targetValue,
+      periodStart: input.period.start,
+      periodEnd: input.period.end,
+      today: input.today,
+    });
+    return {
+      membershipId: input.membershipId,
+      name: input.name,
+      targetValue: input.targetValue,
+      achievedValue: input.achievedValue,
+      dailyAverage: dailyAverage(input.achievedValue, achievement.daysElapsed),
+      rank: input.rank,
+      rankOf: input.rankOf,
+      pace: paceNote(achievement),
+      // The forecast card shows the gap to target, signed: +10K over, -10K under.
+      forecastDelta:
+        achievement.forecastValue == null
+          ? null
+          : Math.round((achievement.forecastValue - input.targetValue) * 100) / 100,
+      achievement,
+      ...achievement,
+    };
+  }
+
+  /**
+   * Achieved value per membership in one pass. Metrics that hang off a
+   * membership column group in the database; the rest fall back to the
+   * per-target path, which is correct but one query per member.
+   */
+  private async achievedByMember(params: {
+    tenantId: string;
+    metricCode: string;
+    membershipIds: string[];
+    from: Date;
+    toExclusive: Date;
+  }): Promise<Map<string, number>> {
+    const out = new Map<string, number>();
+    if (params.membershipIds.length === 0) {
+      return out;
+    }
+    const ids = { in: params.membershipIds };
+    const window = { gte: params.from, lt: params.toExclusive };
+
+    switch (params.metricCode) {
+      case 'revenue': {
+        const rows = await this.prisma.quotation.groupBy({
+          by: ['assignedToMembershipId'],
+          _sum: { totalMinor: true },
+          where: {
+            tenantId: params.tenantId,
+            deletedAt: null,
+            status: QuotationStatus.won,
+            wonAt: window,
+            assignedToMembershipId: ids,
+          },
+        });
+        for (const row of rows) {
+          if (row.assignedToMembershipId) {
+            out.set(row.assignedToMembershipId, Number(row._sum.totalMinor ?? 0));
+          }
+        }
+        return out;
+      }
+      case 'quotations_accepted': {
+        const rows = await this.prisma.quotation.groupBy({
+          by: ['assignedToMembershipId'],
+          _count: { _all: true },
+          where: {
+            tenantId: params.tenantId,
+            deletedAt: null,
+            status: QuotationStatus.won,
+            wonAt: window,
+            assignedToMembershipId: ids,
+          },
+        });
+        for (const row of rows) {
+          if (row.assignedToMembershipId) {
+            out.set(row.assignedToMembershipId, row._count._all);
+          }
+        }
+        return out;
+      }
+      case 'follow_ups_completed': {
+        const rows = await this.prisma.followUp.groupBy({
+          by: ['assignedToMembershipId'],
+          _count: { _all: true },
+          where: {
+            tenantId: params.tenantId,
+            deletedAt: null,
+            status: FollowUpStatus.completed,
+            completedAt: window,
+            assignedToMembershipId: ids,
+          },
+        });
+        for (const row of rows) {
+          out.set(row.assignedToMembershipId, row._count._all);
+        }
+        return out;
+      }
+      case 'leads_created': {
+        const rows = await this.prisma.lead.groupBy({
+          by: ['ownerMembershipId'],
+          _count: { _all: true },
+          where: {
+            tenantId: params.tenantId,
+            deletedAt: null,
+            createdAt: window,
+            ownerMembershipId: ids,
+          },
+        });
+        for (const row of rows) {
+          if (row.ownerMembershipId) {
+            out.set(row.ownerMembershipId, row._count._all);
+          }
+        }
+        return out;
+      }
+      default: {
+        for (const membershipId of params.membershipIds) {
+          out.set(
+            membershipId,
+            await this.achievedValue({
+              tenantId: params.tenantId,
+              metricCode: params.metricCode,
+              productId: null,
+              from: params.from,
+              toExclusive: params.toExclusive,
+              membershipIds: [membershipId],
+            }),
+          );
+        }
+        return out;
+      }
+    }
+  }
+
+  /**
+   * The Insights trail: one point per elapsed day. Days that booked nothing
+   * still appear, so the running average divides by the right denominator.
+   */
+  private async dailyPoints(params: {
+    tenantId: string;
+    metricCode: string;
+    membershipIds: string[];
+    from: Date;
+    toExclusive: Date;
+    timeZone: string;
+    days: string[];
+  }): Promise<Array<{ date: string; value: number }>> {
+    const totals = new Map(params.days.map((day) => [day, 0]));
+    if (params.membershipIds.length === 0 || params.days.length === 0) {
+      return params.days.map((date) => ({ date, value: 0 }));
+    }
+    const ids = { in: params.membershipIds };
+    const window = { gte: params.from, lt: params.toExclusive };
+
+    const add = (at: Date | null, value: number) => {
+      if (at == null) {
+        return;
+      }
+      const day = formatYmd(at, params.timeZone);
+      if (totals.has(day)) {
+        totals.set(day, (totals.get(day) ?? 0) + value);
+      }
+    };
+
+    if (params.metricCode === 'revenue' || params.metricCode === 'quotations_accepted') {
+      const rows = await this.prisma.quotation.findMany({
+        where: {
+          tenantId: params.tenantId,
+          deletedAt: null,
+          status: QuotationStatus.won,
+          wonAt: window,
+          assignedToMembershipId: ids,
+        },
+        select: { wonAt: true, totalMinor: true },
+        take: SALES_BOARD_SERIES_CAP,
+      });
+      for (const row of rows) {
+        add(row.wonAt, params.metricCode === 'revenue' ? Number(row.totalMinor) : 1);
+      }
+    } else if (params.metricCode === 'follow_ups_completed') {
+      const rows = await this.prisma.followUp.findMany({
+        where: {
+          tenantId: params.tenantId,
+          deletedAt: null,
+          status: FollowUpStatus.completed,
+          completedAt: window,
+          assignedToMembershipId: ids,
+        },
+        select: { completedAt: true },
+        take: SALES_BOARD_SERIES_CAP,
+      });
+      for (const row of rows) {
+        add(row.completedAt, 1);
+      }
+    } else if (params.metricCode === 'leads_created') {
+      const rows = await this.prisma.lead.findMany({
+        where: {
+          tenantId: params.tenantId,
+          deletedAt: null,
+          createdAt: window,
+          ownerMembershipId: ids,
+        },
+        select: { createdAt: true },
+        take: SALES_BOARD_SERIES_CAP,
+      });
+      for (const row of rows) {
+        add(row.createdAt, 1);
+      }
+    }
+
+    return params.days.map((date) => ({ date, value: totals.get(date) ?? 0 }));
+  }
+
+  /**
+   * Completion rates behind the suggestions: how much of the scheduled work
+   * in the period actually closed. Null when nothing was scheduled — there is
+   * no rate to improve and no suggestion to make.
+   */
+  private async activityRates(params: {
+    tenantId: string;
+    membershipIds: string[];
+    from: Date;
+    toExclusive: Date;
+  }): Promise<{ followUpCompletionBps: number | null; visitCompletionBps: number | null }> {
+    if (params.membershipIds.length === 0) {
+      return { followUpCompletionBps: null, visitCompletionBps: null };
+    }
+    const ids = { in: params.membershipIds };
+    const window = { gte: params.from, lt: params.toExclusive };
+    const [followUpsDue, followUpsDone, visitsDue, visitsDone] = await Promise.all([
+      this.prisma.followUp.count({
+        where: {
+          tenantId: params.tenantId,
+          deletedAt: null,
+          dueAt: window,
+          assignedToMembershipId: ids,
+        },
+      }),
+      this.prisma.followUp.count({
+        where: {
+          tenantId: params.tenantId,
+          deletedAt: null,
+          dueAt: window,
+          status: FollowUpStatus.completed,
+          assignedToMembershipId: ids,
+        },
+      }),
+      this.prisma.siteVisit.count({
+        where: {
+          tenantId: params.tenantId,
+          deletedAt: null,
+          scheduledAt: window,
+          assignedToMembershipId: ids,
+        },
+      }),
+      this.prisma.siteVisit.count({
+        where: {
+          tenantId: params.tenantId,
+          deletedAt: null,
+          scheduledAt: window,
+          status: SiteVisitStatus.completed,
+          assignedToMembershipId: ids,
+        },
+      }),
+    ]);
+    const rate = (done: number, due: number) =>
+      due <= 0 ? null : Math.round((Math.min(done, due) / due) * 10000);
+    return {
+      followUpCompletionBps: rate(followUpsDone, followUpsDue),
+      visitCompletionBps: rate(visitsDone, visitsDue),
+    };
   }
 
   private newProgressSession(tenantId: string, timeZone: string, now: Date, today: string) {

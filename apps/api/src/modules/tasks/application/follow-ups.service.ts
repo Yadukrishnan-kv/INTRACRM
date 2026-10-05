@@ -14,6 +14,12 @@ import { TIMELINE_EVENT } from '../../activities/domain/timeline-events';
 import { TimelineWriter } from '../../activities/application/timeline.writer';
 import { AuditWriter, trackPayload } from '../../audit/application/audit.writer';
 import { TRACK_ACTION, TRACK_RESOURCE } from '../../audit/domain/track-events';
+import {
+  CalendarMonth,
+  buildCalendarMonth,
+  gridRange,
+  isMonthKey,
+} from '../domain/follow-up-calendar';
 import { summarizeFollowUps } from '../domain/follow-up-report';
 import {
   defaultTitleForType,
@@ -22,9 +28,12 @@ import {
 } from '../domain/follow-up-types';
 import { FollowUpView, toFollowUpView } from './follow-up.mapper';
 import { FollowUpEngineService } from './follow-up-engine.service';
+import { addDaysYmd } from '../../targets/domain/target-period';
+import { formatYmd, zonedLocalToUtc } from '../domain/zoned-day';
 import {
   CompleteFollowUpRequest,
   CreateFollowUpRequest,
+  FollowUpCalendarQuery,
   FollowUpListQuery,
   FollowUpReportQuery,
   RescheduleFollowUpRequest,
@@ -33,10 +42,21 @@ import {
 
 const followUpInclude = {
   assignee: { include: { user: true } },
-  lead: { select: { id: true, leadNumber: true, title: true, customerName: true } },
+  lead: {
+    select: {
+      id: true,
+      leadNumber: true,
+      title: true,
+      customerName: true,
+      primaryPhone: true,
+    },
+  },
 } satisfies Prisma.FollowUpInclude;
 
 type FollowUpRow = Prisma.FollowUpGetPayload<{ include: typeof followUpInclude }>;
+
+/** A six-week grid of one tenant's follow-ups; far past any real month. */
+const CALENDAR_ENTRY_CAP = 5000;
 
 export type NestedFollowUpInput = {
   type?: string;
@@ -97,6 +117,15 @@ export class FollowUpsService {
     } else if (query.status) {
       where.status = query.status;
     }
+    // Composed with AND rather than assigned, so a calendar day narrows a
+    // bucket filter instead of replacing the window the bucket set.
+    const dueWindow = await this.dueWindow(tenantId, query);
+    if (dueWindow) {
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+        { dueAt: dueWindow },
+      ];
+    }
     if (query.cursor) {
       try {
         const cursor = decodeCursor(query.cursor);
@@ -105,9 +134,14 @@ export class FollowUpsService {
         if (!dueAt || !id) {
           throw new Error('Invalid cursor');
         }
-        where.OR = [
-          { dueAt: { gt: new Date(dueAt) } },
-          { dueAt: new Date(dueAt), id: { gt: id } },
+        where.AND = [
+          ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+          {
+            OR: [
+              { dueAt: { gt: new Date(dueAt) } },
+              { dueAt: new Date(dueAt), id: { gt: id } },
+            ],
+          },
         ];
       } catch {
         throw new AppException(HttpStatus.BAD_REQUEST, 'Invalid cursor', {
@@ -425,6 +459,70 @@ export class FollowUpsService {
       })),
       { now: new Date(), timeZone },
     );
+  }
+
+  /**
+   * Per-day counts for one month of the follow-up calendar. The six-week grid
+   * the client paints reaches into the neighbouring months, so the query
+   * covers the grid rather than the month.
+   */
+  async calendar(actor: AuthUser, query: FollowUpCalendarQuery): Promise<CalendarMonth> {
+    const tenantId = this.requireTenant(actor);
+    const timeZone = await this.tenantZone(tenantId);
+    const now = new Date();
+    const month = query.month ?? formatYmd(now, timeZone).slice(0, 7);
+    if (!isMonthKey(month)) {
+      throw new AppException(HttpStatus.BAD_REQUEST, 'Invalid month', {
+        code: ErrorCodes.BAD_REQUEST,
+        detail: 'month must be YYYY-MM.',
+      });
+    }
+    const grid = gridRange(month);
+    const entries = await this.prisma.followUp.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        dueAt: {
+          gte: zonedLocalToUtc(grid.start, 0, 0, 0, timeZone),
+          lt: zonedLocalToUtc(addDaysYmd(grid.end, 1), 0, 0, 0, timeZone),
+        },
+        ...(query.assignedToMembershipId
+          ? { assignedToMembershipId: query.assignedToMembershipId }
+          : {}),
+        ...(query.type ? { type: query.type } : {}),
+      },
+      select: { dueAt: true, status: true },
+      take: CALENDAR_ENTRY_CAP,
+    });
+    return buildCalendarMonth({ month, entries, timeZone, now });
+  }
+
+  /**
+   * Turns the `dueOn` / `dueFrom` / `dueTo` query into a UTC instant range.
+   * The bounds are tenant-local calendar days, and the upper bound is
+   * exclusive of the day after, so a whole day is covered without relying on
+   * end-of-day arithmetic.
+   */
+  private async dueWindow(
+    tenantId: string,
+    query: FollowUpListQuery,
+  ): Promise<{ gte?: Date; lt?: Date } | null> {
+    const from = query.dueOn ?? query.dueFrom;
+    const to = query.dueOn ?? query.dueTo;
+    if (!from && !to) {
+      return null;
+    }
+    if (from && to && to < from) {
+      throw new AppException(HttpStatus.BAD_REQUEST, 'Invalid date range', {
+        code: ErrorCodes.BAD_REQUEST,
+        detail: 'dueTo must be on or after dueFrom.',
+      });
+    }
+    const timeZone = await this.tenantZone(tenantId);
+    return {
+      ...(from ? { gte: zonedLocalToUtc(from, 0, 0, 0, timeZone) } : {}),
+      ...(to ? { lt: zonedLocalToUtc(addDaysYmd(to, 1), 0, 0, 0, timeZone) } : {}),
+    };
   }
 
   private async requireFollowUp(

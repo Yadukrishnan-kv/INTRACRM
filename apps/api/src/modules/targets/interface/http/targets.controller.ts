@@ -18,6 +18,7 @@ import { PERMISSION } from '../../../identity/domain/system-roles';
 import { TargetsService } from '../../application/targets.service';
 import {
   CreateTargetRequest,
+  SalesBoardQuery,
   TargetListQuery,
   UpdateTargetRequest,
 } from './dto/target.dto';
@@ -38,6 +39,12 @@ export class TargetsController {
   @RequirePermissions(PERMISSION.targetRead)
   progress(@CurrentUser() actor: AuthUser) {
     return this.targets.progress(actor);
+  }
+
+  @Get('sales-board')
+  @RequirePermissions(PERMISSION.targetRead)
+  salesBoard(@CurrentUser() actor: AuthUser, @Query() query: SalesBoardQuery) {
+    return this.targets.salesBoard(actor, query);
   }
 
   @Get()

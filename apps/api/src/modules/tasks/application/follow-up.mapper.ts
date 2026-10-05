@@ -16,6 +16,8 @@ export type FollowUpView = {
   leadId: string;
   leadNumber: string | null;
   leadTitle: string | null;
+  leadCustomerName: string | null;
+  leadPhone: string | null;
   completedAt: string | null;
   rescheduleCount: number;
   lastRescheduledAt: string | null;
@@ -44,7 +46,8 @@ export type FollowUpMappedRow = {
     id: string;
     leadNumber: string;
     title: string;
-    customerName: string | null;
+    customerName?: string | null;
+    primaryPhone?: string | null;
   } | null;
 };
 
@@ -70,6 +73,8 @@ export function toFollowUpView(
     leadId,
     leadNumber: row.lead?.leadNumber ?? lead?.leadNumber ?? null,
     leadTitle: row.lead?.title ?? lead?.title ?? null,
+    leadCustomerName: row.lead?.customerName ?? null,
+    leadPhone: row.lead?.primaryPhone ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
     rescheduleCount: row.rescheduleCount ?? 0,
     lastRescheduledAt: row.lastRescheduledAt?.toISOString() ?? null,

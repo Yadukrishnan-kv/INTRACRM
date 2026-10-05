@@ -33,7 +33,6 @@ export class CommsGateway {
   ) {}
 
   capabilities() {
-    const comms = this.config.get('comms', { infer: true });
     return {
       call: {
         mode: this.canTwilioCall() ? 'bridged' : 'device',

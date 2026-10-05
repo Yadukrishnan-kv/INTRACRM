@@ -1,4 +1,13 @@
-import { buildSeries, deltaBps, isDashboardWidgetCode, personalKpiItems, trailingDays } from './dashboard-metrics';
+import {
+  FOUNDER_KPI_CODES,
+  buildSeries,
+  deltaBps,
+  founderKpiItems,
+  isDashboardWidgetCode,
+  isFounderKpiCode,
+  personalKpiItems,
+  trailingDays,
+} from './dashboard-metrics';
 
 describe('founder dashboard metrics', () => {
   it('computes period deltas in basis points', () => {
@@ -52,5 +61,66 @@ describe('founder dashboard metrics', () => {
     ]);
     expect(items[0]?.detail).toContain('2 won');
     expect(items[2]?.detail).toContain('₹500 of ₹1000');
+  });
+});
+
+describe('founder KPI cards', () => {
+  const base = {
+    followUpsDueToday: 24,
+    followUpsOverdue: 3,
+    billingMtdMinor: 185_000_000,
+    billingPreviousMtdMinor: 148_000_000,
+    salesTargetMinor: 350_000_000,
+    salesAchievedMinor: 185_500_000,
+    activeLeads: 142,
+    activeLeadsPrevious: 130,
+    pendingQuotations: 32,
+    pendingQuotationValueMinor: 90_000_000,
+    wonThisMonth: 12,
+    wonPreviousMonth: 10,
+  };
+
+  it('emits the six tiles in display order with their formats', () => {
+    const items = founderKpiItems(base);
+    expect(items.map((item) => item.code)).toEqual([...FOUNDER_KPI_CODES]);
+    expect(items.map((item) => item.format)).toEqual([
+      'count',
+      'money',
+      'percent',
+      'count',
+      'count',
+      'count',
+    ]);
+    expect(items.map((item) => item.value)).toEqual([24, 185_000_000, 5300, 142, 32, 12]);
+  });
+
+  it('reports target achievement in basis points', () => {
+    const [, , target] = founderKpiItems(base);
+    expect(target.value).toBe(5300); // 1.855Cr of 3.5Cr
+    expect(target.detail).toBe('Company revenue target, month to date');
+  });
+
+  it('shows zero rather than dividing by a missing target', () => {
+    const [, , target] = founderKpiItems({ ...base, salesTargetMinor: 0 });
+    expect(target.value).toBe(0);
+    expect(target.detail).toBe('No company revenue target this month');
+  });
+
+  it('carries a period-on-period delta where there is a base to compare with', () => {
+    const items = founderKpiItems(base);
+    expect(items[1].deltaBps).toBe(2500); // billing 1.48Cr → 1.85Cr
+    expect(items[3].deltaBps).toBe(923);
+    expect(items[5].deltaBps).toBe(2000);
+    expect(items[0].deltaBps).toBeNull();
+  });
+
+  it('calls out overdue work on the follow-up tile', () => {
+    expect(founderKpiItems(base)[0].detail).toBe("3 overdue alongside today's queue");
+    expect(founderKpiItems({ ...base, followUpsOverdue: 0 })[0].detail).toBe('Nothing overdue');
+  });
+
+  it('reads back its own codes', () => {
+    expect(isFounderKpiCode('mtd_billing')).toBe(true);
+    expect(isFounderKpiCode('mrr')).toBe(false);
   });
 });

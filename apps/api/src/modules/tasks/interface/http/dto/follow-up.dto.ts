@@ -8,16 +8,20 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
 import { CursorPageQueryDto } from '../../../../../common/pagination/cursor-page';
+import { MONTH_RULE } from '../../../domain/follow-up-calendar';
 import {
   FOLLOW_UP_STATUSES,
   FOLLOW_UP_TYPES,
 } from '../../../domain/follow-up-types';
+
+const YMD_RULE = /^\d{4}-\d{2}-\d{2}$/;
 
 export class FollowUpListQuery extends CursorPageQueryDto {
   @ApiPropertyOptional({ enum: FOLLOW_UP_STATUSES })
@@ -58,6 +62,40 @@ export class FollowUpListQuery extends CursorPageQueryDto {
   @IsOptional()
   @IsIn(['overdue', 'today', 'upcoming'])
   bucket?: 'overdue' | 'today' | 'upcoming';
+
+  @ApiPropertyOptional({
+    description: 'Calendar day (YYYY-MM-DD) in the tenant zone. Overrides dueFrom/dueTo.',
+  })
+  @IsOptional()
+  @Matches(YMD_RULE, { message: 'dueOn must be YYYY-MM-DD' })
+  dueOn?: string;
+
+  @ApiPropertyOptional({ description: 'Inclusive lower bound, YYYY-MM-DD in the tenant zone.' })
+  @IsOptional()
+  @Matches(YMD_RULE, { message: 'dueFrom must be YYYY-MM-DD' })
+  dueFrom?: string;
+
+  @ApiPropertyOptional({ description: 'Inclusive upper bound, YYYY-MM-DD in the tenant zone.' })
+  @IsOptional()
+  @Matches(YMD_RULE, { message: 'dueTo must be YYYY-MM-DD' })
+  dueTo?: string;
+}
+
+export class FollowUpCalendarQuery {
+  @ApiPropertyOptional({ description: 'Month to paint, YYYY-MM. Defaults to the current month.' })
+  @IsOptional()
+  @Matches(MONTH_RULE, { message: 'month must be YYYY-MM' })
+  month?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  assignedToMembershipId?: string;
+
+  @ApiPropertyOptional({ enum: FOLLOW_UP_TYPES })
+  @IsOptional()
+  @IsIn([...FOLLOW_UP_TYPES])
+  type?: (typeof FOLLOW_UP_TYPES)[number];
 }
 
 export class CreateFollowUpRequest {

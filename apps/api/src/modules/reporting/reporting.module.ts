@@ -10,12 +10,14 @@ import { StaffReportController } from './interface/http/staff-report.controller'
 import { SiteVisitsModule } from '../site-visits/site-visits.module';
 import { AttendanceModule } from '../attendance/attendance.module';
 import { QuotationsModule } from '../quotations/quotations.module';
+import { IncentivesModule } from '../incentives/incentives.module';
 import { TargetsModule } from '../targets/targets.module';
 import { PerformanceModule } from '../performance/performance.module';
 import { DashboardModule } from '../dashboard/dashboard.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { WarrantiesModule } from '../warranties/warranties.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { IncentiveReportController } from './interface/http/incentive-report.controller';
 import { TargetReportController } from './interface/http/target-report.controller';
 import { PerformanceReportController } from './interface/http/performance-report.controller';
 import { DashboardReportController } from './interface/http/dashboard-report.controller';
@@ -40,6 +42,7 @@ import { ReportExportService } from './application/report-export.service';
     AttendanceModule,
     QuotationsModule,
     TargetsModule,
+    IncentivesModule,
     PerformanceModule,
     DashboardModule,
     AnalyticsModule,
@@ -55,6 +58,7 @@ import { ReportExportService } from './application/report-export.service';
     QuotationReportController,
     SalesReportController,
     TargetReportController,
+    IncentiveReportController,
     PerformanceReportController,
     DashboardReportController,
     AnalyticsReportController,

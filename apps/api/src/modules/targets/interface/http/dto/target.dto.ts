@@ -9,10 +9,12 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
 import { CursorPageQueryDto } from '../../../../../common/pagination/cursor-page';
+import { BOARD_PERIODS, BOARD_SCOPES } from '../../../domain/sales-board';
 import { PERIOD_TYPES, SCOPE_TYPES } from '../../../domain/target-period';
 
 export class TargetListQuery extends CursorPageQueryDto {
@@ -201,4 +203,30 @@ export class TargetReportQuery {
   @IsOptional()
   @IsIn([...SCOPE_TYPES])
   scopeType?: (typeof SCOPE_TYPES)[number];
+}
+
+export class SalesBoardQuery {
+  @ApiPropertyOptional({ enum: BOARD_PERIODS, default: 'this_month' })
+  @IsOptional()
+  @IsIn([...BOARD_PERIODS])
+  period?: (typeof BOARD_PERIODS)[number];
+
+  @ApiPropertyOptional({ enum: BOARD_SCOPES, default: 'tenant' })
+  @IsOptional()
+  @IsIn([...BOARD_SCOPES])
+  scope?: (typeof BOARD_SCOPES)[number];
+
+  @ApiPropertyOptional({ default: 'revenue' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  metricCode?: string;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
 }

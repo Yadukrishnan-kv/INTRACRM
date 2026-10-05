@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsDateString, IsIn, IsOptional, IsUUID } from 'class-validator';
 import { CursorPageQueryDto } from '../../../../../common/pagination/cursor-page';
 import { TRACK_ACTIONS, TRACK_RESOURCES } from '../../../domain/track-events';
 

@@ -460,7 +460,7 @@ export class CatalogService {
     if (code !== current.code) {
       await this.assertUnique(tenantId, 'productCategory', code, id);
     }
-    let parentId = dto.parentId === undefined ? current.parentId : dto.parentId;
+    const parentId = dto.parentId === undefined ? current.parentId : dto.parentId;
     if (parentId === id) {
       throw new AppException(HttpStatus.UNPROCESSABLE_ENTITY, 'Category cannot be its own parent', {
         code: ErrorCodes.VALIDATION_ERROR,

@@ -17,6 +17,7 @@ import { FollowUpsService } from '../../application/follow-ups.service';
 import {
   CompleteFollowUpRequest,
   CreateFollowUpRequest,
+  FollowUpCalendarQuery,
   FollowUpListQuery,
   RescheduleFollowUpRequest,
   UpdateFollowUpRequest,
@@ -35,6 +36,12 @@ export class FollowUpsController {
   @RequirePermissions(PERMISSION.followUpRead)
   catalog() {
     return this.followUps.catalog();
+  }
+
+  @Get('calendar')
+  @RequirePermissions(PERMISSION.followUpRead)
+  calendar(@CurrentUser() actor: AuthUser, @Query() query: FollowUpCalendarQuery) {
+    return this.followUps.calendar(actor, query);
   }
 
   @Get('engine/dashboard')

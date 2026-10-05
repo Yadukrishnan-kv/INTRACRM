@@ -88,6 +88,9 @@ model Tenant {
   billingInvoices  BillingInvoice[]
   billingPayments  BillingPayment[]
   billingSyncJobs  BillingSyncJob[]
+  incentivePlans   IncentivePlan[]
+  incentiveSlabs   IncentiveSlab[]
+  incentivePayouts IncentivePayout[]
 
   @@map("tenants")
 }
@@ -225,6 +228,7 @@ model Membership {
   attendanceSessions AttendanceSession[]
   quotations      Quotation[]  @relation("QuotationAssignee")
   issuedWarranties WarrantyCard[] @relation("WarrantyIssuer")
+  incentivePayouts IncentivePayout[]
 
   @@map("memberships")
 }
@@ -1395,7 +1399,8 @@ model KpiDefinition {
   unit        String
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  targets Target[]
+  targets        Target[]
+  incentivePlans IncentivePlan[]
 
   @@map("kpi_definitions")
 }
@@ -1423,7 +1428,8 @@ model Target {
   tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   product      Product?       @relation(fields: [productId], references: [id], onDelete: Restrict)
   kpi          KpiDefinition  @relation(fields: [metricCode], references: [code], onDelete: Restrict)
-  achievements Achievement[]
+  achievements     Achievement[]
+  incentivePayouts IncentivePayout[]
 
   @@index([tenantId, periodStart, periodEnd])
   @@index([tenantId, scopeType, scopeId])
@@ -1557,4 +1563,141 @@ model AuditLog {
   @@index([tenantId, actorId, createdAt(sort: Desc)])
   @@index([tenantId, action, createdAt(sort: Desc)])
   @@map("audit_logs")
+}
+
+enum IncentiveBasis {
+  revenue
+  units
+  count
+
+  @@map("incentive_basis")
+}
+
+enum IncentivePayoutKind {
+  percent
+  flat
+  per_unit
+
+  @@map("incentive_payout_kind")
+}
+
+enum IncentivePlanStatus {
+  draft
+  active
+  archived
+
+  @@map("incentive_plan_status")
+}
+
+enum IncentivePayoutStatus {
+  draft
+  approved
+  paid
+  void
+
+  @@map("incentive_payout_status")
+}
+
+model IncentivePlan {
+  id               String              @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId         String              @map("tenant_id") @db.Uuid
+  name             String
+  description      String?
+  metricCode       String              @map("metric_code")
+  periodType       PeriodType          @default(monthly) @map("period_type")
+  scopeType        TargetScopeType     @default(membership) @map("scope_type")
+  basis            IncentiveBasis      @default(revenue)
+  status           IncentivePlanStatus @default(draft)
+  holdBps          Int                 @default(0) @map("hold_bps")
+  minAttainmentBps Int                 @default(0) @map("min_attainment_bps")
+  payoutCap        Decimal?            @map("payout_cap") @db.Decimal(18, 4)
+  effectiveFrom    DateTime            @map("effective_from") @db.Date
+  effectiveTo      DateTime?           @map("effective_to") @db.Date
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy        String?             @map("created_by") @db.Uuid
+  updatedBy        String?             @map("updated_by") @db.Uuid
+  deletedAt        DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  deletedBy        String?             @map("deleted_by") @db.Uuid
+  version          Int                 @default(1)
+
+  tenant  Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  kpi     KpiDefinition     @relation(fields: [metricCode], references: [code], onDelete: Restrict)
+  slabs   IncentiveSlab[]
+  payouts IncentivePayout[]
+
+  @@index([tenantId, status, effectiveFrom(sort: Desc)])
+  @@index([tenantId, metricCode, periodType])
+  @@map("incentive_plans")
+}
+
+model IncentiveSlab {
+  id            String              @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId      String              @map("tenant_id") @db.Uuid
+  planId        String              @map("plan_id") @db.Uuid
+  label         String?
+  fromBps       Int                 @map("from_bps")
+  toBps         Int?                @map("to_bps")
+  payoutKind    IncentivePayoutKind @map("payout_kind")
+  rateBps       Int?                @map("rate_bps")
+  amount        Decimal?            @db.Decimal(18, 4)
+  perUnitAmount Decimal?            @map("per_unit_amount") @db.Decimal(18, 4)
+  bonusAmount   Decimal             @default(0) @map("bonus_amount") @db.Decimal(18, 4)
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy     String?             @map("created_by") @db.Uuid
+  updatedBy     String?             @map("updated_by") @db.Uuid
+  version       Int                 @default(1)
+
+  tenant  Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  plan    IncentivePlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  payouts IncentivePayout[]
+
+  @@index([planId, fromBps])
+  @@index([tenantId, planId])
+  @@map("incentive_slabs")
+}
+
+model IncentivePayout {
+  id            String                @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId      String                @map("tenant_id") @db.Uuid
+  planId        String                @map("plan_id") @db.Uuid
+  membershipId  String?               @map("membership_id") @db.Uuid
+  targetId      String?               @map("target_id") @db.Uuid
+  periodStart   DateTime              @map("period_start") @db.Date
+  periodEnd     DateTime              @map("period_end") @db.Date
+  targetValue   Decimal               @default(0) @map("target_value") @db.Decimal(18, 4)
+  achievedValue Decimal               @default(0) @map("achieved_value") @db.Decimal(18, 4)
+  attainmentBps Int?                  @map("attainment_bps")
+  slabId        String?               @map("slab_id") @db.Uuid
+  earnedAmount  Decimal               @default(0) @map("earned_amount") @db.Decimal(18, 4)
+  holdAmount    Decimal               @default(0) @map("hold_amount") @db.Decimal(18, 4)
+  payableAmount Decimal               @default(0) @map("payable_amount") @db.Decimal(18, 4)
+  paidAmount    Decimal               @default(0) @map("paid_amount") @db.Decimal(18, 4)
+  status        IncentivePayoutStatus @default(draft)
+  computedAt    DateTime              @default(now()) @map("computed_at") @db.Timestamptz(6)
+  approvedAt    DateTime?             @map("approved_at") @db.Timestamptz(6)
+  approvedBy    String?               @map("approved_by") @db.Uuid
+  paidAt        DateTime?             @map("paid_at") @db.Timestamptz(6)
+  notes         String?
+  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy     String?               @map("created_by") @db.Uuid
+  updatedBy     String?               @map("updated_by") @db.Uuid
+  version       Int                   @default(1)
+
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  plan       IncentivePlan  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  membership Membership?    @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+  target     Target?        @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  slab       IncentiveSlab? @relation(fields: [slabId], references: [id], onDelete: SetNull)
+
+  // The real guard is uq_incentive_payouts_period, a COALESCE functional
+  // unique index in intra_leads_incentives.sql: membership_id is nullable,
+  // so a plain composite unique would not catch two tenant-scope payouts
+  // for the same period. Prisma cannot express that, so it is not mirrored
+  // here -- the same choice the targets table makes.
+  @@index([tenantId, membershipId, periodStart(sort: Desc)])
+  @@index([tenantId, status, periodStart(sort: Desc)])
+  @@map("incentive_payouts")
 }

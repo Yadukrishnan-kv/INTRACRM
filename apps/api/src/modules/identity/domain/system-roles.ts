@@ -48,6 +48,8 @@ export const PERMISSION = {
   warrantyUpdate: 'warranty:update',
   notificationRead: 'notification:read',
   notificationManage: 'notification:manage',
+  incentiveRead: 'incentive:read',
+  incentiveManage: 'incentive:manage',
   billingRead: 'billing:read',
   billingSync: 'billing:sync',
   auditRead: 'audit:read',

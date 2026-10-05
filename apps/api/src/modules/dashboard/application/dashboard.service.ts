@@ -16,6 +16,7 @@ import { PENDING_QUOTATION_STATUSES, QUOTATION_STATUS_LABELS, QuotationStatusCod
 import { formatYmd, startOfNextZonedDay, startOfZonedDay } from '../../tasks/domain/zoned-day';
 import { TargetsService } from '../../targets/application/targets.service';
 import {
+  addDaysYmd,
   monthBoundsFromYmd,
   periodLabel,
   periodRangeUtc,
@@ -24,6 +25,8 @@ import {
 import {
   DASHBOARD_WIDGET_CATALOG,
   DashboardWidgetCode,
+  FounderKpiItem,
+  founderKpiItems,
   MixSlice,
   STAFF_DASHBOARD_WIDGET_CATALOG,
   SeriesPoint,
@@ -51,6 +54,24 @@ export type DashboardWidgetView = {
   series: SeriesPoint[];
   mix: MixSlice[];
 };
+
+export type DashboardKpisView = {
+  generatedAt: string;
+  timezone: string;
+  today: string;
+  month: { start: string; end: string; label: string };
+  items: FounderKpiItem[];
+};
+
+/**
+ * The same day-of-month in another month, pulled back to that month's last
+ * day when it is shorter — 31 March against February lands on the 28th.
+ */
+function clampDayOfMonth(monthStart: string, monthEnd: string, day: number): string {
+  const lastDay = Number(monthEnd.slice(8, 10));
+  const target = Math.min(Math.max(day, 1), lastDay);
+  return `${monthStart.slice(0, 8)}${String(target).padStart(2, '0')}`;
+}
 
 export type DashboardOverview = {
   generatedAt: string;
@@ -448,6 +469,181 @@ export class DashboardService {
         label: periodLabel('monthly', month.start, month.end),
       },
       widgets,
+    };
+  }
+
+  /**
+   * The six KPI tiles at the top of the founder dashboard. Deliberately its
+   * own query set rather than a slice of `overview()`: the tiles are the first
+   * paint of the home screen and must not wait on the week-long series and
+   * staff leaderboard the full overview loads.
+   */
+  async kpis(actor: AuthUser): Promise<DashboardKpisView> {
+    const tenantId = this.requireTenant(actor);
+    const timeZone = await this.tenantZone(tenantId);
+    const now = new Date();
+    const todayYmd = formatYmd(now, timeZone);
+    const month = monthBoundsFromYmd(todayYmd);
+    const monthRange = periodRangeUtc(month.start, month.end, timeZone);
+    const monthWindow: Range = { gte: monthRange.from, lt: monthRange.toExclusive };
+
+    // Same slice of the previous month, so the comparison is like-for-like on
+    // day 9 rather than a full month against nine days.
+    const previousMonth = monthBoundsFromYmd(addDaysYmd(month.start, -1));
+    const dayOfMonth = Number(todayYmd.slice(8, 10));
+    const previousEnd = clampDayOfMonth(previousMonth.start, previousMonth.end, dayOfMonth);
+    const previousRange = periodRangeUtc(previousMonth.start, previousEnd, timeZone);
+    const previousWindow: Range = { gte: previousRange.from, lt: previousRange.toExclusive };
+    const previousFullRange = periodRangeUtc(previousMonth.start, previousMonth.end, timeZone);
+    const previousFullWindow: Range = {
+      gte: previousFullRange.from,
+      lt: previousFullRange.toExclusive,
+    };
+
+    const todayStart = startOfZonedDay(now, timeZone);
+    const todayEnd = startOfNextZonedDay(now, timeZone);
+    const openStatuses = [LeadLifecycleStatus.open, LeadLifecycleStatus.recycled];
+    const closedStatuses = [LeadLifecycleStatus.won, LeadLifecycleStatus.lost];
+
+    const [
+      followUpsDueToday,
+      followUpsOverdue,
+      billingMtd,
+      billingPrevious,
+      salesTarget,
+      salesAchieved,
+      activeLeads,
+      leadsOpenedThisMonth,
+      leadsClosedThisMonth,
+      pendingQuotations,
+      pendingQuotationValue,
+      wonThisMonth,
+      wonPreviousMonth,
+    ] = await Promise.all([
+      this.prisma.followUp.count({
+        where: {
+          tenantId,
+          deletedAt: null,
+          status: { not: FollowUpStatus.cancelled },
+          dueAt: { gte: todayStart, lt: todayEnd },
+        },
+      }),
+      this.prisma.followUp.count({
+        where: {
+          tenantId,
+          deletedAt: null,
+          status: FollowUpStatus.pending,
+          dueAt: { lt: now },
+        },
+      }),
+      this.prisma.billingInvoice.aggregate({
+        _sum: { totalMinor: true },
+        where: { tenantId, deletedAt: null, createdAt: monthWindow },
+      }),
+      this.prisma.billingInvoice.aggregate({
+        _sum: { totalMinor: true },
+        where: { tenantId, deletedAt: null, createdAt: previousWindow },
+      }),
+      this.prisma.target.findMany({
+        where: {
+          tenantId,
+          deletedAt: null,
+          metricCode: 'revenue',
+          periodType: PeriodType.monthly,
+          scopeType: TargetScopeType.tenant,
+          productId: null,
+          periodStart: ymdToUtcDate(month.start),
+          periodEnd: ymdToUtcDate(month.end),
+        },
+        select: { targetValue: true },
+      }),
+      this.prisma.quotation.aggregate({
+        _sum: { totalMinor: true },
+        where: {
+          tenantId,
+          deletedAt: null,
+          status: QuotationStatus.won,
+          wonAt: monthWindow,
+        },
+      }),
+      this.prisma.lead.count({
+        where: { tenantId, deletedAt: null, lifecycleStatus: { in: openStatuses } },
+      }),
+      this.prisma.lead.count({
+        where: { tenantId, deletedAt: null, createdAt: monthWindow },
+      }),
+      this.prisma.leadStageChange.findMany({
+        where: {
+          tenantId,
+          changedAt: monthWindow,
+          toLifecycleStatus: { in: closedStatuses },
+          lead: { deletedAt: null },
+        },
+        select: { leadId: true },
+        distinct: ['leadId'],
+        take: SERIES_CAP,
+      }),
+      this.prisma.quotation.count({
+        where: {
+          tenantId,
+          deletedAt: null,
+          status: { in: [...PENDING_QUOTATION_STATUSES] as QuotationStatus[] },
+        },
+      }),
+      this.prisma.quotation.aggregate({
+        _sum: { totalMinor: true },
+        where: {
+          tenantId,
+          deletedAt: null,
+          status: { in: [...PENDING_QUOTATION_STATUSES] as QuotationStatus[] },
+        },
+      }),
+      this.prisma.leadStageChange.count({
+        where: {
+          tenantId,
+          changedAt: monthWindow,
+          toLifecycleStatus: LeadLifecycleStatus.won,
+          lead: { deletedAt: null },
+        },
+      }),
+      this.prisma.leadStageChange.count({
+        where: {
+          tenantId,
+          changedAt: previousFullWindow,
+          toLifecycleStatus: LeadLifecycleStatus.won,
+          lead: { deletedAt: null },
+        },
+      }),
+    ]);
+
+    // Rewind the open pipeline to the first of the month: what is open now,
+    // less what opened since, plus what closed since.
+    const activeLeadsPrevious = Math.max(
+      0,
+      activeLeads - leadsOpenedThisMonth + leadsClosedThisMonth.length,
+    );
+
+    const items = founderKpiItems({
+      followUpsDueToday,
+      followUpsOverdue,
+      billingMtdMinor: Number(billingMtd._sum.totalMinor ?? 0),
+      billingPreviousMtdMinor: Number(billingPrevious._sum.totalMinor ?? 0),
+      salesTargetMinor: salesTarget.reduce((sum, row) => sum + Number(row.targetValue), 0),
+      salesAchievedMinor: Number(salesAchieved._sum.totalMinor ?? 0),
+      activeLeads,
+      activeLeadsPrevious,
+      pendingQuotations,
+      pendingQuotationValueMinor: Number(pendingQuotationValue._sum.totalMinor ?? 0),
+      wonThisMonth,
+      wonPreviousMonth,
+    });
+
+    return {
+      generatedAt: now.toISOString(),
+      timezone: timeZone,
+      today: todayYmd,
+      month: { start: month.start, end: month.end, label: periodLabel('monthly', month.start, month.end) },
+      items,
     };
   }
 
