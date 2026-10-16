@@ -1,0 +1,94 @@
+/* Follow-ups, calendar and notifications. Prefix: followups- */
+
+.followups-chips { margin-bottom: 8px; }
+.followups-inline { display: inline-flex; align-items: center; gap: 6px; }
+.followups-range { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Form: read-only values inside .field labels keep normal weight. */
+.followups-field-value { font-weight: 400; font-size: 1rem; }
+
+/* Detail */
+.followups-self-start { align-self: flex-start; }
+.followups-detail-actions > .btn-primary { order: 1; }
+.followups-type-chips { flex-wrap: wrap; margin-top: 4px; }
+
+/* Engine bucket cards (mobile's _EngineWidgets). */
+.followups-buckets { margin-bottom: 12px; }
+.followups-bucket-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(130px, 100%), 1fr)); gap: 10px; margin-bottom: 6px; }
+.followups-bucket { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px; cursor: pointer; text-align: left; font: inherit; color: var(--text); border: 1px solid var(--border); }
+.followups-bucket-active { background: var(--teal-soft); border-color: var(--teal); }
+.followups-bucket-overdue .stat-value { color: var(--danger); }
+.followups-bucket-today .stat-value { color: var(--info); }
+
+/* Calendar */
+.followups-cal-layout { display: grid; grid-template-columns: minmax(320px, 520px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .followups-cal-layout { grid-template-columns: minmax(0, 1fr); } }
+.followups-cal-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; margin-bottom: 8px; }
+.followups-cal-head-end { justify-content: flex-end; flex-wrap: nowrap; }
+.followups-cal-nav { font-size: 1.6rem; line-height: 1; padding-bottom: 3px; }
+.followups-cal-title { text-align: center; }
+.followups-cal-title strong { display: block; font-size: 1.1rem; }
+.followups-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.followups-cal-weekday { text-align: center; font-size: 0.75rem; color: var(--muted); padding: 4px 0; }
+.followups-cal-day { position: relative; height: 48px; border-radius: 8px; border: 1px solid transparent; background: transparent; font: inherit; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
+.followups-cal-day:hover { background: var(--teal-soft); }
+.followups-cal-day-out { color: var(--muted); opacity: 0.55; }
+.followups-cal-day-today { border-color: var(--teal); font-weight: 800; }
+.followups-cal-day-selected, .followups-cal-day-selected:hover { background: var(--teal); color: #fff; opacity: 1; }
+.followups-cal-count { position: absolute; top: 2px; right: 3px; min-width: 16px; padding: 0 4px; border-radius: 6px; font-size: 0.65rem; line-height: 1.4; font-weight: 700; color: #fff; }
+.followups-band-overdue { background: var(--danger); }
+.followups-band-due { background: var(--info); }
+.followups-band-completed { background: var(--success); }
+.followups-band-cancelled { background: var(--muted); }
+.followups-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 0.8rem; color: var(--muted); }
+.followups-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.followups-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.followups-agenda-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.followups-agenda { display: flex; flex-direction: column; gap: 8px; }
+.followups-agenda-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-left: 4px solid var(--info); cursor: pointer; }
+.followups-agenda-item.followups-accent-overdue { border-left-color: var(--danger); }
+.followups-agenda-item.followups-accent-completed { border-left-color: var(--success); }
+.followups-agenda-main { flex: 1; min-width: 0; }
+.followups-agenda-main strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.followups-agenda-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 2px; }
+
+/* Notifications: flush card so row highlights reach the edges. */
+.card.followups-list-card { padding: 0; overflow: hidden; }
+.followups-inbox { list-style: none; margin: 0; padding: 0; }
+.followups-inbox li + li { border-top: 1px solid var(--border); }
+.followups-inbox-item { display: flex; gap: 12px; width: 100%; padding: 12px 14px; background: transparent; border: none; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+.followups-inbox-item:hover { background: var(--teal-soft); }
+.followups-inbox-unread { background: var(--info-surface); }
+.followups-inbox-dot { flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: transparent; }
+.followups-inbox-unread .followups-inbox-dot { background: var(--info); }
+.followups-inbox-body { flex: 1; min-width: 0; }
+.followups-inbox-title { overflow-wrap: anywhere; min-width: 0; }
+.followups-inbox-unread .followups-inbox-title { font-weight: 700; }
+.followups-inbox-row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+
+.followups-prefs { list-style: none; margin: 0; padding: 0; }
+.followups-prefs li { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 14px; flex-wrap: wrap; }
+.followups-prefs li + li { border-top: 1px solid var(--border); }
+.followups-prefs-text { flex: 1 1 260px; }
+.followups-prefs-toggles { display: flex; gap: 18px; }
+.followups-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.followups-toggle input { width: 18px; height: 18px; accent-color: var(--teal); }
+.followups-inbox-row { flex-wrap: wrap; }
+.followups-prefs-toggles { flex-wrap: wrap; }
+@media (max-width: 520px) {
+  .followups-cal-day { height: 40px; font-size: 0.85rem; }
+}
+@media (max-width: 640px) {
+  .followups-cal-count { font-size: 0.7rem; }
+}
+
+@media (max-width: 640px) {
+  /* Filters: selects two per row, Due on full width, From/To share a row. */
+  .followups-filters > .followups-inline { flex: 1 1 100%; }
+  .followups-range { flex: 1 1 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .followups-inline { min-width: 0; }
+  .followups-inline > .input { flex: 1 1 auto; min-width: 0; }
+  /* Detail: primary action first and full width, the rest two per row. */
+  .followups-detail-actions > .btn { flex: 1 1 calc(50% - 4px); justify-content: center; }
+  .followups-detail-actions > .btn-primary { order: 0; flex-basis: 100%; }
+}

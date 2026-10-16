@@ -1,0 +1,74 @@
+/* Reports module — prefix: reports- */
+.reports-toolbar { flex-wrap: wrap; }
+.reports-toolbar .input { width: auto; min-width: 150px; }
+.reports-chips { margin-bottom: 12px; }
+.reports-export { gap: 6px; }
+
+/* Metric tiles mirror the dashboard KPI tiles: label on top, large value at the bottom. */
+.reports-metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr)); gap: 12px; }
+.reports-metric { display: flex; flex-direction: column; justify-content: space-between; gap: 14px; padding: 14px; }
+.reports-metric-value { font-size: 1.6rem; font-weight: 800; line-height: 1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.reports-metric-label { color: var(--muted); font-size: 0.82rem; font-weight: 600; line-height: 1.25; }
+.reports-metric-success .reports-metric-value { color: var(--success); }
+.reports-metric-danger .reports-metric-value { color: var(--danger); }
+.reports-metric-warning .reports-metric-value { color: var(--warning); }
+.reports-metric-info .reports-metric-value { color: var(--info); }
+
+.reports-section { padding: 0; overflow: hidden; }
+.reports-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-right: 16px; }
+.reports-section-title { margin: 0; padding: 14px 16px 10px; font-size: 1rem; }
+.reports-section > .reports-body { padding: 0 16px 16px; }
+.reports-section .table-wrap { border: none; box-shadow: none; border-radius: 0; border-top: 1px solid var(--border); }
+.reports-empty { margin: 0; padding: 0 16px 16px; }
+.reports-bar { margin-top: 6px; height: 6px; max-width: 240px; }
+.reports-table tfoot td { font-weight: 700; border-top: 1px solid var(--border); }
+
+/* Hub */
+.reports-hub-group { margin: 6px 0 10px; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.reports-hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 12px; margin-bottom: 20px; }
+.reports-hub-card { display: flex; flex-direction: column; gap: 4px; color: inherit; text-decoration: none; transition: border-color 0.15s; }
+.reports-hub-card:hover { border-color: var(--teal); }
+.reports-hub-card strong { color: var(--teal-dark); }
+.reports-hub-card span { color: var(--muted); font-size: 0.88rem; }
+
+/* Funnel / pipeline stages */
+.reports-stages { display: flex; flex-direction: column; gap: 12px; padding: 0 16px 16px; }
+.reports-stage-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-weight: 600; }
+.reports-stage-meta { color: var(--muted); font-size: 0.85rem; }
+.reports-stage .bar { height: 10px; margin-top: 6px; }
+.reports-funnel-row { display: flex; justify-content: center; }
+.reports-funnel-step { padding: 8px 12px; border-radius: 8px; color: #fff; text-align: center; font-weight: 600; font-size: 0.85rem; min-width: 120px; overflow-wrap: anywhere; }
+.reports-funnel { display: flex; flex-direction: column; gap: 6px; padding: 0 16px 16px; }
+
+.reports-spark { display: flex; align-items: flex-end; gap: 3px; height: 56px; margin-top: 8px; }
+.reports-spark > span { flex: 1; min-width: 4px; border-radius: 3px 3px 0 0; background: var(--teal); }
+.reports-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 0.85rem; color: var(--muted); }
+.reports-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+
+.reports-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.reports-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); gap: 10px; padding: 0 16px 16px; }
+.reports-facts div { display: flex; flex-direction: column; }
+.reports-facts dt { color: var(--muted); font-size: 0.85rem; }
+.reports-facts dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.reports-facts dd.reports-fact-success { color: var(--success); }
+.reports-facts dd.reports-fact-danger { color: var(--danger); }
+.reports-facts dd.reports-fact-warning { color: var(--warning); }
+.reports-facts dd.reports-fact-info { color: var(--info); }
+
+/* Leaderboard: rank sits in the name cell. */
+.reports-person { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.reports-rank { flex: none; min-width: 2.2em; color: var(--muted); font-weight: 700; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 640px) {
+  /* Filter bars: two controls per row; the range select and Clear take a full row. */
+  .reports-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .reports-toolbar .input { width: 100%; min-width: 0; }
+  .reports-toolbar > select[aria-label='Date range'], .reports-toolbar > .reports-clear { grid-column: 1 / -1; }
+  .reports-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .card.reports-metric { padding: 12px; gap: 12px; }
+  .reports-metric-label { font-size: 0.78rem; }
+  .reports-metric-value { font-size: 1.35rem; }
+  .reports-funnel-step { min-width: 0; }
+  .reports-hub-grid { grid-template-columns: minmax(0, 1fr); }
+  .reports-table th, .reports-table td { padding: 9px 10px; }
+}

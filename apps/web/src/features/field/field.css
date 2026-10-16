@@ -1,0 +1,38 @@
+.field-geo-alert {
+  border: 1px solid var(--danger); background: var(--danger-surface); color: var(--danger);
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; display: flex; gap: 10px;
+  justify-content: space-between; align-items: center; flex-wrap: wrap;
+}
+
+.field-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(110px, 100%), 1fr)); gap: 10px; }
+.field-photo { position: relative; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; aspect-ratio: 1; background: var(--canvas); }
+.field-photo button.field-photo-open { all: unset; cursor: pointer; display: block; width: 100%; height: 100%; }
+.field-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.field-photo-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: 0.8rem; }
+.field-photo-view { width: 100%; max-height: 70vh; object-fit: contain; display: block; }
+
+.field-stars { display: flex; gap: 4px; }
+.field-star {
+  background: none; border: none; cursor: pointer; font-size: 1.6rem; color: var(--warning); padding: 0 2px; line-height: 1;
+  min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center;
+}
+
+.field-actions { margin-bottom: 14px; }
+.field-actions-note { margin: 8px 0 0; }
+.field-photo .field-photo-remove { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; background: var(--card); }
+.field-rating { margin: 4px 0; color: var(--warning); font-size: 1.2rem; letter-spacing: 2px; }
+.field-today { display: flex; justify-content: space-between; gap: 16px; align-items: center; flex-wrap: wrap; }
+.field-today-status { display: flex; flex-direction: column; gap: 6px; }
+.field-today-status h2 { margin: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.field-punch { min-width: 160px; }
+.field-range { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 14px; }
+.field-range .field { min-width: 150px; }
+/* Expanded attendance sessions row: plain left-aligned content, not a centred/bold stacked-card title. */
+.table:not(.table-scroll) td.field-sessions-cell.field-sessions-cell { text-align: left; font-weight: 400; }
+@media (max-width: 640px) {
+  .field-punch { width: 100%; }
+  .field-range .field { flex: 1 1 140px; }
+  .field-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .table:not(.table-scroll) td.field-sessions-cell.field-sessions-cell { text-align: left; font-weight: 400; padding-top: 4px; }
+}
+.field-link-btn { all: unset; cursor: pointer; color: var(--teal); font-weight: 600; }

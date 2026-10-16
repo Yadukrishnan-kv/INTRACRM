@@ -1,0 +1,96 @@
+/* Sales feature (quotations, warranties, public verification). All classes prefixed "sales-". */
+
+.sales-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.sales-picker > input { flex: 1 1 200px; }
+.sales-picker > select { flex: 2 1 240px; }
+
+.sales-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+
+.sales-buckets { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; }
+.sales-bucket {
+  flex: 0 0 auto; min-width: 116px; text-align: left; cursor: pointer; font: inherit; color: var(--text);
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.sales-bucket strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.sales-bucket span { font-size: 0.82rem; color: var(--muted); font-weight: 600; }
+.sales-bucket-active { background: var(--teal-soft); border-color: var(--teal); }
+.sales-bucket-active span { color: var(--teal-dark); }
+
+.sales-line { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.sales-line-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.sales-line-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .sales-line-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.sales-taxes { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.sales-totals { display: grid; grid-template-columns: auto auto; justify-content: end; gap: 4px 24px; font-variant-numeric: tabular-nums; }
+.sales-totals dt { color: var(--muted); }
+.sales-totals dd { margin: 0; text-align: right; }
+.sales-totals .sales-grand { font-weight: 700; font-size: 1.1rem; color: var(--text); }
+
+/* Status progression: one line inside the details card, scrolls sideways when it doesn't fit. */
+.sales-steps { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 0 14px; padding-bottom: 2px; }
+.sales-steps::-webkit-scrollbar { display: none; }
+.sales-step { flex: none; white-space: nowrap; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); }
+.sales-step-done { color: var(--text); }
+.sales-step-current { background: var(--teal-soft); border-color: var(--teal); color: var(--teal-dark); font-weight: 600; }
+
+.sales-cert { max-width: 640px; text-align: center; }
+.sales-cert-full { max-width: none; }
+.sales-cert-title { color: var(--teal); font-size: 1rem; font-weight: 800; letter-spacing: 0.04em; margin: 0 0 10px; }
+.sales-cert-tagline { color: var(--teal); font-weight: 700; margin: 6px 0; }
+.sales-cert-seal {
+  width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--teal); background: var(--teal-soft);
+  color: var(--teal); display: inline-flex; align-items: center; justify-content: center; font-size: 1.8rem;
+}
+.sales-cert-rows { text-align: left; display: grid; grid-template-columns: 150px 1fr; gap: 8px 14px; margin: 16px 0; }
+.sales-cert-rows dt { color: var(--muted); font-size: 0.85rem; }
+.sales-cert-rows dd { margin: 0; font-weight: 600; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 520px) { .sales-cert-rows { grid-template-columns: minmax(0, 1fr); } .sales-cert-rows dd { margin-bottom: 6px; } }
+.sales-cert-foot { margin-top: 16px; display: flex; gap: 14px; align-items: center; justify-content: space-between; text-align: left; border-top: 1px solid var(--border); padding-top: 12px; }
+.sales-qr { width: 120px; height: 120px; image-rendering: pixelated; background: #fff; border-radius: 6px; flex: 0 0 auto; }
+.sales-qr-empty { display: inline-flex; align-items: center; justify-content: center; color: var(--muted); border: 1px dashed var(--border); font-size: 0.8rem; }
+.sales-sign { text-align: right; color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+.sales-sign::before { content: ''; display: block; width: 100px; margin: 0 0 4px auto; border-top: 1px solid var(--muted); }
+
+.sales-public { min-height: 100dvh; display: flex; justify-content: center; padding: 32px 16px; }
+.sales-public-inner { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 16px; }
+.sales-verified { border-left: 4px solid var(--success); }
+.sales-unverified { border-left: 4px solid var(--danger); }
+/* Prominent verified / not verified banner at the top of the result card. */
+.sales-verify-status {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 10px 14px;
+  border-radius: var(--radius-sm); font-size: 1.1rem; font-weight: 700;
+}
+.sales-verified .sales-verify-status { color: var(--success); background: var(--success-surface); }
+.sales-unverified .sales-verify-status { color: var(--danger); background: var(--danger-surface); }
+.sales-public-inner > .brand { align-items: center; text-align: center; }
+.sales-public-title { font-size: 1.3rem; }
+.sales-verify-card { font-size: 1.3rem; margin-bottom: 4px; }
+.sales-verify-items { margin: 0 0 12px; padding-left: 18px; }
+.sales-verify-error { margin-top: 10px; }
+.sales-flush { margin: 0; }
+.sales-center { text-align: center; }
+.sales-break { overflow-wrap: anywhere; }
+
+/* Quotation line-items card: the card itself is unpadded (table-wrap), so inner blocks pad themselves. */
+.sales-pad-head { padding: 18px 18px 0; }
+.sales-pad-note { margin: 0; padding: 10px 18px 0; }
+.sales-pad-foot { padding: 18px; border-top: 1px solid var(--border); }
+.sales-row-actions { justify-content: flex-end; }
+
+/* Warranty list: on phones the first cell leads with the customer. */
+.sales-phone-only { display: none; }
+@media (max-width: 640px) {
+  .sales-pad-head { padding: 14px 14px 0; }
+  .sales-pad-note { padding: 10px 14px 0; }
+  .sales-pad-foot { padding: 14px; }
+  .sales-cert-foot { flex-direction: column; align-items: stretch; }
+  .sales-cert-foot .sales-qr { align-self: center; }
+  .sales-phone-only { display: block; }
+  .sales-desk-only { display: none; }
+  .table:not(.table-scroll) td.sales-hide-phone { display: none; }
+}
+@media (max-width: 520px) {
+  .sales-totals { justify-content: stretch; grid-template-columns: minmax(0, 1fr) auto; }
+}
