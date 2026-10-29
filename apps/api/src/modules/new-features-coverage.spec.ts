@@ -725,6 +725,64 @@ describe('new feature services', () => {
       });
     });
 
+    it('voids a draft or approved payout but never a paid or already void one', async () => {
+      for (const status of ['draft', 'approved']) {
+        (prisma.incentivePayout.findFirst as jest.Mock).mockResolvedValue({
+          id: PAYOUT_ID,
+          status,
+          version: 1,
+          payableAmount: 1800,
+        });
+        (prisma.incentivePayout.update as jest.Mock).mockResolvedValue({
+          id: PAYOUT_ID,
+          planId: PLAN_ID,
+          membershipId: MEMBERSHIP_A,
+          periodStart: new Date('2026-09-01T00:00:00.000Z'),
+          periodEnd: new Date('2026-09-30T00:00:00.000Z'),
+          targetValue: 0,
+          achievedValue: 0,
+          attainmentBps: 0,
+          slabId: null,
+          earnedAmount: 0,
+          holdAmount: 0,
+          payableAmount: 0,
+          paidAmount: 0,
+          computedAt: new Date(),
+          approvedAt: null,
+          paidAt: null,
+          notes: 'Duplicate',
+          version: 2,
+          status: 'void',
+          plan: { name: 'FY27' },
+          membership: { user: { fullName: 'Ada' } },
+          slab: null,
+        });
+        await expect(
+          service().voidPayout(user, PAYOUT_ID, { notes: 'Duplicate' }),
+        ).resolves.toMatchObject({ status: 'void' });
+        expect(prisma.incentivePayout.update).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            where: { id: PAYOUT_ID },
+            data: expect.objectContaining({ status: 'void', notes: 'Duplicate' }),
+          }),
+        );
+      }
+
+      for (const status of ['paid', 'void']) {
+        (prisma.incentivePayout.update as jest.Mock).mockClear();
+        (prisma.incentivePayout.findFirst as jest.Mock).mockResolvedValue({
+          id: PAYOUT_ID,
+          status,
+          version: 1,
+          payableAmount: 1800,
+        });
+        await expect(service().voidPayout(user, PAYOUT_ID, {})).rejects.toMatchObject({
+          code: ErrorCodes.CONFLICT,
+        });
+        expect(prisma.incentivePayout.update).not.toHaveBeenCalled();
+      }
+    });
+
     it('reports a missing payout and a stale one', async () => {
       (prisma.incentivePayout.findFirst as jest.Mock).mockResolvedValue(null);
       await expect(service().approve(user, PAYOUT_ID, {})).rejects.toMatchObject({

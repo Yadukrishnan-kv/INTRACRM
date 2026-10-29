@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { P } from '../../auth/permissions';
 import { EmptyState, ErrorState, PageHeader, Spinner } from '../../components/ui';
+import { DateRangeFilter, FilterBar, useReportFilters } from '../reports/kit';
 import { perfApi, perfKeys } from './api';
 import { BarChart, DeltaPill, ExportAnalyticsButton, FunnelChart, MixChart, StatTile, WidgetCard } from './components';
 import {
@@ -31,9 +32,12 @@ const monthFunnel = (board: Pick<AnalyticsDashboard, 'funnel'>): Funnel => board
 export function AnalyticsPage({ mine = false }: { mine?: boolean }) {
   const { can } = useAuth();
   const personal = mine || !can(P.dashboardRead);
+  // With no from/to the API reports the current month, so that is the default preset.
+  const filters = useReportFilters('ymd', [], 'thisMonth');
+  const range = filters.query;
   const query = useQuery({
-    queryKey: perfKeys.analytics(personal),
-    queryFn: personal ? perfApi.analyticsMine : perfApi.analytics,
+    queryKey: perfKeys.analytics(personal, range),
+    queryFn: () => (personal ? perfApi.analyticsMine(range) : perfApi.analytics(range)),
   });
 
   return (
@@ -53,10 +57,13 @@ export function AnalyticsPage({ mine = false }: { mine?: boolean }) {
                 My analytics
               </Link>
             ) : null}
-            {!personal ? <ExportAnalyticsButton /> : null}
+            {!personal ? <ExportAnalyticsButton range={range} /> : null}
           </>
         }
       />
+      <FilterBar filters={filters}>
+        <DateRangeFilter filters={filters} />
+      </FilterBar>
       {query.isLoading ? (
         <Spinner />
       ) : query.isError ? (

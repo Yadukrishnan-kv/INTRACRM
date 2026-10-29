@@ -49,7 +49,8 @@ export class TimelineController {
   }
 
   @Post('leads/:leadId/quotations')
-  @RequirePermissions(PERMISSION.quotationSend)
+  // Creates the quotation already in `sent` status, so it needs both grants.
+  @RequirePermissions(PERMISSION.quotationCreate, PERMISSION.quotationSend)
   sendQuotation(
     @CurrentUser() actor: AuthUser,
     @Param('leadId', ParseUUIDPipe) leadId: string,

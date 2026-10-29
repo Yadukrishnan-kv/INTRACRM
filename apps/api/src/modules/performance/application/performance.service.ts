@@ -16,8 +16,10 @@ import {
   periodLabel,
   periodRangeUtc,
   resolvePeriod,
+  resolveReportRange,
   ymdToUtcDate,
 } from '../../targets/domain/target-period';
+import { formatYmd } from '../../tasks/domain/zoned-day';
 import {
   PERFORMANCE_KPI_CATALOG,
   PERFORMANCE_WEIGHTS,
@@ -183,15 +185,22 @@ export class PerformanceService {
     const tenantId = this.requireTenant(actor);
     const timeZone = await this.tenantZone(tenantId);
     const now = new Date();
-    const periodType = (query.periodType ?? 'monthly') as PeriodTypeCode;
+    // An explicit from/to range is a custom period and wins over periodType/periodStart.
+    const hasRange = Boolean(query.from || query.to);
+    const periodType = (hasRange ? 'custom' : (query.periodType ?? 'monthly')) as PeriodTypeCode;
     let bounds: { start: string; end: string };
     try {
-      bounds = resolvePeriod({
-        periodType,
-        ...(query.periodStart ? { periodStart: query.periodStart.slice(0, 10) } : {}),
-        now,
-        timeZone,
-      });
+      const range = hasRange
+        ? resolveReportRange({ from: query.from, to: query.to, todayYmd: formatYmd(now, timeZone) })
+        : null;
+      bounds =
+        range ??
+        resolvePeriod({
+          periodType,
+          ...(query.periodStart ? { periodStart: query.periodStart.slice(0, 10) } : {}),
+          now,
+          timeZone,
+        });
     } catch (error) {
       throw new AppException(HttpStatus.BAD_REQUEST, (error as Error).message, {
         code: ErrorCodes.BAD_REQUEST,

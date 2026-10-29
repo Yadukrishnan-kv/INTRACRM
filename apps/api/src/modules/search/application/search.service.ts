@@ -205,7 +205,7 @@ export class SearchService {
     plan: SearchPlan,
     limit: number,
   ): Promise<SearchHit[]> {
-    const base = { tenantId, deletedAt: null };
+    const base = { tenantId, deletedAt: null, lead: { deletedAt: null } };
     let rows = await this.prisma.quotation.findMany({
       where:
         plan.strategy === 'exact'

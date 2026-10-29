@@ -107,6 +107,13 @@ export class AssignUserRequest {
   @IsString()
   @MaxLength(40)
   employeeCode?: string;
+
+  @ApiPropertyOptional({ description: 'Initial password; omit to leave the staff member invited without one.' })
+  @IsOptional()
+  @IsString()
+  @MinLength(10)
+  @MaxLength(128)
+  password?: string;
 }
 
 export class UpdateMembershipRequest {

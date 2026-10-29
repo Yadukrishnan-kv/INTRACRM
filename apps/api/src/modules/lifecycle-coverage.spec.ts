@@ -1,4 +1,4 @@
-import { actor, MEMBERSHIP_A, TENANT_A, USER_A } from '../testing/fixtures';
+import { actor, MEMBERSHIP_A, TENANT_A, USER_A, USER_B } from '../testing/fixtures';
 import { createPrismaMock } from '../testing/prisma-mock';
 import { membershipRow } from '../testing/rows';
 import { encodeCursor } from '../common/pagination/cursor-page';
@@ -10,6 +10,7 @@ import { FollowUpEngineService } from './tasks/application/follow-up-engine.serv
 import { TargetsService } from './targets/application/targets.service';
 import { CommsService } from './comms/application/comms.service';
 import { RbacService } from './identity/application/rbac.service';
+import { SessionRevocationService } from './identity/application/session-revocation.service';
 import { TeamService } from './directory/application/team.service';
 import { StaffService } from './directory/application/staff.service';
 import { TimelineService } from './activities/application/timeline.service';
@@ -514,7 +515,7 @@ describe('lifecycle coverage for remaining service paths', () => {
     await expect(comms.deleteTemplate(user, 'tpl-1')).resolves.toEqual({ deleted: true });
 
     const redis = { get: jest.fn().mockResolvedValue(null), set: jest.fn(), del: jest.fn(), scan: jest.fn().mockResolvedValue(['0', []]) };
-    const rbac = new RbacService(prisma as never, redis as never);
+    const rbac = new RbacService(prisma as never, redis as never, new SessionRevocationService(prisma as never));
     (prisma.role.findMany as jest.Mock).mockResolvedValue([{ id: 'r-admin', code: 'tenant.admin' }]);
     (prisma.user.findFirst as jest.Mock).mockResolvedValue(null);
     (prisma.user.create as jest.Mock).mockResolvedValue({ id: 'u-new', fullName: 'Bo', email: 'bo@x.y' });
@@ -557,25 +558,25 @@ describe('lifecycle coverage for remaining service paths', () => {
     await expect(rbac.replacePermissions(user, 'r-custom', { permissionCodes: ['lead:read'] })).resolves.toBeDefined();
     await expect(rbac.deleteRole(user, 'r-custom')).resolves.toEqual({ deleted: true });
     (prisma.membership.findFirst as jest.Mock).mockResolvedValue({
-      id: MEMBERSHIP_A,
-      userId: USER_A,
+      id: 'm-staff',
+      userId: USER_B,
       tenantId: TENANT_A,
       deletedAt: null,
       status: 'active',
       designation: 'AE',
       employeeCode: 'E-1',
-      user: { id: USER_A, fullName: 'Ada', email: 'a@b.c' },
+      user: { id: USER_B, fullName: 'Ada', email: 'a@b.c' },
       roles: [{ role: { id: 'r1', code: 'tenant.sales_staff', name: 'Staff', deletedAt: null } }],
     });
     (prisma.membership.update as jest.Mock).mockResolvedValue({
-      id: MEMBERSHIP_A,
+      id: 'm-staff',
       status: 'suspended',
       designation: 'AE',
       employeeCode: 'E-1',
-      user: { id: USER_A, fullName: 'Ada', email: 'a@b.c' },
+      user: { id: USER_B, fullName: 'Ada', email: 'a@b.c' },
       roles: [{ role: { id: 'r1', code: 'tenant.sales_staff', name: 'Staff', deletedAt: null } }],
     });
-    await expect(rbac.updateMembership(user, MEMBERSHIP_A, { status: 'suspended' } as never)).resolves.toMatchObject({
+    await expect(rbac.updateMembership(user, 'm-staff', { status: 'suspended' } as never)).resolves.toMatchObject({
       status: 'suspended',
     });
 

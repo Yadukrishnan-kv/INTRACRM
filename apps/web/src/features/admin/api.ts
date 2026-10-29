@@ -29,6 +29,7 @@ export type StaffInput = {
   employeeCode?: string;
   roleIds: string[];
   teamIds: string[];
+  password?: string;
 };
 
 export type Team = {

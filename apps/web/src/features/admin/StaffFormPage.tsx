@@ -50,7 +50,7 @@ export function StaffFormPage() {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const next = validateStaffDraft(draft);
+    const next = validateStaffDraft(draft, isEdit);
     setErrors(next);
     if (Object.keys(next).length === 0) save.mutate(draft);
   }
@@ -93,6 +93,18 @@ export function StaffFormPage() {
             error={errors.employeeCode}
             onValue={(v) => set({ employeeCode: v })}
           />
+          {!isEdit ? (
+            <TextField
+              label="Password"
+              type="password"
+              required
+              autoComplete="new-password"
+              value={draft.password}
+              error={errors.password}
+              hint="At least 10 characters, with a letter and a number."
+              onValue={(v) => set({ password: v })}
+            />
+          ) : null}
         </FormGrid>
         <div>
           <p className="admin-group-title">

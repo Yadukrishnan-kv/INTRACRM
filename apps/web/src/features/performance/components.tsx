@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { errorMessage } from '../../api/client';
 import { useToast } from '../../components/toast';
-import { perfApi } from './api';
+import { perfApi, type AnalyticsRange } from './api';
 import { deltaLabel, initials, metricDisplay, widgetPrimary } from './logic';
 import type { DashboardWidget, Funnel, MixSlice, SeriesPoint } from './types';
 
@@ -209,13 +209,13 @@ export function WidgetCard({ widget, to }: { widget: DashboardWidget; to?: strin
 }
 
 /** Export menu for the analytics report (mobile ReportExportButton). */
-export function ExportAnalyticsButton() {
+export function ExportAnalyticsButton({ range = {} }: { range?: AnalyticsRange }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const run = async (format: 'xlsx' | 'pdf' | 'csv') => {
     setBusy(true);
     try {
-      await perfApi.exportAnalytics(format);
+      await perfApi.exportAnalytics(format, range);
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {

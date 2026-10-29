@@ -84,6 +84,7 @@ export class StaffService {
       roleIds: dto.roleIds,
       ...(dto.designation ? { designation: dto.designation } : {}),
       ...(dto.employeeCode ? { employeeCode: dto.employeeCode } : {}),
+      ...(dto.password ? { password: dto.password } : {}),
     });
     if (dto.teamIds && dto.teamIds.length > 0) {
       await this.assignTeams(actor, created.id, { teamIds: dto.teamIds });
@@ -147,6 +148,16 @@ export class StaffService {
       status: dto.active ? 'active' : 'suspended',
     });
     return this.get(actor, membershipId);
+  }
+
+  /**
+   * Removes a staff member from the tenant by ending their membership. Goes
+   * through RbacService so self-removal, founder protection, the last-founder
+   * guard and session revocation all apply.
+   */
+  async remove(actor: AuthUser, membershipId: string): Promise<{ id: string; removed: true }> {
+    await this.rbac.updateMembership(actor, membershipId, { status: 'ended' });
+    return { id: membershipId, removed: true };
   }
 
   async assignRoles(

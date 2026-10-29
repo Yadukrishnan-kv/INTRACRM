@@ -346,7 +346,8 @@ export class CatalogService {
       this.missing('Tax');
     }
     const used = await this.prisma.quotationItem.findMany({
-      where: { tenantId, deletedAt: null },
+      // Items on soft-deleted (draft) quotations no longer count as usage.
+      where: { tenantId, deletedAt: null, quotation: { deletedAt: null } },
       select: { taxRateIds: true },
     });
     const inUse = used.some((row) => Array.isArray(row.taxRateIds) && row.taxRateIds.includes(id));
@@ -611,7 +612,9 @@ export class CatalogService {
       this.missing('Product');
     }
     const [quotes, warranties, targets] = await Promise.all([
-      this.prisma.quotationItem.count({ where: { productId: id, deletedAt: null } }),
+      this.prisma.quotationItem.count({
+        where: { productId: id, deletedAt: null, quotation: { deletedAt: null } },
+      }),
       this.prisma.warrantyCardItem.count({ where: { productId: id, deletedAt: null } }),
       this.prisma.target.count({ where: { productId: id, deletedAt: null } }),
     ]);

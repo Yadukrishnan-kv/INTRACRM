@@ -31,6 +31,7 @@ import { FollowUpEngineService } from './follow-up-engine.service';
 import { addDaysYmd } from '../../targets/domain/target-period';
 import { formatYmd, zonedLocalToUtc } from '../domain/zoned-day';
 import {
+  CancelFollowUpRequest,
   CompleteFollowUpRequest,
   CreateFollowUpRequest,
   FollowUpCalendarQuery,
@@ -87,6 +88,7 @@ export class FollowUpsService {
     const where: Prisma.FollowUpWhereInput = {
       tenantId,
       deletedAt: null,
+      lead: { deletedAt: null },
     };
     if (query.leadId) {
       where.leadId = query.leadId;
@@ -365,6 +367,57 @@ export class FollowUpsService {
           after: trackPayload('Follow-up rescheduled', {
             from: followUp.dueAt.toISOString(),
             to: dueAt.toISOString(),
+          }),
+        },
+        tx,
+      );
+      return row;
+    });
+    return toFollowUpView(updated);
+  }
+
+  async cancel(
+    actor: AuthUser,
+    followUpId: string,
+    dto: CancelFollowUpRequest,
+  ): Promise<FollowUpView> {
+    const tenantId = this.requireTenant(actor);
+    const followUp = await this.requireFollowUp(tenantId, followUpId);
+    this.assertPending(followUp.status);
+    this.assertVersion(followUp.version, dto.version);
+    const reason = dto.reason?.trim();
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.followUp.update({
+        where: { id: followUp.id },
+        data: {
+          status: FollowUpStatus.cancelled,
+          updatedBy: actor.userId,
+          version: { increment: 1 },
+        },
+        include: followUpInclude,
+      });
+      await this.timeline.record(
+        {
+          tenantId,
+          leadId: followUp.leadId,
+          actor,
+          eventCode: 'system',
+          subject: 'Follow-up cancelled',
+          body: reason || followUp.title,
+        },
+        tx,
+      );
+      await this.audit.record(
+        {
+          tenantId,
+          actor,
+          action: TRACK_ACTION.statusChange,
+          resourceType: TRACK_RESOURCE.followUp,
+          resourceId: followUp.id,
+          after: trackPayload('Follow-up cancelled', {
+            from: followUp.status,
+            to: FollowUpStatus.cancelled,
+            ...(reason ? { reason } : {}),
           }),
         },
         tx,

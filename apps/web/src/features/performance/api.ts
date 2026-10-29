@@ -31,6 +31,9 @@ export type TargetListQuery = {
   limit?: number;
 };
 
+/** Analytics date-range filter: inclusive YYYY-MM-DD bounds in the tenant time zone. */
+export type AnalyticsRange = { from?: string; to?: string };
+
 export type PerformanceQuery = { periodType?: string; periodStart?: string; teamId?: string };
 
 export const perfApi = {
@@ -41,11 +44,12 @@ export const perfApi = {
   dashboardWidget: (code: string) => data(request<DashboardWidgetDetail>(`/dashboard/${enc(code)}`)),
 
   // Analytics
-  analytics: () => data(request<AnalyticsDashboard>('/analytics')),
-  analyticsMine: () => data(request<AnalyticsDashboard>('/analytics/me')),
+  // `range` is the optional from/to filter (inclusive YYYY-MM-DD); omitted = current month.
+  analytics: (range: AnalyticsRange = {}) => data(request<AnalyticsDashboard>('/analytics', { query: range })),
+  analyticsMine: (range: AnalyticsRange = {}) => data(request<AnalyticsDashboard>('/analytics/me', { query: range })),
   analyticsMetric: (code: string) => data(request<AnalyticsMetricDetail>(`/analytics/${enc(code)}`)),
-  exportAnalytics: (format: 'xlsx' | 'pdf' | 'csv') =>
-    downloadFile('/reports/analytics/export', `analytics-report.${format}`, { format }),
+  exportAnalytics: (format: 'xlsx' | 'pdf' | 'csv', range: AnalyticsRange = {}) =>
+    downloadFile('/reports/analytics/export', `analytics-report.${format}`, { format, ...range }),
 
   // Targets
   targetCatalog: () => data(request<TargetCatalog>('/targets/catalog')),
@@ -100,7 +104,7 @@ export const perfKeys = {
   dashboard: ['dashboard', 'overview'] as const,
   dashboardMine: ['dashboard', 'me'] as const,
   dashboardWidget: (code: string) => ['dashboard', 'widget', code] as const,
-  analytics: (mine: boolean) => ['analytics', mine ? 'me' : 'all'] as const,
+  analytics: (mine: boolean, range: AnalyticsRange = {}) => ['analytics', mine ? 'me' : 'all', range] as const,
   analyticsMetric: (code: string) => ['analytics', 'metric', code] as const,
   targets: ['targets'] as const,
   targetList: (q: TargetListQuery) => ['targets', 'list', q] as const,

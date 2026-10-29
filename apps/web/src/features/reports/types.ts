@@ -166,6 +166,8 @@ export type FunnelReport = {
   timezone: string;
   today: string;
   month: { start: string; end: string; label: string };
+  /** Applied from/to filter; null when the report covers every live lead. */
+  range: { from: string; to: string } | null;
   stages: FunnelStage[];
   conversion: {
     leadToQualifiedBps: number | null;

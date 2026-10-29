@@ -79,7 +79,9 @@ export type AnalyticsDashboard = {
   generatedAt: string;
   timezone: string;
   today: string;
+  /** The current month, or the requested from/to range. */
   month: Period;
+  range?: { from: string; to: string } | null;
   funnel: Funnel & { today?: Funnel; month?: Funnel };
   widgets: Record<string, DashboardWidget>;
 };
@@ -88,7 +90,9 @@ export type AnalyticsMetricDetail = {
   generatedAt: string;
   timezone: string;
   today: string;
+  /** The current month, or the requested from/to range. */
   month: Period;
+  range?: { from: string; to: string } | null;
   funnel: Funnel & { today?: Funnel; month?: Funnel };
   widget: DashboardWidget;
 };

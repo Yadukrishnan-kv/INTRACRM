@@ -20,7 +20,7 @@ export class ReportExportController {
   constructor(private readonly exports: ReportExportService) {}
 
   @Get('leads/export')
-  @RequirePermissions(PERMISSION.leadRead)
+  @RequirePermissions(PERMISSION.leadRead, PERMISSION.leadExport)
   leads(
     @CurrentUser() actor: AuthUser,
     @Query() query: ReportExportQuery,

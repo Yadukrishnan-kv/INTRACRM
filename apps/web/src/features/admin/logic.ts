@@ -318,9 +318,10 @@ export type StaffDraft = {
   employeeCode: string;
   roleIds: Set<string>;
   teamIds: Set<string>;
+  password: string;
 };
 
-export function validateStaffDraft(d: StaffDraft): Record<string, string> {
+export function validateStaffDraft(d: StaffDraft, isEdit = false): Record<string, string> {
   const errors: Record<string, string> = {};
   const name = d.fullName.trim();
   if (name.length < 2) errors.fullName = 'Name is required.';
@@ -329,11 +330,15 @@ export function validateStaffDraft(d: StaffDraft): Record<string, string> {
   if (d.designation.trim().length > 80) errors.designation = 'At most 80 characters.';
   if (d.employeeCode.trim().length > 40) errors.employeeCode = 'At most 40 characters.';
   if (d.roleIds.size === 0) errors.roleIds = 'Select at least one role.';
+  if (!isEdit) {
+    const passwordError = validatePassword(d.password, d.email);
+    if (passwordError) errors.password = passwordError;
+  }
   return errors;
 }
 
 export function emptyStaffDraft(): StaffDraft {
-  return { fullName: '', email: '', designation: '', employeeCode: '', roleIds: new Set(), teamIds: new Set() };
+  return { fullName: '', email: '', designation: '', employeeCode: '', roleIds: new Set(), teamIds: new Set(), password: '' };
 }
 
 export function staffDraftFromMember(m: StaffMember): StaffDraft {
@@ -344,12 +349,14 @@ export function staffDraftFromMember(m: StaffMember): StaffDraft {
     employeeCode: m.employeeCode ?? '',
     roleIds: new Set(m.roles.map((r) => r.id)),
     teamIds: new Set(m.teams.map((t) => t.id)),
+    password: '',
   };
 }
 
 /**
  * Body for POST /staff and PATCH /staff/:id. On create blank optional fields are
  * omitted; on edit they are sent as "" so a cleared designation is cleared (as mobile).
+ * The password is only ever sent on create (there is no password field on edit).
  */
 export function staffPayload(d: StaffDraft, isEdit = false): StaffInput {
   const designation = d.designation.trim();
@@ -361,6 +368,7 @@ export function staffPayload(d: StaffDraft, isEdit = false): StaffInput {
     ...(employeeCode || isEdit ? { employeeCode } : {}),
     roleIds: [...d.roleIds],
     teamIds: [...d.teamIds],
+    ...(!isEdit ? { password: d.password } : {}),
   };
 }
 

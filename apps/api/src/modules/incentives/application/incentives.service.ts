@@ -608,6 +608,10 @@ export class IncentivesService {
     return this.decide(actor, payoutId, dto, 'pay');
   }
 
+  async voidPayout(actor: AuthUser, payoutId: string, dto: PayoutDecisionRequest) {
+    return this.decide(actor, payoutId, dto, 'void');
+  }
+
   // ---------------------------------------------------------------------------
   // Internals
   // ---------------------------------------------------------------------------
@@ -616,7 +620,7 @@ export class IncentivesService {
     actor: AuthUser,
     payoutId: string,
     dto: PayoutDecisionRequest,
-    action: 'approve' | 'pay',
+    action: 'approve' | 'pay' | 'void',
   ): Promise<PayoutView> {
     const tenantId = this.requireTenant(actor);
     const current = await this.prisma.incentivePayout.findFirst({
@@ -644,6 +648,29 @@ export class IncentivesService {
           status: IncentivePayoutStatus.approved,
           approvedAt: now,
           approvedBy: actor.userId,
+          ...(dto.notes !== undefined ? { notes: dto.notes.trim() || null } : {}),
+          updatedBy: actor.userId,
+        },
+        include: payoutInclude,
+      });
+      return toPayoutView(updated);
+    }
+
+    if (action === 'void') {
+      const voidable: IncentivePayoutStatus[] = [
+        IncentivePayoutStatus.draft,
+        IncentivePayoutStatus.approved,
+      ];
+      if (!voidable.includes(current.status)) {
+        throw new AppException(HttpStatus.CONFLICT, 'Payout cannot be voided', {
+          code: ErrorCodes.CONFLICT,
+          detail: `Only a draft or approved payout can be voided; this one is ${current.status}.`,
+        });
+      }
+      const updated = await this.prisma.incentivePayout.update({
+        where: { id: payoutId },
+        data: {
+          status: IncentivePayoutStatus.void,
           ...(dto.notes !== undefined ? { notes: dto.notes.trim() || null } : {}),
           updatedBy: actor.userId,
         },

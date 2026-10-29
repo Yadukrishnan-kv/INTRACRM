@@ -625,6 +625,24 @@ export class LeadsService {
           version: { increment: 1 },
         },
       });
+      // Close out open work on the deleted lead. Quotations and warranties are
+      // kept as history; their services block further mutations instead.
+      await tx.followUp.updateMany({
+        where: { tenantId, leadId: current.id, status: 'pending', deletedAt: null },
+        data: {
+          status: 'cancelled',
+          updatedBy: actor.userId,
+          version: { increment: 1 },
+        },
+      });
+      await tx.siteVisit.updateMany({
+        where: { tenantId, leadId: current.id, status: 'scheduled', deletedAt: null },
+        data: {
+          status: 'cancelled',
+          updatedBy: actor.userId,
+          version: { increment: 1 },
+        },
+      });
       await this.audit.record(
         {
           tenantId,

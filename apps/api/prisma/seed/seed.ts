@@ -26,12 +26,49 @@ async function main(): Promise<void> {
     },
   });
 
+  await ensureDeletePermissions();
+
   const tenant = await ensureTenant();
   const admin = await ensureAdminUser();
   const member = await ensureAdminMembership(tenant.id, admin.id);
   await assignFounderRole(member.id);
   await seedLeadCatalog(tenant.id, admin.id);
   await seedDemoVolume(tenant.id, admin.id, member.id);
+}
+
+/**
+ * Mirrors prisma/rbac-delete-permissions.sql: dedicated delete permissions
+ * granted to the global (tenant_id IS NULL) Founder, Admin and Business
+ * Manager system roles, so every existing tenant picks them up.
+ */
+async function ensureDeletePermissions(): Promise<void> {
+  const permissions = [
+    { code: 'lead:delete', resource: 'lead', action: 'delete', description: 'Soft-delete leads' },
+    {
+      code: 'quotation:delete',
+      resource: 'quotation',
+      action: 'delete',
+      description: 'Soft-delete draft quotations',
+    },
+  ];
+  const roleCodes = ['tenant.founder', 'tenant.admin', 'business.manager'];
+  const roles = await prisma.role.findMany({
+    where: { code: { in: roleCodes }, tenantId: null, deletedAt: null },
+  });
+  for (const permission of permissions) {
+    const row = await prisma.permission.upsert({
+      where: { code: permission.code },
+      update: {},
+      create: permission,
+    });
+    for (const role of roles) {
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: role.id, permissionId: row.id } },
+        update: {},
+        create: { roleId: role.id, permissionId: row.id },
+      });
+    }
+  }
 }
 
 async function ensureTenant() {

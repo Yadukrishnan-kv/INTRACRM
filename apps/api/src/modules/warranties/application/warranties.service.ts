@@ -85,7 +85,12 @@ export class WarrantiesService {
     const tenantId = this.requireTenant(actor);
     const limit = query.limit ?? DEFAULT_PAGE_LIMIT;
     const todayYmd = await this.todayYmd(tenantId);
-    const where: Prisma.WarrantyCardWhereInput = { tenantId, deletedAt: null };
+    const where: Prisma.WarrantyCardWhereInput = {
+      tenantId,
+      deletedAt: null,
+      // leadId is optional: hide cards whose lead was deleted, keep lead-less cards.
+      NOT: { lead: { is: { deletedAt: { not: null } } } },
+    };
     if (query.leadId) {
       where.leadId = query.leadId;
     }
@@ -557,11 +562,17 @@ export class WarrantiesService {
   private async requireIssuableQuotation(tenantId: string, quotationId: string) {
     const quotation = await this.prisma.quotation.findFirst({
       where: { id: quotationId, tenantId, deletedAt: null },
-      select: { id: true, leadId: true, status: true },
+      select: { id: true, leadId: true, status: true, lead: { select: { deletedAt: true } } },
     });
     if (!quotation) {
       throw new AppException(HttpStatus.NOT_FOUND, 'Quotation not found', {
         code: ErrorCodes.NOT_FOUND,
+      });
+    }
+    if (quotation.lead?.deletedAt) {
+      throw new AppException(HttpStatus.CONFLICT, 'Lead has been deleted', {
+        code: ErrorCodes.CONFLICT,
+        detail: 'Warranties cannot be issued from a quotation on a deleted lead.',
       });
     }
     if (!(ISSUABLE_QUOTATION_STATUSES as readonly string[]).includes(quotation.status)) {

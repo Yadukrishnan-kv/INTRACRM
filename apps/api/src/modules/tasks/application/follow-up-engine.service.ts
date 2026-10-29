@@ -44,6 +44,7 @@ export class FollowUpEngineService {
       tenantId,
       deletedAt: null,
       status: FollowUpStatus.pending,
+      lead: { deletedAt: null },
     } satisfies Prisma.FollowUpWhereInput;
 
     const managerCutoff = new Date(
@@ -183,6 +184,7 @@ export class FollowUpEngineService {
       tenantId,
       deletedAt: null,
       status: FollowUpStatus.pending,
+      lead: { deletedAt: null },
     };
     const nextDay = startOfNextZonedDay(now, timeZone);
     if (bucket === 'overdue') {
@@ -198,7 +200,12 @@ export class FollowUpEngineService {
     const now = new Date();
     const windowDate = new Date(`${formatYmd(now, timeZone)}T00:00:00.000Z`);
     const followUps = await this.prisma.followUp.findMany({
-      where: { tenantId, deletedAt: null, status: FollowUpStatus.pending },
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: FollowUpStatus.pending,
+        lead: { deletedAt: null },
+      },
       include: pendingFollowUpInclude,
       take: 2000,
     });

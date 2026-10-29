@@ -15,6 +15,7 @@ import { PERMISSION } from '../../../identity/domain/system-roles';
 import { FollowUpEngineService } from '../../application/follow-up-engine.service';
 import { FollowUpsService } from '../../application/follow-ups.service';
 import {
+  CancelFollowUpRequest,
   CompleteFollowUpRequest,
   CreateFollowUpRequest,
   FollowUpCalendarQuery,
@@ -101,6 +102,16 @@ export class FollowUpsController {
     @Body() dto: RescheduleFollowUpRequest,
   ) {
     return this.followUps.reschedule(actor, followUpId, dto);
+  }
+
+  @Post(':followUpId/cancel')
+  @RequirePermissions(PERMISSION.followUpUpdate)
+  cancel(
+    @CurrentUser() actor: AuthUser,
+    @Param('followUpId', ParseUUIDPipe) followUpId: string,
+    @Body() dto: CancelFollowUpRequest,
+  ) {
+    return this.followUps.cancel(actor, followUpId, dto);
   }
 
   @Post(':followUpId/complete')

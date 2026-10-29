@@ -6,11 +6,14 @@ import { ErrorCodes } from '../../../common/exceptions/error-codes';
 import { RedisService } from '../../../common/redis/redis.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { AccessPolicy } from '../domain/access.policy';
+import { assertPasswordPolicy } from '../domain/password.policy';
 import {
+  PERMISSION,
   PRODUCT_ROLE_CODES,
   RBAC_CACHE_TTL_SECONDS,
   SYSTEM_ROLE,
 } from '../domain/system-roles';
+import { PasswordHasher } from '../infrastructure/password.hasher';
 import {
   AssignMembershipRolesRequest,
   AssignUserRequest,
@@ -19,6 +22,13 @@ import {
   UpdateMembershipRequest,
   UpdateRoleRequest,
 } from '../interface/http/dto/rbac.dto';
+import { SessionRevocationService } from './session-revocation.service';
+
+/** Permissions that let a member administer other members and roles. */
+const ADMIN_GRANTING_PERMISSIONS: readonly string[] = [
+  PERMISSION.tenantManageUsers,
+  PERMISSION.tenantManageRoles,
+];
 
 export type ResolvedAccess = {
   membershipId: string;
@@ -68,6 +78,8 @@ export class RbacService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly sessions: SessionRevocationService,
+    private readonly passwords: PasswordHasher,
   ) {}
 
   async resolve(userId: string, tenantId: string): Promise<ResolvedAccess | null> {
@@ -207,6 +219,18 @@ export class RbacService {
         detail: 'System roles cannot be deleted.',
       });
     }
+    const assigned = await this.prisma.membershipRole.count({
+      where: {
+        roleId: role.id,
+        membership: { tenantId, deletedAt: null, status: { not: 'ended' } },
+      },
+    });
+    if (assigned > 0) {
+      throw new AppException(HttpStatus.CONFLICT, 'Role in use', {
+        code: ErrorCodes.CONFLICT,
+        detail: `This role is still assigned to ${assigned} member${assigned === 1 ? '' : 's'}. Reassign them before deleting the role.`,
+      });
+    }
     await this.prisma.role.update({
       where: { id: role.id },
       data: {
@@ -215,7 +239,6 @@ export class RbacService {
         version: { increment: 1 },
       },
     });
-    await this.prisma.membershipRole.deleteMany({ where: { roleId: role.id } });
     await this.invalidateTenant(tenantId);
     return { deleted: true };
   }
@@ -279,6 +302,16 @@ export class RbacService {
     const roles = await this.loadAssignableRoles(tenantId, dto.roleIds);
     this.assertFounderAssignment(actor, [], roles.map((role) => role.code));
 
+    if (dto.password) {
+      const policyError = assertPasswordPolicy(dto.password, dto.email);
+      if (policyError) {
+        throw new AppException(HttpStatus.UNPROCESSABLE_ENTITY, 'Password policy', {
+          code: ErrorCodes.PASSWORD_POLICY,
+          detail: policyError,
+        });
+      }
+    }
+
     let user = await this.prisma.user.findFirst({
       where: { email: dto.email, deletedAt: null },
     });
@@ -287,10 +320,16 @@ export class RbacService {
         data: {
           email: dto.email,
           fullName: dto.fullName,
-          status: 'invited',
+          status: dto.password ? 'active' : 'invited',
           createdBy: actor.userId,
         },
       });
+      if (dto.password) {
+        const passwordHash = await this.passwords.hash(dto.password);
+        await this.prisma.userCredential.create({
+          data: { userId: user.id, passwordHash },
+        });
+      }
     }
 
     const existing = await this.prisma.membership.findFirst({
@@ -333,10 +372,20 @@ export class RbacService {
     const tenantId = this.requireTenant(actor);
     const membership = await this.requireMembership(tenantId, membershipId);
     const currentRoles = membership.roles.map((row) => row.role.code);
-    if (dto.status && dto.status !== 'active' && currentRoles.includes(SYSTEM_ROLE.founder)) {
+    const status = dto.status as MembershipStatus | undefined;
+    const statusChanging = status !== undefined && status !== membership.status;
+    if (statusChanging) {
+      this.assertFounderTargetAllowed(actor, currentRoles, "a Founder's status");
+    }
+    if (statusChanging && status !== 'active' && membership.id === actor.membershipId) {
+      throw new AppException(HttpStatus.FORBIDDEN, 'Self action not allowed', {
+        code: ErrorCodes.FORBIDDEN,
+        detail: 'You cannot suspend or remove your own membership.',
+      });
+    }
+    if (status && status !== 'active' && currentRoles.includes(SYSTEM_ROLE.founder)) {
       await this.assertNotLastFounder(tenantId, membership.id);
     }
-    const status = dto.status as MembershipStatus | undefined;
     const updated = await this.prisma.membership.update({
       where: { id: membership.id },
       data: {
@@ -352,6 +401,9 @@ export class RbacService {
       },
       include: { user: true, roles: { include: { role: true } } },
     });
+    if (status && status !== 'active') {
+      await this.sessions.revokeAllForUserInTenant(membership.userId, tenantId);
+    }
     await this.invalidateUser(tenantId, membership.userId);
     return this.toMembership(updated);
   }
@@ -366,7 +418,14 @@ export class RbacService {
     const nextRoles = await this.loadAssignableRoles(tenantId, dto.roleIds);
     const currentCodes = membership.roles.map((row) => row.role.code);
     const nextCodes = nextRoles.map((role) => role.code);
+    this.assertFounderTargetAllowed(actor, currentCodes, "a Founder's roles");
     this.assertFounderAssignment(actor, currentCodes, nextCodes);
+    if (membership.id === actor.membershipId) {
+      await this.assertNotSelfDemotion(
+        membership.roles.map((row) => row.role.id),
+        nextRoles.map((role) => role.id),
+      );
+    }
     if (currentCodes.includes(SYSTEM_ROLE.founder) && !nextCodes.includes(SYSTEM_ROLE.founder)) {
       await this.assertNotLastFounder(tenantId, membership.id);
     }
@@ -470,6 +529,66 @@ export class RbacService {
       throw new AppException(HttpStatus.FORBIDDEN, 'Permission denied', {
         code: ErrorCodes.FORBIDDEN,
         detail: 'Only a Founder can assign or remove the Founder role.',
+      });
+    }
+  }
+
+  /** Only a Founder may change the status or roles of a Founder membership. */
+  private assertFounderTargetAllowed(
+    actor: AuthUser,
+    targetRoleCodes: string[],
+    what: string,
+  ): void {
+    if (
+      targetRoleCodes.includes(SYSTEM_ROLE.founder) &&
+      !AccessPolicy.isFounder(actor.roles ?? [])
+    ) {
+      throw new AppException(HttpStatus.FORBIDDEN, 'Permission denied', {
+        code: ErrorCodes.FORBIDDEN,
+        detail: `Only a Founder can change ${what}.`,
+      });
+    }
+  }
+
+  /**
+   * Rejects a role change on the actor's own membership that would drop the
+   * Founder/Admin role or any admin-granting permission they currently hold.
+   */
+  private async assertNotSelfDemotion(currentRoleIds: string[], nextRoleIds: string[]): Promise<void> {
+    const roleIds = [...new Set([...currentRoleIds, ...nextRoleIds])];
+    const roles = await this.prisma.role.findMany({
+      where: { id: { in: roleIds } },
+      include: { permissions: { include: { permission: true } } },
+    });
+    const byId = new Map(roles.map((role) => [role.id, role]));
+    const collect = (ids: string[]) => {
+      const codes = new Set<string>();
+      const perms = new Set<string>();
+      for (const id of ids) {
+        const role = byId.get(id);
+        if (!role || role.deletedAt) {
+          continue;
+        }
+        codes.add(role.code);
+        for (const grant of role.permissions ?? []) {
+          perms.add(grant.permission.code);
+        }
+      }
+      return { codes, perms };
+    };
+    const current = collect(currentRoleIds);
+    const next = collect(nextRoleIds);
+    const lostRole = [SYSTEM_ROLE.founder, SYSTEM_ROLE.admin].some(
+      (code) => current.codes.has(code) && !next.codes.has(code),
+    );
+    const lostPermission = ADMIN_GRANTING_PERMISSIONS.some(
+      (code) => current.perms.has(code) && !next.perms.has(code),
+    );
+    if (lostRole || lostPermission) {
+      throw new AppException(HttpStatus.FORBIDDEN, 'Self action not allowed', {
+        code: ErrorCodes.FORBIDDEN,
+        detail:
+          'You cannot remove your own administrative roles. Ask another administrator to change your roles.',
       });
     }
   }

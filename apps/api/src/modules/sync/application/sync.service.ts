@@ -56,6 +56,9 @@ export type SyncDelta = {
   leads: SyncLeadView[];
   notes: SyncNoteView[];
   followUps: Array<ReturnType<typeof toFollowUpView> & { updatedAt: string }>;
+  deletedLeads: string[];
+  deletedNotes: string[];
+  deletedFollowUps: string[];
 };
 
 const NOTE_TYPES = [...NOTE_ACTIVITY_TYPES] as ActivityType[];
@@ -68,33 +71,47 @@ export class SyncService {
     const tenantId = this.requireTenant(actor);
     const limit = Math.min(query.limit ?? SYNC_LIMITS.defaultLimit, SYNC_LIMITS.maxLimit);
     const since = this.parseSince(query.updatedSince);
-    const seed = since == null;
-
-    const [leads, notes, followUps] = await Promise.all([
+    const [leads, notes, followUps, deletedLeads, deletedNotes, deletedFollowUps] = await Promise.all([
       this.can(actor, PERMISSION.leadRead)
-        ? this.pullLeads(tenantId, since, limit, seed)
+        ? this.pullLeads(tenantId, since, limit)
         : Promise.resolve([] as SyncLeadView[]),
       this.can(actor, PERMISSION.activityRead) || this.can(actor, PERMISSION.leadRead)
-        ? this.pullNotes(tenantId, since, limit, seed)
+        ? this.pullNotes(tenantId, since, limit)
         : Promise.resolve([] as SyncNoteView[]),
       this.can(actor, PERMISSION.followUpRead)
-        ? this.pullFollowUps(tenantId, since, limit, seed)
+        ? this.pullFollowUps(tenantId, since, limit)
         : Promise.resolve([] as SyncDelta['followUps']),
+      this.can(actor, PERMISSION.leadRead)
+        ? this.pullDeletedIds('lead', tenantId, since, limit)
+        : Promise.resolve([] as Array<{ id: string; deletedAt: string }>),
+      this.can(actor, PERMISSION.activityRead) || this.can(actor, PERMISSION.leadRead)
+        ? this.pullDeletedIds('leadActivity', tenantId, since, limit, NOTE_TYPES)
+        : Promise.resolve([] as Array<{ id: string; deletedAt: string }>),
+      this.can(actor, PERMISSION.followUpRead)
+        ? this.pullDeletedIds('followUp', tenantId, since, limit)
+        : Promise.resolve([] as Array<{ id: string; deletedAt: string }>),
     ]);
 
     const timestamps = [
       ...leads.map((row) => row.updatedAt),
       ...notes.map((row) => row.updatedAt),
       ...followUps.map((row) => row.updatedAt),
+      ...deletedLeads.map((row) => row.deletedAt),
+      ...deletedNotes.map((row) => row.deletedAt),
+      ...deletedFollowUps.map((row) => row.deletedAt),
     ];
     const cursor = timestamps.length === 0 ? (query.updatedSince ?? null) : timestamps.sort().at(-1)!;
     return {
       cursor,
       updatedSince: query.updatedSince ?? null,
-      hasMore: leads.length === limit || notes.length === limit || followUps.length === limit,
+      hasMore: [leads, notes, followUps, deletedLeads, deletedNotes, deletedFollowUps]
+        .some((rows) => rows.length === limit),
       leads,
       notes,
       followUps,
+      deletedLeads: deletedLeads.map((row) => row.id),
+      deletedNotes: deletedNotes.map((row) => row.id),
+      deletedFollowUps: deletedFollowUps.map((row) => row.id),
     };
   }
 
@@ -102,7 +119,6 @@ export class SyncService {
     tenantId: string,
     since: Date | null,
     limit: number,
-    seed: boolean,
   ): Promise<SyncLeadView[]> {
     const rows = await this.prisma.lead.findMany({
       where: {
@@ -115,9 +131,7 @@ export class SyncService {
         stage: true,
         owner: { include: { user: true } },
       },
-      orderBy: seed
-        ? [{ updatedAt: 'desc' }, { id: 'desc' }]
-        : [{ updatedAt: 'asc' }, { id: 'asc' }],
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
       take: limit,
     });
     return rows.map((row) => ({
@@ -151,7 +165,6 @@ export class SyncService {
     tenantId: string,
     since: Date | null,
     limit: number,
-    seed: boolean,
   ): Promise<SyncNoteView[]> {
     const rows = await this.prisma.leadActivity.findMany({
       where: {
@@ -161,9 +174,7 @@ export class SyncService {
         ...(since ? { updatedAt: { gt: since } } : {}),
       },
       include: { actor: { include: { user: true } } },
-      orderBy: seed
-        ? [{ updatedAt: 'desc' }, { id: 'desc' }]
-        : [{ updatedAt: 'asc' }, { id: 'asc' }],
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
       take: limit,
     });
     return rows.map((row) => ({
@@ -183,7 +194,6 @@ export class SyncService {
     tenantId: string,
     since: Date | null,
     limit: number,
-    seed: boolean,
   ): Promise<SyncDelta['followUps']> {
     const rows = await this.prisma.followUp.findMany({
       where: {
@@ -195,15 +205,45 @@ export class SyncService {
         assignee: { include: { user: true } },
         lead: { select: { id: true, leadNumber: true, title: true, customerName: true } },
       },
-      orderBy: seed
-        ? [{ updatedAt: 'desc' }, { id: 'desc' }]
-        : [{ updatedAt: 'asc' }, { id: 'asc' }],
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
       take: limit,
     });
     return rows.map((row) => ({
       ...toFollowUpView(row),
       updatedAt: row.updatedAt.toISOString(),
     }));
+  }
+
+  private async pullDeletedIds(
+    resource: 'lead' | 'leadActivity' | 'followUp',
+    tenantId: string,
+    since: Date | null,
+    limit: number,
+    noteTypes?: ActivityType[],
+  ): Promise<Array<{ id: string; deletedAt: string }>> {
+    const deletedAt = since ? { gt: since } : { not: null };
+    const select = { id: true, deletedAt: true };
+    const rows = resource === 'lead'
+        ? await this.prisma.lead.findMany({
+            where: { tenantId, deletedAt },
+            select,
+            orderBy: [{ deletedAt: 'asc' }, { id: 'asc' }],
+            take: limit,
+          })
+        : resource === 'leadActivity'
+        ? await this.prisma.leadActivity.findMany({
+            where: { tenantId, deletedAt, type: { in: noteTypes! } },
+            select,
+            orderBy: [{ deletedAt: 'asc' }, { id: 'asc' }],
+            take: limit,
+          })
+        : await this.prisma.followUp.findMany({
+            where: { tenantId, deletedAt },
+            select,
+            orderBy: [{ deletedAt: 'asc' }, { id: 'asc' }],
+            take: limit,
+          });
+    return rows.flatMap((row) => row.deletedAt == null ? [] : [{ id: row.id, deletedAt: row.deletedAt.toISOString() }]);
   }
 
   private parseSince(value?: string): Date | null {

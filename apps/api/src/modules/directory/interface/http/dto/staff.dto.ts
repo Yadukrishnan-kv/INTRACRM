@@ -94,6 +94,13 @@ export class CreateStaffRequest {
   @IsArray()
   @IsUUID('all', { each: true })
   teamIds?: string[];
+
+  @ApiPropertyOptional({ description: 'Initial password; omit to leave the staff member invited without one.' })
+  @IsOptional()
+  @IsString()
+  @MinLength(10)
+  @MaxLength(128)
+  password?: string;
 }
 
 export class UpdateStaffRequest {

@@ -80,7 +80,7 @@ export class LeadsController {
   }
 
   @Delete(':leadId')
-  @RequirePermissions(PERMISSION.leadUpdate)
+  @RequirePermissions(PERMISSION.leadDelete)
   remove(
     @CurrentUser() actor: AuthUser,
     @Param('leadId', ParseUUIDPipe) leadId: string,

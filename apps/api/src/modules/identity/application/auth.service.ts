@@ -13,6 +13,7 @@ import { AuthRateLimiter } from '../infrastructure/auth.rate-limiter';
 import { PasswordHasher } from '../infrastructure/password.hasher';
 import { TokenHasher } from '../infrastructure/token.hasher';
 import { RbacService } from './rbac.service';
+import { SessionRevocationService } from './session-revocation.service';
 import { PushTokensService } from '../../notifications/application/push-tokens.service';
 import {
   ChangePasswordRequest,
@@ -80,6 +81,7 @@ export class AuthService {
     private readonly config: ConfigService<AppConfig, true>,
     private readonly rbac: RbacService,
     private readonly pushTokens: PushTokensService,
+    private readonly sessions: SessionRevocationService,
   ) {}
 
   async login(dto: LoginRequest, meta: RequestMeta): Promise<AuthTokensResponse> {
@@ -258,13 +260,19 @@ export class AuthService {
 
     const user = session.user;
     const tenants = user.memberships
-      .filter((membership) => membership.deletedAt === null && membership.status === 'active')
+      .filter(
+        (membership) =>
+          membership.deletedAt === null &&
+          membership.status === 'active' &&
+          !membership.tenant.deletedAt,
+      )
       .map((membership) => ({ id: membership.tenant.id, name: membership.tenant.name }));
     const tenantId = session.tenantId ?? tenants[0]?.id;
-    if (!tenantId) {
+    if (!tenantId || !tenants.some((tenant) => tenant.id === tenantId)) {
+      await this.revokeSessionById(session.id);
       throw new AppException(HttpStatus.FORBIDDEN, 'No tenant access', {
         code: ErrorCodes.FORBIDDEN,
-        detail: 'This user has no active tenant membership.',
+        detail: 'This user has no active membership in the session tenant.',
       });
     }
 
@@ -740,24 +748,11 @@ export class AuthService {
   }
 
   private async revokeSessionById(sessionId: string): Promise<void> {
-    const now = new Date();
-    await this.prisma.authSession.update({
-      where: { id: sessionId },
-      data: { status: 'revoked', revokedAt: now },
-    });
-    await this.prisma.refreshToken.updateMany({
-      where: { sessionId, revokedAt: null },
-      data: { revokedAt: now },
-    });
+    await this.sessions.revokeSession(sessionId);
   }
 
   private async revokeAllUserSessions(userId: string): Promise<void> {
-    const sessions = await this.prisma.authSession.findMany({
-      where: { userId, status: 'active' },
-    });
-    for (const session of sessions) {
-      await this.revokeSessionById(session.id);
-    }
+    await this.sessions.revokeAllForUser(userId);
   }
 
   private invalidCredentials(): never {

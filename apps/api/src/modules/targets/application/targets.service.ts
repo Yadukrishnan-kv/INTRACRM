@@ -475,7 +475,10 @@ export class TargetsService {
     const productId = dto.productId ?? existing.productId ?? undefined;
     const metricCode = dto.metricCode ?? existing.metricCode;
     await this.assertMetric(metricCode);
-    await this.assertScope(tenantId, scopeType, scopeId);
+    // Only a newly chosen staff scope must be active; editing an existing
+    // target of a since-suspended member stays possible.
+    const scopeChanged = scopeType !== existing.scopeType || (scopeId ?? null) !== existing.scopeId;
+    await this.assertScope(tenantId, scopeType, scopeId, scopeChanged);
     await this.assertProduct(tenantId, productId);
     const nextStart = (dto.periodStart ?? dateToYmd(existing.periodStart))?.slice(0, 10);
     const nextEnd = (dto.periodEnd ?? dateToYmd(existing.periodEnd))?.slice(0, 10);
@@ -1427,7 +1430,12 @@ export class TargetsService {
     }
   }
 
-  private async assertScope(tenantId: string, scopeType: ScopeTypeCode, scopeId?: string) {
+  private async assertScope(
+    tenantId: string,
+    scopeType: ScopeTypeCode,
+    scopeId?: string,
+    requireActiveMember = true,
+  ) {
     if (scopeType === 'tenant') {
       if (scopeId) {
         throw new AppException(HttpStatus.BAD_REQUEST, 'Company targets must not set a scope id', {
@@ -1455,11 +1463,16 @@ export class TargetsService {
     }
     if (scopeType === 'membership') {
       const member = await this.prisma.membership.findFirst({
-        where: { id: scopeId, tenantId, deletedAt: null },
+        where: {
+          id: scopeId,
+          tenantId,
+          deletedAt: null,
+          ...(requireActiveMember ? { status: 'active' as const } : {}),
+        },
         select: { id: true },
       });
       if (!member) {
-        throw new AppException(HttpStatus.BAD_REQUEST, 'Staff member not found', {
+        throw new AppException(HttpStatus.BAD_REQUEST, 'Active staff member not found', {
           code: ErrorCodes.BAD_REQUEST,
         });
       }

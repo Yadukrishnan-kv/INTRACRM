@@ -172,7 +172,8 @@ const PERFORMANCE_PERIODS = [
 export function PerformanceReportPage() {
   const filters = useReportFilters('ymd', ['periodType']);
   const periodType = filters.extras.periodType || 'monthly';
-  const query = { periodType };
+  // A from/to range is a custom period on the API and overrides periodType.
+  const query = filters.range ? filters.query : { periodType };
   const result = useReport<PerformanceReport>('/reports/performance', query);
   return (
     <ReportPage
@@ -181,12 +182,17 @@ export function PerformanceReportPage() {
       result={result}
       actions={<ExportButtons dataset="performance" query={query} />}
       filters={
-        <ChipFilter
-          label="Period"
-          value={periodType}
-          options={PERFORMANCE_PERIODS}
-          onChange={(v) => filters.setParam('periodType', v === 'monthly' ? '' : v)}
-        />
+        <FilterBar filters={filters}>
+          <DateRangeFilter filters={filters} />
+          {filters.range ? null : (
+            <ChipFilter
+              label="Period"
+              value={periodType}
+              options={PERFORMANCE_PERIODS}
+              onChange={(v) => filters.setParam('periodType', v === 'monthly' ? '' : v)}
+            />
+          )}
+        </FilterBar>
       }
     >
       {(r) => (
@@ -488,14 +494,21 @@ const STAGE_COLORS: Record<string, string> = {
 export const stageColor = (code: string | undefined) => STAGE_COLORS[code ?? ''] ?? STAGE_COLORS.lead;
 
 export function FunnelReportPage({ personal = false }: { personal?: boolean }) {
-  const result = useReport<FunnelReport>(personal ? '/reports/funnel/me' : '/reports/funnel', {});
+  // No range = every live lead; a range = the cohort of leads created in it.
+  const filters = useReportFilters('ymd');
+  const result = useReport<FunnelReport>(personal ? '/reports/funnel/me' : '/reports/funnel', filters.query);
   const r = result.data;
   return (
     <ReportPage
       title={personal ? 'My funnel' : 'Funnel report'}
       subtitle={r ? `${r.month.label} · Today ${r.today} · ${r.timezone}` : undefined}
       result={result}
-      actions={personal ? null : <ExportButtons dataset="funnel" query={{}} />}
+      actions={personal ? null : <ExportButtons dataset="funnel" query={filters.query} />}
+      filters={
+        <FilterBar filters={filters}>
+          <DateRangeFilter filters={filters} />
+        </FilterBar>
+      }
     >
       {(report) => {
         const maxReached = Math.max(1, maxOf(report.stages, (s) => s.reachedCount));
@@ -556,7 +569,7 @@ export function FunnelReportPage({ personal = false }: { personal?: boolean }) {
               </div>
             </div>
             <BreakdownTable
-              title="Last 7 days"
+              title={report.range ? 'Daily trend' : 'Last 7 days'}
               rows={report.charts.trend}
               rowKey={(p) => p.date}
               columns={[

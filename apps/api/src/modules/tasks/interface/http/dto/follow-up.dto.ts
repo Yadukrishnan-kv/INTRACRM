@@ -207,6 +207,21 @@ export class RescheduleFollowUpRequest {
   version?: number;
 }
 
+export class CancelFollowUpRequest {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  reason?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  version?: number;
+}
+
 export class CompleteFollowUpRequest {
   @ApiPropertyOptional()
   @IsOptional()

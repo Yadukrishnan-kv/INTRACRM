@@ -11,6 +11,7 @@ import { TargetsService } from './targets/application/targets.service';
 import { PipelineService } from './pipeline/application/pipeline.service';
 import { CommsService } from './comms/application/comms.service';
 import { RbacService } from './identity/application/rbac.service';
+import { SessionRevocationService } from './identity/application/session-revocation.service';
 import { TeamService } from './directory/application/team.service';
 import { StaffService } from './directory/application/staff.service';
 import { CatalogService } from './catalog/application/catalog.service';
@@ -369,7 +370,7 @@ describe('mutation coverage for large services', () => {
       del: jest.fn(),
       scan: jest.fn().mockResolvedValue(['0', []]),
     };
-    const rbac = new RbacService(prisma as never, redis as never);
+    const rbac = new RbacService(prisma as never, redis as never, new SessionRevocationService(prisma as never));
     (prisma.permission.findMany as jest.Mock).mockResolvedValue([
       { id: 'p1', code: 'lead:read', resource: 'lead', action: 'read', description: null },
     ]);

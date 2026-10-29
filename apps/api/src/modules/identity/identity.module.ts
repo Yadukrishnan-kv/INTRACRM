@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { AppConfig } from '../../common/config/configuration';
 import { AuthService } from './application/auth.service';
 import { RbacService } from './application/rbac.service';
+import { SessionRevocationService } from './application/session-revocation.service';
 import { AuthRateLimiter } from './infrastructure/auth.rate-limiter';
 import { PasswordHasher } from './infrastructure/password.hasher';
 import { TokenHasher } from './infrastructure/token.hasher';
@@ -37,7 +38,14 @@ import { NotificationsModule } from '../notifications/notifications.module';
     }),
   ],
   controllers: [AuthController, SessionsController, MeController, RbacController],
-  providers: [AuthService, RbacService, PasswordHasher, TokenHasher, AuthRateLimiter],
-  exports: [AuthService, RbacService, JwtModule],
+  providers: [
+    AuthService,
+    RbacService,
+    SessionRevocationService,
+    PasswordHasher,
+    TokenHasher,
+    AuthRateLimiter,
+  ],
+  exports: [AuthService, RbacService, SessionRevocationService, JwtModule],
 })
 export class IdentityModule {}

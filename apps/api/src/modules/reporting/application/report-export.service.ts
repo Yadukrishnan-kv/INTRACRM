@@ -70,12 +70,15 @@ export class ReportExportService {
           await this.performance.report(actor, {
             ...(query.periodType ? { periodType: query.periodType } : {}),
             ...(query.periodStart ? { periodStart: query.periodStart } : {}),
+            ...this.dayRange(query),
           }),
         );
       case 'analytics':
-        return analyticsExportDocument(await this.analytics.report(actor));
+        return analyticsExportDocument(await this.analytics.report(actor, undefined, this.dayRange(query)));
       case 'funnel':
-        return funnelExportDocument(await this.analytics.funnelReport(actor));
+        return funnelExportDocument(
+          await this.analytics.funnelReport(actor, undefined, this.dayRange(query)),
+        );
       case 'tracks':
         return tracksExportDocument(await this.tracks.report(actor, range));
     }
@@ -85,6 +88,17 @@ export class ReportExportService {
     return {
       ...(query.from ? { from: query.from } : {}),
       ...(query.to ? { to: query.to } : {}),
+    };
+  }
+
+  /**
+   * Performance, analytics and funnel treat from/to as inclusive calendar days
+   * (YYYY-MM-DD, tenant time zone); a timestamp is reduced to its date part.
+   */
+  private dayRange(query: ReportExportQuery): { from?: string; to?: string } {
+    return {
+      ...(query.from ? { from: query.from.slice(0, 10) } : {}),
+      ...(query.to ? { to: query.to.slice(0, 10) } : {}),
     };
   }
 

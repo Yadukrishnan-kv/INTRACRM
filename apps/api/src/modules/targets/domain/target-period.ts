@@ -119,6 +119,37 @@ export function resolvePeriod(input: {
   }
 }
 
+/** Longest span a report date-range filter may cover. */
+export const MAX_REPORT_RANGE_DAYS = 366;
+
+/**
+ * Resolves an optional report date-range filter of inclusive tenant-local
+ * calendar dates (YYYY-MM-DD). Returns null when neither bound is given so the
+ * caller keeps its default window. A missing `to` defaults to today; a missing
+ * `from` defaults to the first day of `to`'s month. Throws on an inverted or
+ * over-long range.
+ */
+export function resolveReportRange(input: {
+  from?: string | undefined;
+  to?: string | undefined;
+  todayYmd: string;
+  maxDays?: number;
+}): { start: string; end: string } | null {
+  if (!input.from && !input.to) {
+    return null;
+  }
+  const end = (input.to ?? input.todayYmd).slice(0, 10);
+  const start = (input.from ?? monthBoundsFromYmd(end).start).slice(0, 10);
+  if (end < start) {
+    throw new Error('to must be on or after from');
+  }
+  const maxDays = input.maxDays ?? MAX_REPORT_RANGE_DAYS;
+  if (daysInclusive(start, end) > maxDays) {
+    throw new Error(`Date range cannot exceed ${maxDays} days`);
+  }
+  return { start, end };
+}
+
 export function periodRangeUtc(
   startYmd: string,
   endYmd: string,

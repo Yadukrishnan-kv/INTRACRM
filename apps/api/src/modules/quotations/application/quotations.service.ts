@@ -58,7 +58,7 @@ import {
 
 const quotationInclude = {
   assignee: { include: { user: true } },
-  lead: { select: { id: true, leadNumber: true, title: true, customerName: true } },
+  lead: { select: { id: true, leadNumber: true, title: true, customerName: true, deletedAt: true } },
   items: {
     where: { deletedAt: null },
     include: { product: { select: { name: true } } },
@@ -146,7 +146,11 @@ export class QuotationsService {
     const limit = query.limit ?? DEFAULT_PAGE_LIMIT;
     const timeZone = await this.tenantZone(tenantId);
     const now = new Date();
-    const where: Prisma.QuotationWhereInput = { tenantId, deletedAt: null };
+    const where: Prisma.QuotationWhereInput = {
+      tenantId,
+      deletedAt: null,
+      lead: { deletedAt: null },
+    };
     if (query.leadId) {
       where.leadId = query.leadId;
     }
@@ -298,6 +302,7 @@ export class QuotationsService {
   async update(actor: AuthUser, quotationId: string, dto: UpdateQuotationRequest) {
     const tenantId = this.requireTenant(actor);
     const quotation = await this.requireQuotation(tenantId, quotationId);
+    this.assertLeadNotDeleted(quotation);
     if (!isDraftQuotation(quotation.status)) {
       throw new AppException(HttpStatus.CONFLICT, 'Only a draft quotation can be edited', {
         code: ErrorCodes.CONFLICT,
@@ -380,6 +385,7 @@ export class QuotationsService {
   async send(actor: AuthUser, quotationId: string, dto: SendQuotationBody) {
     const tenantId = this.requireTenant(actor);
     const quotation = await this.requireQuotation(tenantId, quotationId);
+    this.assertLeadNotDeleted(quotation);
     if (!canSendQuotationStatus(quotation.status)) {
       throw new AppException(HttpStatus.CONFLICT, 'Only a draft quotation can be sent', {
         code: ErrorCodes.CONFLICT,
@@ -445,6 +451,7 @@ export class QuotationsService {
   async changeStatus(actor: AuthUser, quotationId: string, dto: ChangeQuotationStatusRequest) {
     const tenantId = this.requireTenant(actor);
     const quotation = await this.requireQuotation(tenantId, quotationId);
+    this.assertLeadNotDeleted(quotation);
     if (dto.status === 'sent' || dto.status === 'draft') {
       throw new AppException(HttpStatus.CONFLICT, 'Use send to move a draft quotation to Sent', {
         code: ErrorCodes.CONFLICT,
@@ -521,6 +528,7 @@ export class QuotationsService {
   async scheduleFollowUp(actor: AuthUser, quotationId: string, dto: ScheduleQuotationFollowUpRequest) {
     const tenantId = this.requireTenant(actor);
     const quotation = await this.requireQuotation(tenantId, quotationId);
+    this.assertLeadNotDeleted(quotation);
     const logged = dto.logged === true;
     if (!dto.nextFollowUpAt && !dto.remindAt && !dto.expectedCloseOn && !logged && !dto.note) {
       throw new AppException(HttpStatus.BAD_REQUEST, 'Set a reminder, expected close date, or log a follow-up', {
@@ -844,6 +852,16 @@ export class QuotationsService {
       });
     }
     return row;
+  }
+
+  /** Quotations on a deleted lead are kept as read-only history. */
+  private assertLeadNotDeleted(quotation: { lead?: { deletedAt?: Date | null } | null }) {
+    if (quotation.lead?.deletedAt) {
+      throw new AppException(HttpStatus.CONFLICT, 'Lead has been deleted', {
+        code: ErrorCodes.CONFLICT,
+        detail: 'Quotations on a deleted lead are read-only.',
+      });
+    }
   }
 
   private async requireLead(tenantId: string, leadId: string) {

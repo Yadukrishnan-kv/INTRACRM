@@ -127,6 +127,16 @@ export class IncentivesController {
     return this.incentives.approve(actor, payoutId, dto);
   }
 
+  @Post('payouts/:payoutId/void')
+  @RequirePermissions(PERMISSION.incentiveManage)
+  voidPayout(
+    @CurrentUser() actor: AuthUser,
+    @Param('payoutId', ParseUUIDPipe) payoutId: string,
+    @Body() dto: PayoutDecisionRequest,
+  ) {
+    return this.incentives.voidPayout(actor, payoutId, dto);
+  }
+
   @Post('payouts/:payoutId/pay')
   @RequirePermissions(PERMISSION.incentiveManage)
   pay(

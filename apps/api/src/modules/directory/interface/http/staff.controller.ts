@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -64,6 +65,14 @@ export class StaffController {
     @Body() dto: StaffStatusRequest,
   ) {
     return this.staff.setStatus(actor, staffId, dto);
+  }
+
+  @Delete(':staffId')
+  remove(
+    @CurrentUser() actor: AuthUser,
+    @Param('staffId', ParseUUIDPipe) staffId: string,
+  ) {
+    return this.staff.remove(actor, staffId);
   }
 
   @Put(':staffId/roles')

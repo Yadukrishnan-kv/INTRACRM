@@ -8,12 +8,20 @@ export class ReportExportQuery {
   @IsIn([...EXPORT_FORMATS])
   format!: ExportFormat;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Range start. leads/follow-ups/quotations/sales/tracks: ISO timestamp, inclusive. ' +
+      'performance/analytics/funnel: calendar day YYYY-MM-DD (tenant time zone), inclusive.',
+  })
   @IsOptional()
   @IsDateString()
   from?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Range end. leads/follow-ups/quotations/sales/tracks: ISO timestamp, exclusive. ' +
+      'performance/analytics/funnel: calendar day YYYY-MM-DD (tenant time zone), inclusive.',
+  })
   @IsOptional()
   @IsDateString()
   to?: string;

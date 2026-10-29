@@ -73,7 +73,7 @@ export class QuotationsController {
   }
 
   @Delete(':quotationId')
-  @RequirePermissions(PERMISSION.quotationCreate)
+  @RequirePermissions(PERMISSION.quotationDelete)
   remove(
     @CurrentUser() actor: AuthUser,
     @Param('quotationId', ParseUUIDPipe) quotationId: string,

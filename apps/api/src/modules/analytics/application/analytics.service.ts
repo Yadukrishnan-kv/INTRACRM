@@ -9,7 +9,14 @@ import { buildSeries, deltaBps, trailingDays } from '../../dashboard/domain/dash
 import { QUOTATION_STATUS_LABELS, QuotationStatusCode } from '../../quotations/domain/quotation-types';
 import { toMinorNumber } from '../../crm-leads/domain/lead-validation';
 import { formatYmd, startOfNextZonedDay, startOfZonedDay } from '../../tasks/domain/zoned-day';
-import { monthBoundsFromYmd, periodLabel, periodRangeUtc } from '../../targets/domain/target-period';
+import {
+  addDaysYmd,
+  monthBoundsFromYmd,
+  periodLabel,
+  periodRangeUtc,
+  resolveReportRange,
+} from '../../targets/domain/target-period';
+import type { AnalyticsRangeQuery } from '../interface/http/dto/analytics.dto';
 import {
   ANALYTICS_METRIC_CATALOG,
   AnalyticsMetricCode,
@@ -31,11 +38,16 @@ const SERIES_CAP = 5000;
 
 type Range = { gte: Date; lt: Date };
 
+/** Echo of the applied date-range filter; null when the default window was used. */
+type AppliedRange = { from: string; to: string } | null;
+
 export type AnalyticsDashboard = {
   generatedAt: string;
   timezone: string;
   today: string;
+  /** Summary window: the current month, or the requested `from`/`to` range. */
   month: { start: string; end: string; label: string };
+  range: AppliedRange;
   funnel: FunnelView & {
     today: FunnelView;
     month: FunnelView;
@@ -51,14 +63,22 @@ export class AnalyticsService {
     return { metrics: ANALYTICS_METRIC_CATALOG };
   }
 
-  async overview(actor: AuthUser, membershipId?: string): Promise<AnalyticsDashboard> {
+  async overview(
+    actor: AuthUser,
+    membershipId?: string,
+    rangeQuery?: AnalyticsRangeQuery,
+  ): Promise<AnalyticsDashboard> {
     const tenantId = this.requireTenant(actor);
     const timeZone = await this.tenantZone(tenantId);
     const now = new Date();
     const todayYmd = formatYmd(now, timeZone);
     const yesterdayYmd = trailingDays(todayYmd, 2)[0] ?? todayYmd;
     const weekDays = trailingDays(todayYmd, WEEK_DAYS);
-    const month = monthBoundsFromYmd(todayYmd);
+    // A requested range replaces the month window; today/yesterday/week stay anchored to now.
+    const custom = this.resolveRange(rangeQuery, todayYmd);
+    const month = custom ?? monthBoundsFromYmd(todayYmd);
+    const periodTitle = custom ? 'Selected range' : 'This month';
+    const periodWord = custom ? 'range' : 'month';
     const todayStart = startOfZonedDay(now, timeZone);
     const todayEnd = startOfNextZonedDay(now, timeZone);
     const today: Range = { gte: todayStart, lt: todayEnd };
@@ -71,6 +91,7 @@ export class AnalyticsService {
     const windowStart = [monthWindow.gte, weekWindow.gte, yesterdayRange.gte].reduce((min, date) =>
       date < min ? date : min,
     );
+    const windowEnd = monthWindow.lt > todayEnd ? monthWindow.lt : todayEnd;
     const ownedLead = membershipId
       ? { deletedAt: null, ownerMembershipId: membershipId }
       : { deletedAt: null };
@@ -98,7 +119,7 @@ export class AnalyticsService {
         where: {
           tenantId,
           deletedAt: null,
-          createdAt: { gte: windowStart, lt: todayEnd },
+          createdAt: { gte: windowStart, lt: windowEnd },
           ...leadOwner,
         },
         select: {
@@ -115,7 +136,7 @@ export class AnalyticsService {
             where: {
               tenantId,
               toStageId: { in: qualifiedIds },
-              changedAt: { gte: windowStart, lt: todayEnd },
+              changedAt: { gte: windowStart, lt: windowEnd },
               lead: ownedLead,
             },
             select: { leadId: true, changedAt: true, toStageId: true },
@@ -125,7 +146,7 @@ export class AnalyticsService {
         where: {
           tenantId,
           deletedAt: null,
-          createdAt: { gte: windowStart, lt: todayEnd },
+          createdAt: { gte: windowStart, lt: windowEnd },
           ...assignee,
         },
         select: { id: true, leadId: true, createdAt: true, status: true, totalMinor: true },
@@ -135,7 +156,7 @@ export class AnalyticsService {
         where: {
           tenantId,
           deletedAt: null,
-          wonAt: { gte: windowStart, lt: todayEnd },
+          wonAt: { gte: windowStart, lt: windowEnd },
           ...assignee,
         },
         select: { id: true, leadId: true, wonAt: true, totalMinor: true },
@@ -267,7 +288,7 @@ export class AnalyticsService {
         deltaBps: deltaBps(leadsToday.length, leadsYesterday.length),
         month: leadsMonth.length,
         metrics: [
-          { code: 'month', label: 'This month', value: leadsMonth.length },
+          { code: 'month', label: periodTitle, value: leadsMonth.length },
           { code: 'sources', label: 'Sources', value: sourceMix.length },
         ],
         series: buildSeries(
@@ -285,8 +306,8 @@ export class AnalyticsService {
         deltaBps: deltaBps(qualifiedToday.length, qualifiedYesterday.length),
         month: qualifiedMonth.length,
         metrics: [
-          { code: 'month', label: 'This month', value: qualifiedMonth.length },
-          { code: 'rate_bps', label: 'Of leads (month)', value: monthFunnel.conversion.leadToQualifiedBps ?? 0 },
+          { code: 'month', label: periodTitle, value: qualifiedMonth.length },
+          { code: 'rate_bps', label: `Of leads (${periodWord})`, value: monthFunnel.conversion.leadToQualifiedBps ?? 0 },
         ],
         series: buildSeries(
           weekDays,
@@ -303,7 +324,7 @@ export class AnalyticsService {
         deltaBps: deltaBps(quotesToday.length, quotesYesterday.length),
         month: quotesMonth.length,
         metrics: [
-          { code: 'month', label: 'This month', value: quotesMonth.length },
+          { code: 'month', label: periodTitle, value: quotesMonth.length },
           { code: 'leads', label: 'Leads quoted', value: uniqueCount(quotesMonth.map((row) => row.leadId)) },
           {
             code: 'draft',
@@ -326,9 +347,9 @@ export class AnalyticsService {
         deltaBps: deltaBps(wonToday.length, wonYesterday.length),
         month: wonMonth.length,
         metrics: [
-          { code: 'month', label: 'This month', value: wonMonth.length },
+          { code: 'month', label: periodTitle, value: wonMonth.length },
           { code: 'revenue_today', label: 'Revenue today', value: wonValueToday },
-          { code: 'revenue_month', label: 'Revenue month', value: wonValueMonth },
+          { code: 'revenue_month', label: `Revenue ${periodWord}`, value: wonValueMonth },
         ],
         series: buildSeries(
           weekDays,
@@ -355,7 +376,7 @@ export class AnalyticsService {
             value: monthFunnel.conversion.qualifiedToQuotationBps ?? 0,
           },
           { code: 'quotation_to_won_bps', label: 'Quotation → Won', value: monthFunnel.conversion.quotationToWonBps ?? 0 },
-          { code: 'overall_bps', label: 'Overall (month)', value: monthFunnel.conversion.overallBps ?? 0 },
+          { code: 'overall_bps', label: `Overall (${periodWord})`, value: monthFunnel.conversion.overallBps ?? 0 },
         ],
         series: weekDays.map((date) => {
           const dayRange = periodRangeUtc(date, date, timeZone);
@@ -378,8 +399,9 @@ export class AnalyticsService {
       month: {
         start: month.start,
         end: month.end,
-        label: periodLabel('monthly', month.start, month.end),
+        label: periodLabel(custom ? 'custom' : 'monthly', month.start, month.end),
       },
+      range: custom ? { from: custom.start, to: custom.end } : null,
       funnel: {
         ...todayFunnel,
         today: todayFunnel,
@@ -389,53 +411,68 @@ export class AnalyticsService {
     };
   }
 
-  async widget(actor: AuthUser, code: string) {
+  async widget(actor: AuthUser, code: string, range?: AnalyticsRangeQuery) {
     if (!isAnalyticsMetricCode(code)) {
       throw new AppException(HttpStatus.BAD_REQUEST, 'Unknown analytics metric', {
         code: ErrorCodes.BAD_REQUEST,
       });
     }
-    const board = await this.overview(actor);
+    const board = await this.overview(actor, undefined, range);
     return {
       generatedAt: board.generatedAt,
       timezone: board.timezone,
       today: board.today,
       month: board.month,
+      range: board.range,
       funnel: board.funnel,
       widget: board.widgets[code],
     };
   }
 
-  async mine(actor: AuthUser) {
+  async mine(actor: AuthUser, range?: AnalyticsRangeQuery) {
     if (!actor.membershipId) {
       throw new AppException(HttpStatus.BAD_REQUEST, 'Membership required', {
         code: ErrorCodes.BAD_REQUEST,
       });
     }
-    return this.overview(actor, actor.membershipId);
+    return this.overview(actor, actor.membershipId, range);
   }
 
-  async report(actor: AuthUser, membershipId?: string) {
-    return this.overview(actor, membershipId);
+  async report(actor: AuthUser, membershipId?: string, range?: AnalyticsRangeQuery) {
+    return this.overview(actor, membershipId, range);
   }
 
-  async funnelReport(actor: AuthUser, membershipId?: string): Promise<
+  /**
+   * Stage funnel. By default it covers every live lead with a trailing-week
+   * trend. With `from`/`to` it covers the cohort of leads created in that
+   * inclusive range (stage moves counted up to the end of the range) and the
+   * trend spans each day of the range.
+   */
+  async funnelReport(
+    actor: AuthUser,
+    membershipId?: string,
+    rangeQuery?: AnalyticsRangeQuery,
+  ): Promise<
     FunnelReportView & {
       generatedAt: string;
       timezone: string;
       today: string;
       month: { start: string; end: string; label: string };
+      range: AppliedRange;
     }
   > {
     const tenantId = this.requireTenant(actor);
     const timeZone = await this.tenantZone(tenantId);
     const now = new Date();
     const todayYmd = formatYmd(now, timeZone);
-    const weekDays = trailingDays(todayYmd, WEEK_DAYS);
-    const month = monthBoundsFromYmd(todayYmd);
+    const custom = this.resolveRange(rangeQuery, todayYmd);
+    const days = custom ? this.eachDay(custom.start, custom.end) : trailingDays(todayYmd, WEEK_DAYS);
+    const month = custom ?? monthBoundsFromYmd(todayYmd);
+    const cohort = custom ? periodRangeUtc(custom.start, custom.end, timeZone) : null;
+    const createdIn = cohort ? { createdAt: { gte: cohort.from, lt: cohort.toExclusive } } : {};
     const ownedLead = membershipId
-      ? { deletedAt: null, ownerMembershipId: membershipId }
-      : { deletedAt: null };
+      ? { deletedAt: null, ownerMembershipId: membershipId, ...createdIn }
+      : { deletedAt: null, ...createdIn };
     const leadOwner = membershipId ? { ownerMembershipId: membershipId } : {};
 
     const [stages, leads, changes] = await Promise.all([
@@ -453,12 +490,16 @@ export class AnalyticsService {
         },
       }),
       this.prisma.lead.findMany({
-        where: { tenantId, deletedAt: null, ...leadOwner },
+        where: { tenantId, deletedAt: null, ...leadOwner, ...createdIn },
         select: { id: true, stageId: true, estimatedValueMinor: true, createdAt: true },
         take: SERIES_CAP,
       }),
       this.prisma.leadStageChange.findMany({
-        where: { tenantId, lead: ownedLead },
+        where: {
+          tenantId,
+          lead: ownedLead,
+          ...(cohort ? { changedAt: { lt: cohort.toExclusive } } : {}),
+        },
         select: { leadId: true, toStageId: true, changedAt: true },
         take: SERIES_CAP * 3,
       }),
@@ -478,7 +519,7 @@ export class AnalyticsService {
         toStageId: change.toStageId,
         at: change.changedAt,
       })),
-      days: weekDays,
+      days,
       timeZone,
     });
 
@@ -489,19 +530,41 @@ export class AnalyticsService {
       month: {
         start: month.start,
         end: month.end,
-        label: periodLabel('monthly', month.start, month.end),
+        label: periodLabel(custom ? 'custom' : 'monthly', month.start, month.end),
       },
+      range: custom ? { from: custom.start, to: custom.end } : null,
       ...report,
     };
   }
 
-  async mineFunnel(actor: AuthUser) {
+  async mineFunnel(actor: AuthUser, range?: AnalyticsRangeQuery) {
     if (!actor.membershipId) {
       throw new AppException(HttpStatus.BAD_REQUEST, 'Membership required', {
         code: ErrorCodes.BAD_REQUEST,
       });
     }
-    return this.funnelReport(actor, actor.membershipId);
+    return this.funnelReport(actor, actor.membershipId, range);
+  }
+
+  private resolveRange(
+    query: AnalyticsRangeQuery | undefined,
+    todayYmd: string,
+  ): { start: string; end: string } | null {
+    try {
+      return resolveReportRange({ from: query?.from, to: query?.to, todayYmd });
+    } catch (error) {
+      throw new AppException(HttpStatus.BAD_REQUEST, (error as Error).message, {
+        code: ErrorCodes.BAD_REQUEST,
+      });
+    }
+  }
+
+  private eachDay(start: string, end: string): string[] {
+    const days: string[] = [];
+    for (let day = start; day <= end; day = addDaysYmd(day, 1)) {
+      days.push(day);
+    }
+    return days;
   }
 
   private countMix(rows: Array<{ code: string; label: string }>): MixSlice[] {

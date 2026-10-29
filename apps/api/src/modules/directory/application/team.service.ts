@@ -122,13 +122,20 @@ export class TeamService {
     const tenantId = this.requireTenant(actor);
     const team = await this.requireTeam(tenantId, teamId);
     const uniqueIds = [...new Set(dto.membershipIds)];
+    // New members must be active; members already on the team are kept even if
+    // suspended so re-saving the roster does not fail.
     const memberships = await this.prisma.membership.findMany({
-      where: { id: { in: uniqueIds }, tenantId, deletedAt: null },
+      where: {
+        id: { in: uniqueIds },
+        tenantId,
+        deletedAt: null,
+        OR: [{ status: 'active' }, { teamLinks: { some: { teamId: team.id } } }],
+      },
     });
     if (memberships.length !== uniqueIds.length) {
       throw new AppException(HttpStatus.UNPROCESSABLE_ENTITY, 'Invalid members', {
         code: ErrorCodes.VALIDATION_ERROR,
-        detail: 'One or more staff members are not in this tenant.',
+        detail: 'One or more staff members are not active in this tenant.',
       });
     }
     await this.prisma.$transaction(async (tx) => {

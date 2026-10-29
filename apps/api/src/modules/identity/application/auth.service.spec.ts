@@ -3,6 +3,7 @@ import { actor } from '../../../testing/fixtures';
 import { configStub } from '../../../testing/config-stub';
 import { createPrismaMock } from '../../../testing/prisma-mock';
 import { AuthService } from './auth.service';
+import { SessionRevocationService } from './session-revocation.service';
 import { LoginRequest } from '../interface/http/dto/auth.dto';
 
 function buildAuth(prisma: ReturnType<typeof createPrismaMock>) {
@@ -35,6 +36,7 @@ function buildAuth(prisma: ReturnType<typeof createPrismaMock>) {
     configStub() as never,
     rbac as never,
     pushTokens as never,
+    new SessionRevocationService(prisma as never),
   );
   return { service, jwt, passwords, tokens, rateLimiter, rbac, pushTokens };
 }
@@ -322,5 +324,52 @@ describe('AuthService', () => {
     await expect(service.forgotPassword({ email: loginDto.email }, { ip: '1.1.1.1' })).resolves.toEqual({
       accepted: true,
     });
+  });
+
+  it('rejects refresh and revokes the session when the session tenant membership is no longer active', async () => {
+    const sessionRow = {
+      id: 'sess-suspended',
+      status: 'active',
+      deviceId: 'device-alpha-01',
+      tenantId: actor().tenantId,
+      user: {
+        id: 'u1',
+        fullName: 'Founder',
+        email: loginDto.email,
+        memberships: [
+          {
+            tenant: { id: actor().tenantId, name: 'A', deletedAt: null },
+            deletedAt: null,
+            status: 'suspended',
+          },
+          {
+            tenant: { id: 'other-tenant', name: 'B', deletedAt: null },
+            deletedAt: null,
+            status: 'active',
+          },
+        ],
+      },
+    };
+    (prisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
+      id: 'rt',
+      familyId: 'fam',
+      revokedAt: null,
+      replacedBy: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      authSession: sessionRow,
+    });
+    await expect(
+      service.refresh({ refreshToken: 'refresh-token-value-123456', deviceId: 'device-alpha-01' }),
+    ).rejects.toMatchObject({ code: ErrorCodes.FORBIDDEN });
+    expect(prisma.authSession.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'sess-suspended' },
+        data: expect.objectContaining({ status: 'revoked' }),
+      }),
+    );
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { sessionId: 'sess-suspended', revokedAt: null } }),
+    );
+    expect(prisma.refreshToken.create).not.toHaveBeenCalled();
   });
 });
