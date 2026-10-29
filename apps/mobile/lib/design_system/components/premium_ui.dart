@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../tokens/app_colors.dart';
+import '../tokens/app_palette.dart';
 import '../tokens/app_radii.dart';
 
 class StatusBadge extends StatelessWidget {
@@ -10,7 +11,7 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = StatusTone.forLabel(label);
+    final tone = StatusTone.forLabel(label, context.palette);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -45,7 +46,7 @@ class InitialsAvatar extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: filled ? AppColors.teal : AppColors.tealSoft,
+        color: filled ? AppColors.teal : context.palette.tealSoft,
         shape: BoxShape.circle,
       ),
       child: Text(
@@ -85,7 +86,7 @@ class AppDonut extends StatelessWidget {
         children: [
           CustomPaint(
             size: Size.square(size),
-            painter: _DonutPainter(progress: clamped),
+            painter: _DonutPainter(progress: clamped, trackColor: context.palette.tealSoft),
           ),
           Column(
             mainAxisSize: MainAxisSize.min,
@@ -105,16 +106,17 @@ class AppDonut extends StatelessWidget {
 }
 
 class _DonutPainter extends CustomPainter {
-  _DonutPainter({required this.progress});
+  _DonutPainter({required this.progress, required this.trackColor});
 
   final double progress;
+  final Color trackColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final stroke = size.width * 0.12;
     final rect = Offset(stroke / 2, stroke / 2) & Size(size.width - stroke, size.height - stroke);
     final track = Paint()
-      ..color = AppColors.tealSoft
+      ..color = trackColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round;
@@ -170,18 +172,18 @@ class InfoRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 18, color: AppColors.teal),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                Text(label, style: TextStyle(fontSize: 11, color: context.palette.muted)),
                 const SizedBox(height: 2),
                 Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
               ],
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );
@@ -250,7 +252,7 @@ class _Step extends StatelessWidget {
         ? AppColors.danger
         : active || done
         ? AppColors.teal
-        : AppColors.muted;
+        : context.palette.muted;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -316,12 +318,12 @@ class IconMenuTile extends StatelessWidget {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 8),
       leading: CircleAvatar(
-        backgroundColor: AppColors.tealSoft,
+        backgroundColor: context.palette.tealSoft,
         child: Icon(icon, color: AppColors.teal),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      title: Text(title, style: TextStyle(fontWeight: FontWeight.w600)),
       subtitle: subtitle == null ? null : Text(subtitle!),
-      trailing: const Icon(Icons.chevron_right, color: AppColors.muted),
+      trailing: Icon(Icons.chevron_right, color: context.palette.muted),
       onTap: onTap,
     );
   }
@@ -346,10 +348,10 @@ class StatTile extends StatelessWidget {
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: AppColors.tealSoft,
+            backgroundColor: context.palette.tealSoft,
             child: Icon(icon, color: AppColors.teal, size: 20),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,7 +360,7 @@ class StatTile extends StatelessWidget {
                   value,
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                 ),
-                Text(label, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                Text(label, style: TextStyle(fontSize: 11, color: context.palette.muted)),
               ],
             ),
           ),

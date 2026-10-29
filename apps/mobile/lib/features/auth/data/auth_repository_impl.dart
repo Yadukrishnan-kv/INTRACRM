@@ -1,5 +1,6 @@
 import '../../../core/auth/token_store.dart';
 import '../../../core/error/result.dart';
+import '../../../core/network/api_envelope.dart';
 import '../../../core/utils/device_name.dart';
 import '../domain/auth_repository.dart';
 import '../domain/auth_session.dart';
@@ -142,7 +143,7 @@ class AuthRepositoryImpl implements AuthRepository {
     };
   }
 
-  Future<Result<void>> _mapVoid<T>(Future<Result<dynamic>> request) async {
+  Future<Result<void>> _mapVoid<T>(Future<Result<ApiSuccess<T>>> request) async {
     final result = await request;
     return switch (result) {
       Success() => const Success(null),

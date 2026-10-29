@@ -1,6 +1,7 @@
 import '../../../core/error/result.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_envelope.dart';
+import '../../reports/domain/report_date_range.dart';
 import '../domain/performance.dart';
 
 class PerformanceApi {
@@ -23,7 +24,7 @@ class PerformanceApi {
       '/performance/leaderboard',
       query: {
         'periodType': periodType,
-        if (teamId != null) 'teamId': teamId,
+        'teamId': ?teamId,
         'limit': 100,
       },
       parse: (json) => PerformanceBoard.fromJson(json! as Map<String, dynamic>),
@@ -49,10 +50,15 @@ class PerformanceApi {
     );
   }
 
-  Future<Result<ApiSuccess<PerformanceReport>>> report({String periodType = 'monthly'}) {
+  /// With a [range] (inclusive YYYY-MM-DD) the API reports that custom period
+  /// and ignores [periodType].
+  Future<Result<ApiSuccess<PerformanceReport>>> report({
+    String periodType = 'monthly',
+    ReportDateRange? range,
+  }) {
     return _client.get(
       '/reports/performance',
-      query: {'periodType': periodType},
+      query: range == null ? {'periodType': periodType} : range.toQuery(ReportDateMode.ymd),
       parse: (json) => PerformanceReport.fromJson(json! as Map<String, dynamic>),
     );
   }

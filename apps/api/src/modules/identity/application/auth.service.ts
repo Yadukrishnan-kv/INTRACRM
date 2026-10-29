@@ -491,6 +491,40 @@ export class AuthService {
     return { changed: true };
   }
 
+  /**
+   * Admin-initiated password reset for another user (e.g. a staff member).
+   * Unlike `changePassword`, no current-password check applies since the
+   * caller's authorization comes from their `tenant:manage_users` permission,
+   * checked by the caller. Revokes all of the target user's sessions.
+   */
+  async adminResetPassword(
+    userId: string,
+    email: string | null,
+    newPassword: string,
+  ): Promise<{ changed: true }> {
+    const policyError = assertPasswordPolicy(newPassword, email ?? undefined);
+    if (policyError) {
+      throw new AppException(HttpStatus.UNPROCESSABLE_ENTITY, 'Password policy', {
+        code: ErrorCodes.PASSWORD_POLICY,
+        detail: policyError,
+      });
+    }
+    const passwordHash = await this.passwords.hash(newPassword);
+    await this.prisma.userCredential.upsert({
+      where: { userId },
+      update: {
+        passwordHash,
+        passwordAlgo: 'argon2id',
+        passwordUpdatedAt: new Date(),
+        failedAttempts: 0,
+        lockedUntil: null,
+      },
+      create: { userId, passwordHash },
+    });
+    await this.revokeAllUserSessions(userId);
+    return { changed: true };
+  }
+
   async listSessions(actor: AuthUser): Promise<SessionView[]> {
     const rows = await this.prisma.authSession.findMany({
       where: { userId: actor.userId },

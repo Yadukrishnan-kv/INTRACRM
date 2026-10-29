@@ -33,6 +33,38 @@ class RbacApi {
     );
   }
 
+  Future<Result<ApiSuccess<RbacRole>>> getRole(String roleId) {
+    return _client.get(
+      '/roles/$roleId',
+      parse: (json) => RbacRole.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
+  /// `PATCH /roles/:roleId` — rename / re-describe a custom role.
+  Future<Result<ApiSuccess<RbacRole>>> updateRole({
+    required String roleId,
+    String? name,
+    String? description,
+  }) {
+    return _client.patch(
+      '/roles/$roleId',
+      data: {'name': ?name, 'description': ?description},
+      parse: (json) => RbacRole.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
+  Future<Result<ApiSuccess<Object?>>> deleteRole(String roleId) {
+    return _client.delete('/roles/$roleId', parse: (json) => json);
+  }
+
+  /// `GET /permissions` — the full permission catalog.
+  Future<Result<ApiSuccess<List<RbacPermission>>>> listPermissions() {
+    return _client.get(
+      '/permissions',
+      parse: (json) => _asMaps(json).map(RbacPermission.fromJson).toList(),
+    );
+  }
+
   Future<Result<ApiSuccess<RbacRole>>> replacePermissions({
     required String roleId,
     required List<String> permissionCodes,

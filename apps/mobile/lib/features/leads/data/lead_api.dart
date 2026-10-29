@@ -1,6 +1,7 @@
 import '../../../core/error/result.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_envelope.dart';
+import '../../reports/domain/report_date_range.dart';
 import '../domain/lead.dart';
 import '../domain/lead_report.dart';
 import 'lead_dto.dart';
@@ -13,7 +14,7 @@ class LeadApi {
   Future<Result<ApiSuccess<List<LeadDto>>>> list({String? cursor}) {
     return _client.get(
       '/leads',
-      query: {if (cursor != null) 'cursor': cursor, 'limit': 20},
+      query: {'cursor': ?cursor, 'limit': 20},
       parse: (json) {
         final items = json as List<dynamic>? ?? const [];
         return [
@@ -41,7 +42,7 @@ class LeadApi {
   Future<Result<ApiSuccess<LeadDto>>> create(CreateLeadInput input) {
     return _client.post(
       '/leads',
-      data: _leadBody(input),
+      data: createBody(input),
       parse: (json) => LeadDto.fromJson(json! as Map<String, dynamic>),
     );
   }
@@ -54,11 +55,15 @@ class LeadApi {
     return _client.patch(
       '/leads/$id',
       data: {
-        ..._leadBody(input, includeFollowUp: false),
-        if (version != null) 'version': version,
+        ...updateBody(input),
+        'version': ?version,
       },
       parse: (json) => LeadDto.fromJson(json! as Map<String, dynamic>),
     );
+  }
+
+  Future<Result<ApiSuccess<Object?>>> deleteLead(String id) {
+    return _client.delete('/leads/$id', parse: (json) => json);
   }
 
   Future<Result<ApiSuccess<LeadDto>>> assign({
@@ -127,34 +132,49 @@ class LeadApi {
     );
   }
 
-  Future<Result<ApiSuccess<LeadReport>>> report() {
+  Future<Result<ApiSuccess<LeadReport>>> report({ReportDateRange? range}) {
     return _client.get(
       '/reports/leads',
+      query: reportRangeQuery(range, ReportDateMode.instant),
       parse: (json) => LeadReport.fromJson(json! as Map<String, dynamic>),
     );
   }
 
-  Map<String, dynamic> _leadBody(
+  /// PATCH body for a lead edit. Cleared fields go out as null so the server
+  /// clears them; omitting them would keep the old value.
+  static Map<String, dynamic> updateBody(CreateLeadInput input) {
+    return {
+      'title': input.title,
+      'customerName': _blankToNull(input.customerName),
+      'primaryPhone': _blankToNull(input.primaryPhone),
+      'primaryEmail': _blankToNull(input.primaryEmail),
+      'city': _blankToNull(input.city),
+      'requirement': _blankToNull(input.requirement),
+      'sourceId': input.sourceId,
+      'quality': input.quality,
+      'estimatedValueMinor': input.estimatedValueMinor,
+      // Unassigning is not an edit; ownership changes go through /assign.
+      'ownerMembershipId': ?input.ownerMembershipId,
+    };
+  }
+
+  /// POST body for a new lead. Blank fields are left out, since an empty
+  /// string fails validation (e.g. the email check).
+  static Map<String, dynamic> createBody(
     CreateLeadInput input, {
     bool includeFollowUp = true,
   }) {
     return {
       'title': input.title,
-      if (input.customerName != null && input.customerName!.isNotEmpty)
-        'customerName': input.customerName,
-      if (input.primaryPhone != null && input.primaryPhone!.isNotEmpty)
-        'primaryPhone': input.primaryPhone,
-      if (input.primaryEmail != null && input.primaryEmail!.isNotEmpty)
-        'primaryEmail': input.primaryEmail,
-      if (input.city != null && input.city!.isNotEmpty) 'city': input.city,
-      if (input.requirement != null && input.requirement!.isNotEmpty)
-        'requirement': input.requirement,
-      if (input.sourceId != null) 'sourceId': input.sourceId,
-      if (input.quality != null) 'quality': input.quality,
-      if (input.estimatedValueMinor != null)
-        'estimatedValueMinor': input.estimatedValueMinor,
-      if (input.ownerMembershipId != null)
-        'ownerMembershipId': input.ownerMembershipId,
+      'customerName': ?_blankToNull(input.customerName),
+      'primaryPhone': ?_blankToNull(input.primaryPhone),
+      'primaryEmail': ?_blankToNull(input.primaryEmail),
+      'city': ?_blankToNull(input.city),
+      'requirement': ?_blankToNull(input.requirement),
+      'sourceId': ?input.sourceId,
+      'quality': ?input.quality,
+      'estimatedValueMinor': ?input.estimatedValueMinor,
+      'ownerMembershipId': ?input.ownerMembershipId,
       if (includeFollowUp && input.followUpDueAt != null)
         'followUp': {
           'dueAt': input.followUpDueAt!.toUtc().toIso8601String(),
@@ -163,5 +183,10 @@ class LeadApi {
             'notes': input.followUpNotes,
         },
     };
+  }
+
+  static String? _blankToNull(String? value) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 }

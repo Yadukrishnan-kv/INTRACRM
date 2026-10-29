@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_palette.dart';
+
 class AppColors {
   static const seed = Color(0xFF0B6B5A);
   static const tealDark = Color(0xFF085547);
@@ -20,13 +22,15 @@ class StatusTone {
   final Color foreground;
   final Color background;
 
-  static StatusTone forLabel(String raw) {
+  /// Resolves a status tone against [palette] so the surface follows the
+  /// ambient brightness while the foreground stays a brand constant.
+  static StatusTone forLabel(String raw, AppPalette palette) {
     final value = raw.toLowerCase();
     if (value.contains('won') || value.contains('qualified') || value.contains('active') || value.contains('paid')) {
-      return const StatusTone(foreground: AppColors.success, background: Color(0xFFE4F5EC));
+      return StatusTone(foreground: AppColors.success, background: palette.successSurface);
     }
     if (value.contains('lost') || value.contains('overdue') || value.contains('void') || value.contains('dead')) {
-      return const StatusTone(foreground: AppColors.danger, background: Color(0xFFFDECEA));
+      return StatusTone(foreground: AppColors.danger, background: palette.dangerSurface);
     }
     if (value.contains('contact') ||
         value.contains('negotiat') ||
@@ -34,11 +38,11 @@ class StatusTone {
         value.contains('pending') ||
         value.contains('today') ||
         value.contains('warm')) {
-      return const StatusTone(foreground: AppColors.warning, background: Color(0xFFFDF3E0));
+      return StatusTone(foreground: AppColors.warning, background: palette.warningSurface);
     }
     if (value.contains('new') || value.contains('quote') || value.contains('hot') || value.contains('vip')) {
-      return const StatusTone(foreground: AppColors.info, background: Color(0xFFE8F0FE));
+      return StatusTone(foreground: AppColors.info, background: palette.infoSurface);
     }
-    return const StatusTone(foreground: AppColors.teal, background: AppColors.tealSoft);
+    return StatusTone(foreground: AppColors.teal, background: palette.tealSoft);
   }
 }

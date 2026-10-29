@@ -10,6 +10,7 @@ class AppScaffold extends StatelessWidget {
     this.leading,
     this.bottom,
     this.showAppBar = true,
+    this.drawer,
   });
 
   final String title;
@@ -19,6 +20,7 @@ class AppScaffold extends StatelessWidget {
   final Widget? leading;
   final PreferredSizeWidget? bottom;
   final bool showAppBar;
+  final Widget? drawer;
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +34,7 @@ class AppScaffold extends StatelessWidget {
               bottom: bottom,
             )
           : null,
+      drawer: drawer,
       body: SafeArea(child: body),
       floatingActionButton: floatingActionButton,
     );

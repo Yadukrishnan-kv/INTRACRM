@@ -8,16 +8,27 @@ import '../../../core/di/providers.dart';
 import '../../../core/error/result.dart';
 import '../../../l10n/app_strings.dart';
 import '../data/report_export_api.dart';
+import '../domain/report_date_range.dart';
 
 final reportExportApiProvider = Provider<ReportExportApi>((ref) {
   return ReportExportApi(ref.watch(apiClientProvider));
 });
 
 class ReportExportButton extends ConsumerStatefulWidget {
-  const ReportExportButton({super.key, required this.dataset, this.periodType});
+  const ReportExportButton({
+    super.key,
+    required this.dataset,
+    this.periodType,
+    this.range,
+    this.dateMode = ReportDateMode.instant,
+  });
 
   final String dataset;
   final String? periodType;
+
+  /// Date range applied on the page; exported with the same from/to.
+  final ReportDateRange? range;
+  final ReportDateMode dateMode;
 
   @override
   ConsumerState<ReportExportButton> createState() => _ReportExportButtonState();
@@ -32,6 +43,8 @@ class _ReportExportButtonState extends ConsumerState<ReportExportButton> {
       dataset: widget.dataset,
       format: format,
       periodType: widget.periodType,
+      range: widget.range,
+      dateMode: widget.dateMode,
     );
     if (!mounted) {
       return;

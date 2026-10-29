@@ -15,6 +15,11 @@ class AppStrings {
   static const changePassword = 'Change password';
   static const passwordReset = 'Password updated. Sign in with your new password.';
   static const passwordChanged = 'Password changed.';
+  static const confirmNewPassword = 'Confirm new password';
+  static const passwordsDoNotMatch = 'Passwords do not match.';
+  static const resetStaffPasswordMessage =
+      'Set a new password for this staff member. They will be signed out of every device.';
+  static const staffPasswordReset = 'Password reset. The staff member was signed out of all devices.';
   static const devicesAndSessions = 'Devices & sessions';
   static const signOutOtherDevices = 'Sign out other devices';
   static const loginHistory = 'Login history';
@@ -216,6 +221,7 @@ class AppStrings {
   static const send = 'Send';
   static const messageSent = 'Message sent';
   static const callConnecting = 'Connecting your call';
+  static const callCouldNotOpen = 'Could not open the dialer';
   static const couldNotOpenApp = 'Could not open the phone, SMS, or WhatsApp app.';
   static const invoices = 'Invoices';
   static const paymentStatus = 'Payment status';
@@ -277,4 +283,165 @@ class AppStrings {
   static const queuedOffline = 'Queued';
   static const syncConflict = 'Conflict merged';
   static const acknowledgeConflict = 'Dismiss';
+
+  // Monthly sales target
+  static const monthlySalesTarget = 'Monthly Sales Target';
+  static const salesTarget = 'Sales target';
+  static const show = 'Show:';
+  static const myTarget = 'My Target';
+  static const share = 'Share';
+  static const summaryCopied = 'Summary copied to clipboard';
+  static const ranking = 'Ranking';
+  static const userName = 'User Name';
+  static const sale = 'Sale';
+  static const average = 'Avg.';
+  static const date = 'Date';
+  static const insights = 'Insights';
+  static const suggestions = 'Suggestions';
+  static const fromTargetOf = 'From target of';
+  static const totalTarget = 'Total Target';
+  static const targetAchieved = 'Target Achieved';
+  static const leftToAchieve = 'Left to Achieve';
+  static const dailyAverage = 'Daily Average';
+  static const dailyRequired = 'Daily Required';
+  static const timeLeft = 'Time Left';
+  static const dayUnit = 'day';
+  static const daysUnit = 'days';
+  static const noTargetsTitle = 'No targets set';
+  static const noTargetsMessage =
+      'Set a monthly revenue target for the company or a staff member to see the board.';
+
+  // Follow-up calendar
+  static const followUpCalendar = 'Follow-Up Reminders';
+  static const calendar = 'Calendar';
+  static const allUsers = 'All Users';
+  static const tapToSelectUsers = 'Tap here to select users';
+  static const events = 'EVENTS';
+  static const noFollowUpsOnDay = 'Nothing scheduled';
+  static const noFollowUpsOnDayMessage = 'Pick another day, or add a follow-up for this one.';
+  static const overdueLabel = 'Overdue';
+  static const dueLabel = 'Due';
+  static const completedLabel = 'Completed';
+  static const cancelledLabel = 'Cancelled';
+
+  // Founder dashboard KPI cards
+  static const todaysFollowUps = "Today's Follow-ups";
+  static const mtdBilling = 'MTD Billing';
+  static const activeLeads = 'Active Leads';
+  static const wonThisMonth = 'Won This Month';
+
+  // Incentives
+  static const incentiveReport = 'Incentive & Achievement';
+  static const incentiveReportSubtitle = 'Earned incentive, attainment, and payout status';
+  static const earnedIncentive = 'Earned Incentive';
+  static const targetAchievement = 'Target Achievement';
+  static const wonOrders = 'Won Orders';
+  static const completion = 'Completion';
+  static const payable = 'Payable';
+  static const onHold = 'On hold';
+  static const paid = 'Paid';
+  static const byMember = 'By staff member';
+  static const payouts = 'Payouts';
+  static const incentivePlans = 'Incentive plans';
+  static const newIncentivePlan = 'New incentive plan';
+  static const editIncentivePlan = 'Edit incentive plan';
+  static const noIncentivesTitle = 'No incentive payouts yet';
+  static const noIncentivesMessage =
+      'Create an incentive plan with attainment slabs, then compute a period to see payouts here.';
+  static const slabs = 'Slabs';
+  static const attainment = 'Attainment';
+  static const computePeriod = 'Compute period';
+  static const computedPayouts = 'Payouts computed';
+  static const skippedLocked = 'left as approved/paid';
+
+  // Reports hub
+  static const staffReportSubtitle = 'Headcount, roles, teams, and activity';
+  static const targetReportSubtitle = 'Targets versus achievement by member';
+  static const warrantyReportSubtitle = 'Issued, active, expiring, and claims';
+
+  // Shared
+  static const cancel = 'Cancel';
+  static const loading = 'Loading…';
+  static const loadMore = 'Load more';
+
+  // Staff (self-protection)
+  static const cannotDeactivateSelf = "You can't deactivate your own account.";
+  static const cannotEditOwnRoles = "You can't change your own roles.";
+
+  // Lead delete / audit
+  static const deleteLead = 'Delete lead';
+  static String deleteLeadMessage(String title) =>
+      'Delete "$title"? It will be removed from the pipeline and reports.';
+  static const leadDeleted = 'Lead deleted';
+  static const deleteLeadOffline = 'Deleting a lead needs a network connection.';
+  static const auditTab = 'AUDIT';
+  static const auditTrail = 'Audit trail';
+  static const noTrackedChanges = 'No tracked changes.';
+
+  // Billing
+  static const syncCustomer = 'Sync customer';
+  static const syncingCustomer = 'Syncing…';
+  static const customerSynced = 'Customer synced';
+
+  // Site visits
+  static const editSiteVisit = 'Edit site visit';
+  static const cancelVisit = 'Cancel visit';
+  static const cancelVisitMessage = 'Cancel this visit? This cannot be undone.';
+  static const markNoShow = 'No-show';
+  static const markNoShowMessage =
+      'Mark this visit as a no-show? The customer was not available.';
+  static const removePhoto = 'Remove photo';
+  static const removePhotoMessage = 'Remove this photo from the visit?';
+
+  // Targets
+  static const editTarget = 'Edit target';
+  static const deleteTarget = 'Delete target';
+  static String deleteTargetMessage(String title) =>
+      'Delete the target "$title"? Achievement history is kept.';
+
+  // Roles
+  static const editRole = 'Edit role';
+  static const deleteRole = 'Delete role';
+  static String deleteRoleMessage(String name) =>
+      'Delete the role "$name"? Members keep their other roles.';
+  static const permissions = 'Permissions';
+
+  // Incentive payouts
+  static const payoutRows = 'Payout approvals';
+  static const approvePayout = 'Approve';
+  static String approvePayoutMessage(String who, String amount) =>
+      'Approve the $amount payout for $who?';
+  static const markPayoutPaid = 'Mark paid';
+  static String markPayoutPaidMessage(String who, String amount) =>
+      'Mark the $amount payout for $who as paid?';
+
+  // Message templates
+  static const messageTemplates = 'Message templates';
+  static const newTemplate = 'New template';
+  static const editTemplate = 'Edit template';
+  static const deleteTemplate = 'Delete template';
+  static String deleteTemplateMessage(String name) => 'Delete the template "$name"?';
+  static const noTemplates = 'No message templates yet.';
+  static const templateChannel = 'Channel';
+  static const templateCode = 'Code';
+  static const templateCodeRule = 'Use lowercase letters, numbers, or underscores.';
+  static const templateName = 'Name';
+  static const templateNameRequired = 'Name is required';
+  static const templateBody = 'Message';
+  static const templateBodyRequired = 'Message is required';
+
+  // Part B: staff removal, follow-up cancel, payout void
+  static const removeFromWorkspace = 'Remove from workspace';
+  static String removeFromWorkspaceMessage(String name) =>
+      'Remove $name from this workspace? They lose access immediately.';
+  static const cancelFollowUp = 'Cancel follow-up';
+  static const cancelFollowUpMessage = 'Cancel this follow-up? It will no longer be due.';
+  static const voidPayout = 'Void payout';
+  static String voidPayoutMessage(String who, String amount) =>
+      'Void the $amount payout for $who? It will not be paid.';
+
+  // Report date range
+  static const allTime = 'All time';
+  static const dateRange = 'Date range';
+  static const clearDateRange = 'Clear date range';
 }

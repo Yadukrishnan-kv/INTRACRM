@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS quotation_follow_up_events (
     ),
     CONSTRAINT chk_quotation_follow_up_event CHECK (
         event_type IN (
+            'quotation.pending',
             'quotation.follow_up_due',
             'quotation.follow_up_overdue',
             'quotation.follow_up_upcoming',
@@ -138,6 +139,35 @@ BEGIN
         ALTER TABLE quotation_follow_up_events
             ADD CONSTRAINT fk_quotation_follow_up_events_user
             FOREIGN KEY (recipient_user_id) REFERENCES users (id) ON DELETE RESTRICT;
+    END IF;
+
+    -- 'quotation.pending' is emitted by the quotation follow-up engine but was
+    -- missing from this CHECK, so every pending-decision reminder failed to
+    -- insert. Refresh the constraint on databases created before the fix.
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_quotation_follow_up_event'
+          AND pg_get_constraintdef(oid) NOT LIKE '%quotation.pending%'
+    ) THEN
+        ALTER TABLE quotation_follow_up_events
+            DROP CONSTRAINT chk_quotation_follow_up_event;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_quotation_follow_up_event'
+    ) THEN
+        ALTER TABLE quotation_follow_up_events
+            ADD CONSTRAINT chk_quotation_follow_up_event CHECK (
+                event_type IN (
+                    'quotation.pending',
+                    'quotation.follow_up_due',
+                    'quotation.follow_up_overdue',
+                    'quotation.follow_up_upcoming',
+                    'quotation.closing_soon',
+                    'quotation.closing_overdue',
+                    'quotation.no_follow_up',
+                    'quotation.escalated'
+                )
+            );
     END IF;
 END;
 $$;

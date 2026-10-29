@@ -14,11 +14,13 @@ void applySslPinning(Dio dio, AppFlavor flavor) {
       return client;
     },
     validateCertificate: (cert, host, port) {
-      if (cert == null) {
-        return false;
-      }
+      // Dio runs this for every response, and cert is null over cleartext
+      // HTTP, so the no-pins case must be settled before the null guard.
       if (flavor.sslPins.isEmpty) {
         return true;
+      }
+      if (cert == null) {
+        return false;
       }
       return certificateMatchesPins(der: cert.der, pins: flavor.sslPins);
     },

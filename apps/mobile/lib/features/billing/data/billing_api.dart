@@ -14,4 +14,12 @@ class BillingApi {
       parse: (json) => BillingSnapshot.fromJson(json! as Map<String, dynamic>),
     );
   }
+
+  /// Pushes the lead's customer to the billing provider (`billing:sync`).
+  Future<Result<ApiSuccess<BillingCustomer>>> syncCustomer(String leadId) {
+    return _client.post(
+      '/leads/$leadId/billing/customers/sync',
+      parse: (json) => BillingCustomer.fromJson(json! as Map<String, dynamic>),
+    );
+  }
 }

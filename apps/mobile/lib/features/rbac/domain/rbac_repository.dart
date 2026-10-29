@@ -11,6 +11,18 @@ abstract class RbacRepository {
     List<String> permissionCodes = const [],
   });
 
+  Future<Result<RbacRole>> getRole(String roleId);
+
+  Future<Result<RbacRole>> updateRole({
+    required String roleId,
+    String? name,
+    String? description,
+  });
+
+  Future<Result<void>> deleteRole(String roleId);
+
+  Future<Result<List<RbacPermission>>> listPermissions();
+
   Future<Result<RbacRole>> replacePermissions({
     required String roleId,
     required List<String> permissionCodes,

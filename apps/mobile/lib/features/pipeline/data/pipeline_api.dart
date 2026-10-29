@@ -47,7 +47,7 @@ class PipelineApi {
       data: {
         'stageId': stageId,
         'version': version,
-        if (lostReasonId != null) 'lostReasonId': lostReasonId,
+        'lostReasonId': ?lostReasonId,
         if (reason != null && reason.isNotEmpty) 'reason': reason,
       },
       parse: (json) => PipelineCard.fromJson(json! as Map<String, dynamic>),

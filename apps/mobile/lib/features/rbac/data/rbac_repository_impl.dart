@@ -1,4 +1,5 @@
 import '../../../core/error/result.dart';
+import '../../../core/network/api_envelope.dart';
 import '../domain/rbac_models.dart';
 import '../domain/rbac_repository.dart';
 import 'rbac_api.dart';
@@ -28,6 +29,35 @@ class RbacRepositoryImpl implements RbacRepository {
         permissionCodes: permissionCodes,
       ),
     );
+  }
+
+  @override
+  Future<Result<RbacRole>> getRole(String roleId) async {
+    return _unwrap(await _api.getRole(roleId));
+  }
+
+  @override
+  Future<Result<RbacRole>> updateRole({
+    required String roleId,
+    String? name,
+    String? description,
+  }) async {
+    return _unwrap(
+      await _api.updateRole(roleId: roleId, name: name, description: description),
+    );
+  }
+
+  @override
+  Future<Result<void>> deleteRole(String roleId) async {
+    return switch (_unwrap(await _api.deleteRole(roleId))) {
+      Success() => const Success(null),
+      Err(:final failure) => Err(failure),
+    };
+  }
+
+  @override
+  Future<Result<List<RbacPermission>>> listPermissions() async {
+    return _unwrap(await _api.listPermissions());
   }
 
   @override
@@ -77,10 +107,5 @@ class RbacRepositoryImpl implements RbacRepository {
     );
   }
 
-  Result<T> _unwrap<T>(Result<dynamic> result) {
-    return switch (result) {
-      Success(:final value) => Success(value.data as T),
-      Err(:final failure) => Err(failure),
-    };
-  }
+  Result<T> _unwrap<T>(Result<ApiSuccess<T>> result) => unwrapEnvelope(result);
 }

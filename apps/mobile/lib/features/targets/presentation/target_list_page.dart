@@ -28,6 +28,7 @@ class TargetListPage extends ConsumerWidget {
       title: AppStrings.targets,
       floatingActionButton: canManage
           ? FloatingActionButton(
+              heroTag: 'fab-targets',
               onPressed: () async {
                 await context.push(AppRoutes.targetCreate);
                 await _refresh(ref);

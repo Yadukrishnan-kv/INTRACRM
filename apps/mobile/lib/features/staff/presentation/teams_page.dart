@@ -122,6 +122,7 @@ class _TeamsPageState extends ConsumerState<TeamsPage> {
     return AppScaffold(
       title: AppStrings.teams,
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-teams',
         onPressed: _create,
         child: const Icon(Icons.group_add),
       ),

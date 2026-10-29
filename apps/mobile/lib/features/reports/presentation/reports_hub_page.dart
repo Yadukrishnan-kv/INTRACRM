@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design_system/components/premium_ui.dart';
-import '../../../design_system/tokens/app_colors.dart';
+import '../../../design_system/tokens/app_palette.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
+import '../../auth/application/auth_controller.dart';
 import '../../dashboard/domain/dashboard.dart';
 import '../../home/presentation/app_nav_drawer.dart';
-import '../../auth/application/auth_controller.dart';
 
 class ReportsHubPage extends ConsumerWidget {
   const ReportsHubPage({super.key});
@@ -17,6 +17,27 @@ class ReportsHubPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).user;
     final items = <_ReportLink>[
+      if (user?.canReadTarget == true)
+        const _ReportLink(
+          title: AppStrings.monthlySalesTarget,
+          subtitle: 'Gauge, leaderboard, forecast, and daily insights',
+          icon: Icons.speed_outlined,
+          route: AppRoutes.salesTarget,
+        ),
+      if (user?.canReadIncentive == true)
+        const _ReportLink(
+          title: AppStrings.incentiveReport,
+          subtitle: AppStrings.incentiveReportSubtitle,
+          icon: Icons.card_giftcard_outlined,
+          route: AppRoutes.incentiveReport,
+        ),
+      if (user?.canReadFollowUp == true)
+        const _ReportLink(
+          title: AppStrings.followUpCalendar,
+          subtitle: 'Month calendar, daily agenda, and click-to-call',
+          icon: Icons.event_available_outlined,
+          route: AppRoutes.followUpCalendar,
+        ),
       if (user?.canReadPerformance == true)
         const _ReportLink(
           title: 'Target & Achievement',
@@ -108,6 +129,27 @@ class ReportsHubPage extends ConsumerWidget {
           icon: Icons.fingerprint,
           route: AppRoutes.attendanceReport,
         ),
+      if (user?.canManageUsers == true)
+        const _ReportLink(
+          title: AppStrings.staffReport,
+          subtitle: AppStrings.staffReportSubtitle,
+          icon: Icons.groups_outlined,
+          route: AppRoutes.staffReport,
+        ),
+      if (user?.canReadTarget == true)
+        const _ReportLink(
+          title: AppStrings.targetReport,
+          subtitle: AppStrings.targetReportSubtitle,
+          icon: Icons.flag_outlined,
+          route: AppRoutes.targetReport,
+        ),
+      if (user?.canReadWarranty == true)
+        const _ReportLink(
+          title: AppStrings.warrantyReport,
+          subtitle: AppStrings.warrantyReportSubtitle,
+          icon: Icons.verified_outlined,
+          route: AppRoutes.warrantyReport,
+        ),
       if (user?.canReadPerformance == true)
         const _ReportLink(
           title: AppStrings.performanceReport,
@@ -118,7 +160,7 @@ class ReportsHubPage extends ConsumerWidget {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: context.palette.canvas,
       drawer: const AppNavDrawer(),
       appBar: AppBar(
         leading: const MenuDrawerButton(),

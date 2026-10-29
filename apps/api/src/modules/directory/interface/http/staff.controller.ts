@@ -19,6 +19,7 @@ import {
   AssignStaffRolesRequest,
   AssignStaffTeamsRequest,
   CreateStaffRequest,
+  ResetStaffPasswordRequest,
   StaffQuery,
   StaffStatusRequest,
   UpdateStaffRequest,
@@ -65,6 +66,15 @@ export class StaffController {
     @Body() dto: StaffStatusRequest,
   ) {
     return this.staff.setStatus(actor, staffId, dto);
+  }
+
+  @Post(':staffId/password')
+  resetPassword(
+    @CurrentUser() actor: AuthUser,
+    @Param('staffId', ParseUUIDPipe) staffId: string,
+    @Body() dto: ResetStaffPasswordRequest,
+  ) {
+    return this.staff.resetPassword(actor, staffId, dto);
   }
 
   @Delete(':staffId')

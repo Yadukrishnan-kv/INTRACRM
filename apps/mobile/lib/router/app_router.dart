@@ -1,80 +1,94 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/analytics/presentation/analytics_detail_page.dart';
+import '../features/analytics/presentation/analytics_page.dart';
+import '../features/analytics/presentation/funnel_report_page.dart';
+import '../features/analytics/presentation/staff_analytics_page.dart';
+import '../features/attendance/presentation/attendance_page.dart';
+import '../features/attendance/presentation/attendance_report_page.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/change_password_page.dart';
 import '../features/auth/presentation/forgot_password_page.dart';
 import '../features/auth/presentation/login_page.dart';
 import '../features/auth/presentation/reset_password_page.dart';
 import '../features/auth/presentation/sessions_page.dart';
-import '../features/home/presentation/home_shell.dart';
-import '../features/leads/presentation/lead_detail_page.dart';
-import '../features/leads/presentation/lead_form_page.dart';
-import '../features/leads/presentation/lead_list_page.dart';
-import '../features/pipeline/presentation/pipeline_analytics_page.dart';
-import '../features/pipeline/presentation/pipeline_board_page.dart';
-import '../features/timeline/presentation/timeline_page.dart';
-import '../features/notifications/presentation/notification_preferences_page.dart';
-import '../features/notifications/presentation/notifications_page.dart';
-import '../features/rbac/domain/rbac_models.dart';
-import '../features/rbac/presentation/member_roles_page.dart';
-import '../features/rbac/presentation/members_page.dart';
-import '../features/rbac/presentation/permission_matrix_page.dart';
-import '../features/rbac/presentation/role_form_page.dart';
-import '../features/rbac/presentation/roles_page.dart';
-import '../features/search/presentation/search_page.dart';
 import '../features/catalog/presentation/catalog_form_page.dart';
 import '../features/catalog/presentation/catalog_hub_page.dart';
 import '../features/catalog/presentation/catalog_list_page.dart';
-import '../features/settings/presentation/settings_page.dart';
+import '../features/comms/presentation/message_templates_page.dart';
+import '../features/dashboard/presentation/dashboard_detail_page.dart';
+import '../features/dashboard/presentation/dashboard_page.dart';
+import '../features/dashboard/presentation/staff_dashboard_page.dart';
+import '../features/follow_ups/presentation/follow_up_calendar_page.dart';
+import '../features/follow_ups/presentation/follow_up_detail_page.dart';
+import '../features/follow_ups/presentation/follow_up_form_page.dart';
+import '../features/follow_ups/presentation/follow_up_list_page.dart';
+import '../features/home/presentation/home_shell.dart';
+import '../features/incentives/presentation/incentive_plan_form_page.dart';
+import '../features/incentives/presentation/incentive_plan_list_page.dart';
+import '../features/incentives/presentation/incentive_report_page.dart';
+import '../features/leads/presentation/lead_detail_page.dart';
+import '../features/leads/presentation/lead_form_page.dart';
+import '../features/leads/presentation/lead_list_page.dart';
+import '../features/notifications/presentation/notification_preferences_page.dart';
+import '../features/notifications/presentation/notifications_page.dart';
+import '../features/performance/presentation/performance_detail_page.dart';
+import '../features/performance/presentation/performance_list_page.dart';
+import '../features/performance/presentation/performance_report_page.dart';
+import '../features/pipeline/presentation/pipeline_analytics_page.dart';
+import '../features/pipeline/presentation/pipeline_board_page.dart';
+import '../features/quotations/presentation/quotation_detail_page.dart';
+import '../features/quotations/presentation/quotation_form_page.dart';
+import '../features/quotations/presentation/quotation_list_page.dart';
+import '../features/quotations/presentation/quotation_report_page.dart';
+import '../features/rbac/presentation/permission_matrix_page.dart';
+import '../features/rbac/presentation/role_form_page.dart';
+import '../features/rbac/presentation/roles_page.dart';
+import '../features/reports/presentation/follow_up_report_page.dart';
+import '../features/reports/presentation/lead_report_page.dart';
+import '../features/reports/presentation/reports_hub_page.dart';
+import '../features/reports/presentation/sales_report_page.dart';
+import '../features/search/presentation/search_page.dart';
 import '../features/settings/presentation/general_settings_page.dart';
+import '../features/settings/presentation/settings_page.dart';
 import '../features/settings/presentation/taxes_settings_page.dart';
+import '../features/site_visits/presentation/site_visit_detail_page.dart';
+import '../features/site_visits/presentation/site_visit_form_page.dart';
+import '../features/site_visits/presentation/site_visit_list_page.dart';
+import '../features/site_visits/presentation/site_visit_report_page.dart';
+import '../features/splash/presentation/splash_page.dart';
+import '../features/staff/presentation/reset_staff_password_page.dart';
 import '../features/staff/presentation/staff_detail_page.dart';
 import '../features/staff/presentation/staff_form_page.dart';
 import '../features/staff/presentation/staff_list_page.dart';
 import '../features/staff/presentation/staff_report_page.dart';
 import '../features/staff/presentation/teams_page.dart';
-import '../features/quotations/presentation/quotation_detail_page.dart';
-import '../features/quotations/presentation/quotation_form_page.dart';
-import '../features/quotations/presentation/quotation_list_page.dart';
-import '../features/quotations/presentation/quotation_report_page.dart';
+import '../features/targets/presentation/sales_target_page.dart';
 import '../features/targets/presentation/target_detail_page.dart';
 import '../features/targets/presentation/target_form_page.dart';
 import '../features/targets/presentation/target_list_page.dart';
 import '../features/targets/presentation/target_report_page.dart';
-import '../features/dashboard/presentation/dashboard_detail_page.dart';
-import '../features/dashboard/presentation/dashboard_page.dart';
-import '../features/dashboard/presentation/staff_dashboard_page.dart';
-import '../features/analytics/presentation/analytics_detail_page.dart';
-import '../features/analytics/presentation/analytics_page.dart';
-import '../features/analytics/presentation/funnel_report_page.dart';
-import '../features/analytics/presentation/staff_analytics_page.dart';
-import '../features/performance/presentation/performance_detail_page.dart';
-import '../features/performance/presentation/performance_list_page.dart';
-import '../features/performance/presentation/performance_report_page.dart';
+import '../features/timeline/presentation/timeline_page.dart';
+import '../features/tracks/presentation/track_report_page.dart';
 import '../features/warranties/presentation/verify_warranty_page.dart';
 import '../features/warranties/presentation/warranty_detail_page.dart';
 import '../features/warranties/presentation/warranty_form_page.dart';
 import '../features/warranties/presentation/warranty_list_page.dart';
 import '../features/warranties/presentation/warranty_report_page.dart';
 import '../features/warranties/presentation/warranty_scan_page.dart';
-import '../features/reports/presentation/follow_up_report_page.dart';
-import '../features/reports/presentation/lead_report_page.dart';
-import '../features/reports/presentation/reports_hub_page.dart';
-import '../features/reports/presentation/sales_report_page.dart';
-import '../features/tracks/presentation/track_report_page.dart';
-import '../features/site_visits/presentation/site_visit_detail_page.dart';
-import '../features/site_visits/presentation/site_visit_form_page.dart';
-import '../features/site_visits/presentation/site_visit_list_page.dart';
-import '../features/site_visits/presentation/site_visit_report_page.dart';
-import '../features/attendance/presentation/attendance_page.dart';
-import '../features/attendance/presentation/attendance_report_page.dart';
-import '../features/splash/presentation/splash_page.dart';
-import '../features/follow_ups/presentation/follow_up_detail_page.dart';
-import '../features/follow_ups/presentation/follow_up_form_page.dart';
-import '../features/follow_ups/presentation/follow_up_list_page.dart';
 import 'app_routes.dart';
+import 'route_permissions.dart';
+
+/// Navigator that hosts the [StatefulShellRoute] and every full-screen page.
+///
+/// Sub-routes of the shell branches are pinned to this navigator with
+/// `parentNavigatorKey`. Without that, pushing a branch sub-route while a
+/// top-level page sits on top of the shell makes go_router append a *second*
+/// [StatefulShellRoute] page to the root navigator, and both shell pages carry
+/// the same page key, which trips Navigator's duplicate-page-key assertion.
+final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
@@ -84,6 +98,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(refresh.dispose);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.dashboard,
     refreshListenable: refresh,
     redirect: (context, state) {
@@ -102,7 +117,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (publicAuth || splashing) {
         return AppRoutes.dashboard;
       }
-      return null;
+      return permissionRedirect(location, auth.user);
     },
     routes: [
       GoRoute(
@@ -168,6 +183,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const TaxesSettingsPage(),
       ),
       GoRoute(
+        path: AppRoutes.messageTemplates,
+        builder: (context, state) => const MessageTemplatesPage(),
+      ),
+      GoRoute(
         path: AppRoutes.catalog,
         builder: (context, state) => const CatalogHubPage(),
         routes: [
@@ -205,12 +224,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RoleFormPage(),
       ),
       GoRoute(
-        path: AppRoutes.permissionMatrix,
-        builder: (context, state) => const PermissionMatrixPage(),
+        path: AppRoutes.roleEdit,
+        builder: (context, state) {
+          return RoleFormPage(roleId: state.pathParameters['roleId']);
+        },
       ),
       GoRoute(
-        path: AppRoutes.members,
-        builder: (context, state) => const StaffListPage(),
+        path: AppRoutes.permissionMatrix,
+        builder: (context, state) => const PermissionMatrixPage(),
       ),
       GoRoute(
         path: AppRoutes.staff,
@@ -230,6 +251,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.staffEdit,
         builder: (context, state) {
           return StaffFormPage(staffId: state.pathParameters['staffId']);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.staffResetPassword,
+        builder: (context, state) {
+          final email = state.uri.queryParameters['email'];
+          return ResetStaffPasswordPage(
+            staffId: state.pathParameters['staffId']!,
+            email: email == null || email.isEmpty ? null : email,
+          );
         },
       ),
       GoRoute(
@@ -267,6 +298,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               return SiteVisitDetailPage(visitId: state.pathParameters['visitId']!);
             },
+            routes: [
+              GoRoute(
+                path: 'edit',
+                builder: (context, state) {
+                  return SiteVisitFormPage(visitId: state.pathParameters['visitId']);
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -325,10 +364,22 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const TargetFormPage(),
           ),
           GoRoute(
+            path: 'sales-board',
+            builder: (context, state) => const SalesTargetPage(),
+          ),
+          GoRoute(
             path: ':targetId',
             builder: (context, state) {
               return TargetDetailPage(targetId: state.pathParameters['targetId']!);
             },
+            routes: [
+              GoRoute(
+                path: 'edit',
+                builder: (context, state) {
+                  return TargetFormPage(targetId: state.pathParameters['targetId']);
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -365,6 +416,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                 leadId: state.uri.queryParameters['leadId'],
               );
             },
+          ),
+          GoRoute(
+            path: 'calendar',
+            builder: (context, state) => const FollowUpCalendarPage(),
           ),
           GoRoute(
             path: ':followUpId',
@@ -466,18 +521,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const FollowUpReportPage(),
       ),
       GoRoute(
-        path: AppRoutes.salesReport,
-        builder: (context, state) => const SalesReportPage(),
+        path: AppRoutes.incentiveReport,
+        builder: (context, state) => const IncentiveReportPage(),
       ),
       GoRoute(
-        path: AppRoutes.memberRoles,
-        builder: (context, state) {
-          final extra = state.extra;
-          if (extra is RbacMembership) {
-            return MemberRolesPage(membership: extra);
-          }
-          return const MembersPage();
-        },
+        path: AppRoutes.incentivePlans,
+        builder: (context, state) => const IncentivePlanListPage(),
+        routes: [
+          GoRoute(
+            path: 'new',
+            builder: (context, state) => const IncentivePlanFormPage(),
+          ),
+          GoRoute(
+            path: ':planId/edit',
+            builder: (context, state) =>
+                IncentivePlanFormPage(planId: state.pathParameters['planId']!),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: AppRoutes.salesReport,
+        builder: (context, state) => const SalesReportPage(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -492,10 +556,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'me',
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) => const StaffDashboardPage(),
                   ),
                   GoRoute(
                     path: ':widgetCode',
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) {
                       return DashboardDetailPage(
                         widgetCode: state.pathParameters['widgetCode']!,
@@ -514,10 +580,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'create',
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) => const LeadFormPage(),
                   ),
                   GoRoute(
                     path: ':leadId',
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) {
                       return LeadDetailPage(
                         leadId: state.pathParameters['leadId']!,
@@ -526,6 +594,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                     routes: [
                       GoRoute(
                         path: 'edit',
+                        parentNavigatorKey: rootNavigatorKey,
                         builder: (context, state) {
                           return LeadFormPage(
                             leadId: state.pathParameters['leadId'],

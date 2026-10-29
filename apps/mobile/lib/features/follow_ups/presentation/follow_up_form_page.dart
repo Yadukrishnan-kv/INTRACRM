@@ -129,6 +129,9 @@ class _FollowUpFormPageState extends ConsumerState<FollowUpFormPage> {
     setState(() => _saving = false);
     if (result is Success) {
       await ref.read(followUpListProvider.notifier).refresh();
+      if (!mounted) {
+        return;
+      }
       context.pop(true);
     } else if (result is Err) {
       ScaffoldMessenger.of(context).showSnackBar(

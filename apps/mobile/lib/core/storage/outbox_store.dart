@@ -1,7 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
-import 'local_database.dart';
 import '../security/aes_cipher.dart';
+import 'local_database.dart';
 
 enum OutboxStatus { pending, processing, done, failed }
 
@@ -201,7 +201,7 @@ class OutboxStore {
     await db.update(
       'outbox_commands',
       {
-        if (path != null) 'path': path,
+        'path': ?path,
         if (body != null) 'body': await _cipher.encrypt(body),
       },
       where: 'id = ?',

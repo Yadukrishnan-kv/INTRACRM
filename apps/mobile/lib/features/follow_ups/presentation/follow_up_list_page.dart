@@ -31,6 +31,7 @@ class FollowUpListPage extends ConsumerWidget {
       title: AppStrings.followUps,
       floatingActionButton: canCreate
           ? FloatingActionButton(
+              heroTag: 'fab-follow-ups',
               onPressed: () async {
                 await context.push(AppRoutes.followUpCreate);
                 await _refresh(ref);
@@ -56,7 +57,7 @@ class FollowUpListPage extends ConsumerWidget {
                     FollowUpListFilter(
                       type: filter.type,
                       bucket: filter.bucket == code ? null : code,
-                      status: code == null ? 'pending' : null,
+                      status: null,
                     ),
                   );
                 },

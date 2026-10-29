@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
+import '../../features/follow_ups/data/follow_up_api.dart';
+import '../../features/leads/data/lead_api.dart';
+import '../../features/leads/data/lead_dto.dart';
 import '../auth/token_store.dart';
 import '../logging/app_logger.dart';
 import '../network/connectivity_service.dart';
@@ -8,9 +11,6 @@ import '../storage/id_map_store.dart';
 import '../storage/offline_store.dart';
 import '../storage/outbox_store.dart';
 import '../utils/id_generator.dart';
-import '../../features/leads/data/lead_api.dart';
-import '../../features/leads/data/lead_dto.dart';
-import '../../features/follow_ups/data/follow_up_api.dart';
 import 'conflict_resolver.dart';
 import 'outbox_processor.dart';
 import 'sync_api.dart';
@@ -115,9 +115,13 @@ class SyncEngine {
   }
 
   Future<int> _pull(String tenantId) async {
-    final cursor = await _cursors.read(resource: 'crm', tenantId: tenantId);
-    final result = await _syncApi.pull(updatedSince: cursor?.updatedSince?.toIso8601String());
-    return result.when(
+    var cursor = await _cursors.read(resource: 'crm', tenantId: tenantId);
+    var pulled = 0;
+    // The API pages each resource independently. Drain the cursor before
+    // reporting success, otherwise a first sync silently caches only page one.
+    while (true) {
+      final result = await _syncApi.pull(updatedSince: cursor?.updatedSince?.toIso8601String());
+      final outcome = await result.when(
       success: (envelope) async {
         final delta = envelope.data;
         for (final lead in delta.leads) {
@@ -144,22 +148,46 @@ class SyncEngine {
             serverId: followUp.id,
           );
         }
+        // Apply tombstones after upserts. This matters if a record was changed
+        // and deleted between two pulls: deletion is the authoritative state.
+        for (final id in delta.deletedLeads) {
+          await _offline.removeLead(tenantId, id);
+        }
+        for (final id in delta.deletedNotes) {
+          await _offline.removeNote(tenantId, id);
+        }
+        for (final id in delta.deletedFollowUps) {
+          await _offline.removeFollowUp(tenantId, id);
+        }
         final stamp = delta.cursor == null ? null : DateTime.tryParse(delta.cursor!);
-        await _cursors.save(
-          SyncCursor(
+        final next = SyncCursor(
             resource: 'crm',
             tenantId: tenantId,
             cursor: delta.cursor,
             updatedSince: stamp ?? cursor?.updatedSince,
-          ),
         );
-        return delta.leads.length + delta.notes.length + delta.followUps.length;
+        await _cursors.save(next);
+        cursor = next;
+        return (
+          delta.hasMore && delta.cursor != null && stamp != null,
+          delta.leads.length +
+            delta.notes.length +
+            delta.followUps.length +
+            delta.deletedLeads.length +
+            delta.deletedNotes.length +
+            delta.deletedFollowUps.length,
+        );
       },
       failure: (failure) async {
         _logger.warn('Sync pull failed: ${failure.message}');
-        return 0;
+        return (false, 0);
       },
     );
+      pulled += outcome.$2;
+      if (!outcome.$1) {
+        return pulled;
+      }
+    }
   }
 
   Future<void> _resolveStaleCommands(String tenantId) async {

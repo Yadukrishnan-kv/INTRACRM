@@ -1,6 +1,7 @@
 import '../../../core/error/result.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_envelope.dart';
+import '../../reports/domain/report_date_range.dart';
 import '../domain/site_visit.dart';
 
 class SiteVisitApi {
@@ -18,9 +19,9 @@ class SiteVisitApi {
       '/site-visits',
       query: {
         'limit': 20,
-        if (cursor != null) 'cursor': cursor,
-        if (status != null) 'status': status,
-        if (leadId != null) 'leadId': leadId,
+        'cursor': ?cursor,
+        'status': ?status,
+        'leadId': ?leadId,
         if (overdue == true) 'overdue': true,
       },
       parse: (json) {
@@ -76,7 +77,7 @@ class SiteVisitApi {
         if (city != null && city.isNotEmpty) 'city': city,
         if (state != null && state.isNotEmpty) 'state': state,
         if (postalCode != null && postalCode.isNotEmpty) 'postalCode': postalCode,
-        if (assignedToMembershipId != null) 'assignedToMembershipId': assignedToMembershipId,
+        'assignedToMembershipId': ?assignedToMembershipId,
         if (scheduledLocation != null) 'scheduledLocation': scheduledLocation.toJson(),
       },
       parse: (json) => SiteVisit.fromJson(json! as Map<String, dynamic>),
@@ -139,8 +140,8 @@ class SiteVisitApi {
       '/site-visits/$id/feedback',
       data: {
         'version': version,
-        if (customerFeedback != null) 'customerFeedback': customerFeedback,
-        if (customerRating != null) 'customerRating': customerRating,
+        'customerFeedback': ?customerFeedback,
+        'customerRating': ?customerRating,
       },
       parse: (json) => SiteVisit.fromJson(json! as Map<String, dynamic>),
     );
@@ -161,8 +162,8 @@ class SiteVisitApi {
         'version': version,
         if (outcome != null && outcome.isNotEmpty) 'outcome': outcome,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
-        if (customerFeedback != null) 'customerFeedback': customerFeedback,
-        if (customerRating != null) 'customerRating': customerRating,
+        'customerFeedback': ?customerFeedback,
+        'customerRating': ?customerRating,
         if (location != null) 'location': location.toJson(),
       },
       parse: (json) => SiteVisit.fromJson(json! as Map<String, dynamic>),
@@ -182,6 +183,81 @@ class SiteVisitApi {
       },
       parse: (json) => SiteVisit.fromJson(json! as Map<String, dynamic>),
     );
+  }
+
+  /// `POST /site-visits/:visitId/no-show` — only valid for scheduled visits.
+  Future<Result<ApiSuccess<SiteVisit>>> markNoShow({
+    required String id,
+    required int version,
+    String? reason,
+  }) {
+    return _client.post(
+      '/site-visits/$id/no-show',
+      data: {
+        'version': version,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+      parse: (json) => SiteVisit.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
+  /// `PATCH /site-visits/:visitId` — reschedule, reassign, or edit details of
+  /// an open visit. Only non-null fields are sent.
+  Future<Result<ApiSuccess<SiteVisit>>> updateVisit({
+    required String id,
+    required int version,
+    DateTime? scheduledAt,
+    String? purpose,
+    String? notes,
+    String? addressLine1,
+    String? city,
+    String? state,
+    String? postalCode,
+    String? assignedToMembershipId,
+    GeoPoint? scheduledLocation,
+  }) {
+    return _client.patch(
+      '/site-visits/$id',
+      data: updateVisitBody(
+        version: version,
+        scheduledAt: scheduledAt,
+        purpose: purpose,
+        notes: notes,
+        addressLine1: addressLine1,
+        city: city,
+        state: state,
+        postalCode: postalCode,
+        assignedToMembershipId: assignedToMembershipId,
+        scheduledLocation: scheduledLocation,
+      ),
+      parse: (json) => SiteVisit.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
+  static Map<String, dynamic> updateVisitBody({
+    required int version,
+    DateTime? scheduledAt,
+    String? purpose,
+    String? notes,
+    String? addressLine1,
+    String? city,
+    String? state,
+    String? postalCode,
+    String? assignedToMembershipId,
+    GeoPoint? scheduledLocation,
+  }) {
+    return {
+      'version': version,
+      if (scheduledAt != null) 'scheduledAt': scheduledAt.toUtc().toIso8601String(),
+      'purpose': ?purpose,
+      'notes': ?notes,
+      'addressLine1': ?addressLine1,
+      'city': ?city,
+      'state': ?state,
+      'postalCode': ?postalCode,
+      'assignedToMembershipId': ?assignedToMembershipId,
+      if (scheduledLocation != null) 'scheduledLocation': scheduledLocation.toJson(),
+    };
   }
 
   Future<Result<ApiSuccess<SiteVisit>>> addPhoto({
@@ -225,9 +301,10 @@ class SiteVisitApi {
     );
   }
 
-  Future<Result<ApiSuccess<SiteVisitReport>>> report() {
+  Future<Result<ApiSuccess<SiteVisitReport>>> report({ReportDateRange? range}) {
     return _client.get(
       '/reports/site-visits',
+      query: reportRangeQuery(range, ReportDateMode.instant),
       parse: (json) => SiteVisitReport.fromJson(json! as Map<String, dynamic>),
     );
   }

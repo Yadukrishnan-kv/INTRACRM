@@ -5,20 +5,32 @@ import 'package:go_router/go_router.dart';
 import '../../../design_system/components/app_async_body.dart';
 import '../../../design_system/components/premium_ui.dart';
 import '../../../design_system/tokens/app_colors.dart';
+import '../../../design_system/tokens/app_palette.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
+import '../../auth/application/auth_controller.dart';
 import '../../home/presentation/app_nav_drawer.dart';
 import '../../notifications/presentation/notifications_page.dart';
 import '../../performance/domain/performance.dart';
 import '../application/dashboard_providers.dart';
 import '../domain/dashboard.dart';
+import 'staff_dashboard_page.dart';
+import 'widgets/founder_kpi_grid.dart';
 
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The founder dashboard needs `dashboard:read`; sales executives and staff
+    // only hold `dashboard:self`, so their home is the personal dashboard.
+    // Checked before watching any provider so no forbidden request goes out.
+    final user = ref.watch(authControllerProvider).user;
+    if (user != null && !user.canReadDashboard) {
+      return const StaffDashboardPage(asHome: true);
+    }
+
     final asyncBoard = ref.watch(dashboardOverviewProvider);
     final unread = ref.watch(notificationInboxProvider).asData?.value;
     final unreadCount = unread == null
@@ -26,11 +38,16 @@ class DashboardPage extends ConsumerWidget {
         : unread.when(success: (page) => page.items.where((item) => item.unread).length, failure: (_) => 0);
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: context.palette.canvas,
       drawer: const AppNavDrawer(),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () => ref.read(dashboardOverviewProvider.notifier).refresh(),
+          onRefresh: () async {
+            await Future.wait([
+              ref.read(dashboardOverviewProvider.notifier).refresh(),
+              ref.read(dashboardKpisProvider.notifier).refresh(),
+            ]);
+          },
           child: AppAsyncBody(
             asyncValue: asyncBoard,
             isEmpty: (board) => board.ordered.isEmpty,
@@ -52,7 +69,7 @@ class DashboardPage extends ConsumerWidget {
               final achieved = sales?.month ?? 0;
               final progress = target <= 0 ? 0.0 : (achieved / target).clamp(0.0, 1.0);
               return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                 children: [
                   _Header(unreadCount: unreadCount),
@@ -60,8 +77,10 @@ class DashboardPage extends ConsumerWidget {
                   Text('Dashboard', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
                   Text(
                     _prettyDate(board.today),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: context.palette.muted),
                   ),
+                  SizedBox(height: AppSpacing.md),
+                  const FounderKpiGrid(),
                   const SizedBox(height: AppSpacing.md),
                   _GlanceCard(
                     leads: leads?.primary ?? 0,
@@ -171,7 +190,7 @@ class DashboardPage extends ConsumerWidget {
                                         minHeight: 7,
                                         borderRadius: BorderRadius.circular(99),
                                         color: AppColors.teal,
-                                        backgroundColor: AppColors.tealSoft,
+                                        backgroundColor: context.palette.tealSoft,
                                       ),
                                     ],
                                   ),

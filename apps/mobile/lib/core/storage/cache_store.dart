@@ -1,7 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
-import 'local_database.dart';
 import '../security/aes_cipher.dart';
+import 'local_database.dart';
 
 class CacheStore {
   CacheStore(this._database, this._cipher);

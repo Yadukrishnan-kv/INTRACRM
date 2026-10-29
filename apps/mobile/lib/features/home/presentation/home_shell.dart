@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design_system/tokens/app_colors.dart';
+import '../../../design_system/tokens/app_palette.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
 import '../../auth/application/auth_controller.dart';
@@ -65,13 +66,14 @@ class HomeShell extends ConsumerWidget {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: showDock && canCreate
           ? FloatingActionButton(
+              heroTag: 'fab-home-shell',
               onPressed: () => context.push(AppRoutes.leadCreate),
-              child: const Icon(Icons.add, size: 28),
+              child: Icon(Icons.add, size: 28),
             )
           : null,
       bottomNavigationBar: showDock
           ? BottomAppBar(
-              color: AppColors.card,
+              color: context.palette.card,
               elevation: 8,
               shape: const CircularNotchedRectangle(),
               notchMargin: 8,
@@ -135,7 +137,7 @@ class _NavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppColors.teal : AppColors.muted;
+    final color = selected ? AppColors.teal : context.palette.muted;
     return Expanded(
       child: InkWell(
         onTap: onTap,

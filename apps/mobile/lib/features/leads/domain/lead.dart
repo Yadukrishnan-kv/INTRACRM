@@ -113,6 +113,8 @@ class LeadFollowUp {
     this.leadId,
     this.leadNumber,
     this.leadTitle,
+    this.leadCustomerName,
+    this.leadPhone,
     this.overdue = false,
     this.rescheduleCount = 0,
     this.engineBucket,
@@ -133,6 +135,11 @@ class LeadFollowUp {
   final String? leadId;
   final String? leadNumber;
   final String? leadTitle;
+  final String? leadCustomerName;
+
+  /// The lead's primary phone, so the calendar agenda can dial without
+  /// loading the lead first. Null when the lead has no number on file.
+  final String? leadPhone;
   final bool overdue;
   final int rescheduleCount;
   final String? engineBucket;

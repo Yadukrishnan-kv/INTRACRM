@@ -5,6 +5,8 @@ import '../../../core/error/result.dart';
 import '../../../design_system/components/app_scaffold.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
+import '../../reports/domain/report_date_range.dart';
+import '../../reports/presentation/report_date_range_bar.dart';
 import '../application/site_visit_providers.dart';
 import '../domain/site_visit.dart';
 
@@ -16,6 +18,7 @@ class SiteVisitReportPage extends ConsumerStatefulWidget {
 }
 
 class _SiteVisitReportPageState extends ConsumerState<SiteVisitReportPage> {
+  ReportDateRange? _range;
   var _loading = true;
   String? _error;
   SiteVisitReport? _report;
@@ -31,7 +34,7 @@ class _SiteVisitReportPageState extends ConsumerState<SiteVisitReportPage> {
       _loading = true;
       _error = null;
     });
-    final result = await ref.read(siteVisitApiProvider).report();
+    final result = await ref.read(siteVisitApiProvider).report(range: _range);
     if (!mounted) {
       return;
     }
@@ -51,58 +54,74 @@ class _SiteVisitReportPageState extends ConsumerState<SiteVisitReportPage> {
     final report = _report;
     return AppScaffold(
       title: AppStrings.siteVisitReport,
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(child: Text(_error!))
-          : report == null
-          ? const SizedBox.shrink()
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                children: [
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    children: [
-                      _MetricCard(label: 'Total', value: report.totals.total),
-                      _MetricCard(label: 'Scheduled', value: report.totals.scheduled),
-                      _MetricCard(label: 'In progress', value: report.totals.inProgress),
-                      _MetricCard(label: 'Completed', value: report.totals.completed),
-                      _MetricCard(label: 'No show', value: report.totals.noShow),
-                      _MetricCard(label: 'With GPS', value: report.totals.withGps),
-                      _MetricCard(label: 'With photos', value: report.totals.withPhotos),
-                      _MetricCard(label: 'With feedback', value: report.totals.withFeedback),
-                      _MetricCard(
-                        label: 'Avg rating',
-                        valueLabel: report.totals.averageRating?.toStringAsFixed(1) ?? '—',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text('By status', style: Theme.of(context).textTheme.titleMedium),
-                  for (final row in report.byStatus)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(SiteVisitStatuses.title(row.status)),
-                      trailing: Text('${row.count}'),
-                    ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text('By assignee', style: Theme.of(context).textTheme.titleMedium),
-                  for (final row in report.byAssignee)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(row.name ?? row.membershipId),
-                      subtitle: Text(
-                        'Completed ${row.completed} · GPS ${row.withGps} · no-show ${row.noShow}'
-                        '${row.averageRating == null ? '' : ' · ${row.averageRating}★'}',
-                      ),
-                      trailing: Text('${row.total}'),
-                    ),
-                ],
-              ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+            child: ReportDateRangeBar(
+              range: _range,
+              onChanged: (range) {
+                setState(() => _range = range);
+                _load();
+              },
             ),
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                ? Center(child: Text(_error!))
+                : report == null
+                ? const SizedBox.shrink()
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      children: [
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
+                          children: [
+                            _MetricCard(label: 'Total', value: report.totals.total),
+                            _MetricCard(label: 'Scheduled', value: report.totals.scheduled),
+                            _MetricCard(label: 'In progress', value: report.totals.inProgress),
+                            _MetricCard(label: 'Completed', value: report.totals.completed),
+                            _MetricCard(label: 'No show', value: report.totals.noShow),
+                            _MetricCard(label: 'With GPS', value: report.totals.withGps),
+                            _MetricCard(label: 'With photos', value: report.totals.withPhotos),
+                            _MetricCard(label: 'With feedback', value: report.totals.withFeedback),
+                            _MetricCard(
+                              label: 'Avg rating',
+                              valueLabel: report.totals.averageRating?.toStringAsFixed(1) ?? '—',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        Text('By status', style: Theme.of(context).textTheme.titleMedium),
+                        for (final row in report.byStatus)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(SiteVisitStatuses.title(row.status)),
+                            trailing: Text('${row.count}'),
+                          ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text('By assignee', style: Theme.of(context).textTheme.titleMedium),
+                        for (final row in report.byAssignee)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(row.name ?? row.membershipId),
+                            subtitle: Text(
+                              'Completed ${row.completed} · GPS ${row.withGps} · no-show ${row.noShow}'
+                              '${row.averageRating == null ? '' : ' · ${row.averageRating}★'}',
+                            ),
+                            trailing: Text('${row.total}'),
+                          ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

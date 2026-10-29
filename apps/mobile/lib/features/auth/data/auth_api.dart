@@ -87,7 +87,7 @@ class AuthApi {
   Future<Result<ApiSuccess<bool>>> logout({String? refreshToken}) {
     return _client.post(
       '/auth/logout',
-      data: {if (refreshToken != null) 'refreshToken': refreshToken},
+      data: {'refreshToken': ?refreshToken},
       parse: (_) => true,
     );
   }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/error/result.dart';
 import '../../../design_system/components/app_async_body.dart';
 import '../../../design_system/components/app_scaffold.dart';
 import '../../../design_system/tokens/app_spacing.dart';
@@ -26,6 +25,7 @@ class SiteVisitListPage extends ConsumerWidget {
       title: AppStrings.siteVisits,
       floatingActionButton: canCreate
           ? FloatingActionButton(
+              heroTag: 'fab-site-visits',
               onPressed: () async {
                 await context.push(AppRoutes.siteVisitCreate);
                 await ref.read(siteVisitListProvider.notifier).refresh();

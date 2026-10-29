@@ -177,6 +177,11 @@ export const adminApi = {
     request<StaffMember>(`/staff/${enc(id)}/roles`, { method: 'PUT', body: { roleIds } }).then((r) => r.data),
   setStaffTeams: (id: string, teamIds: string[]) =>
     request<StaffMember>(`/staff/${enc(id)}/teams`, { method: 'PUT', body: { teamIds } }).then((r) => r.data),
+  resetStaffPassword: (id: string, newPassword: string) =>
+    request<{ id: string; changed: true }>(`/staff/${enc(id)}/password`, {
+      method: 'POST',
+      body: { newPassword },
+    }).then((r) => r.data),
 
   // Teams
   teams: () => request<Team[]>('/teams').then((r) => r.data),

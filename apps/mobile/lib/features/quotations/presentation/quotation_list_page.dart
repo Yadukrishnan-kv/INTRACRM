@@ -36,6 +36,7 @@ class QuotationListPage extends ConsumerWidget {
       ],
       floatingActionButton: canCreate
           ? FloatingActionButton(
+              heroTag: 'fab-quotations',
               onPressed: () async {
                 await context.push(AppRoutes.quotationCreate);
                 await _refresh(ref);

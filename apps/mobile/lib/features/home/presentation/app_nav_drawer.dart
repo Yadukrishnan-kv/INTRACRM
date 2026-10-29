@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design_system/tokens/app_colors.dart';
+import '../../../design_system/tokens/app_palette.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
 import '../../auth/application/auth_controller.dart';
@@ -16,7 +17,7 @@ class AppNavDrawer extends ConsumerWidget {
     final path = GoRouterState.of(context).uri.path;
     final user = ref.watch(authControllerProvider).user;
     return Drawer(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: context.palette.canvas,
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -28,10 +29,10 @@ class AppNavDrawer extends ConsumerWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               user?.fullName ?? user?.email ?? 'Workspace',
-              style: const TextStyle(color: AppColors.muted, fontSize: 13),
+              style: TextStyle(color: context.palette.muted, fontSize: 13),
             ),
             const SizedBox(height: 16),
             _item(context, Icons.home_outlined, 'Home', path == AppRoutes.dashboard, () {
@@ -55,10 +56,26 @@ class AppNavDrawer extends ConsumerWidget {
               Navigator.pop(context);
               context.push(AppRoutes.search);
             }),
-            _item(context, Icons.task_alt_outlined, 'Follow-ups', path.startsWith(AppRoutes.tasks), () {
-              Navigator.pop(context);
-              context.push(AppRoutes.tasks);
-            }),
+            if (user?.canReadFollowUp == true)
+              _item(context, Icons.task_alt_outlined, 'Follow-ups', path == AppRoutes.tasks, () {
+                Navigator.pop(context);
+                context.push(AppRoutes.tasks);
+              }),
+            if (user?.canReadFollowUp == true)
+              _item(context, Icons.event_available_outlined, AppStrings.followUpCalendar, path == AppRoutes.followUpCalendar, () {
+                Navigator.pop(context);
+                context.push(AppRoutes.followUpCalendar);
+              }),
+            if (user?.canReadTarget == true)
+              _item(context, Icons.speed_outlined, AppStrings.monthlySalesTarget, path == AppRoutes.salesTarget, () {
+                Navigator.pop(context);
+                context.push(AppRoutes.salesTarget);
+              }),
+            if (user?.canReadIncentive == true)
+              _item(context, Icons.card_giftcard_outlined, AppStrings.incentiveReport, path == AppRoutes.incentiveReport, () {
+                Navigator.pop(context);
+                context.push(AppRoutes.incentiveReport);
+              }),
             if (user?.canReadQuotation == true)
               _item(context, Icons.request_quote_outlined, AppStrings.quotations, path.startsWith(AppRoutes.quotations), () {
                 Navigator.pop(context);
@@ -74,10 +91,11 @@ class AppNavDrawer extends ConsumerWidget {
                 Navigator.pop(context);
                 context.push(AppRoutes.attendance);
               }),
-            _item(context, Icons.view_kanban_outlined, AppStrings.pipeline, path == AppRoutes.pipeline, () {
-              Navigator.pop(context);
-              context.push(AppRoutes.pipeline);
-            }),
+            if (user?.canReadLead == true)
+              _item(context, Icons.view_kanban_outlined, AppStrings.pipeline, path == AppRoutes.pipeline, () {
+                Navigator.pop(context);
+                context.push(AppRoutes.pipeline);
+              }),
             if (user?.canReadDashboard == true)
               _item(context, Icons.donut_large_outlined, 'MTD Performance', path.contains('/dashboard/sales'), () {
                 Navigator.pop(context);
@@ -103,7 +121,7 @@ class AppNavDrawer extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
-        color: selected ? AppColors.tealSoft : AppColors.card,
+        color: selected ? context.palette.tealSoft : context.palette.card,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
@@ -112,14 +130,14 @@ class AppNavDrawer extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
               children: [
-                Icon(icon, size: 20, color: selected ? AppColors.teal : AppColors.muted),
+                Icon(icon, size: 20, color: selected ? AppColors.teal : context.palette.muted),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     label,
                     style: TextStyle(
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected ? AppColors.teal : const Color(0xFF14201D),
+                      color: selected ? AppColors.teal : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),

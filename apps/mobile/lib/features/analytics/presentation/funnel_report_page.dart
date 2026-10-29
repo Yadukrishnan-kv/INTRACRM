@@ -6,6 +6,8 @@ import '../../../design_system/components/app_scaffold.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
 import '../../dashboard/presentation/widgets/dashboard_charts.dart';
+import '../../reports/domain/report_date_range.dart';
+import '../../reports/presentation/report_date_range_bar.dart';
 import '../../reports/presentation/report_export_button.dart';
 import '../../reports/presentation/report_metric_card.dart';
 import '../application/analytics_providers.dart';
@@ -27,6 +29,9 @@ class _FunnelReportPageState extends ConsumerState<FunnelReportPage> {
   var _loading = true;
   String? _error;
 
+  /// Null covers every live lead; a range covers the leads created in it.
+  ReportDateRange? _range;
+
   @override
   void initState() {
     super.initState();
@@ -39,7 +44,9 @@ class _FunnelReportPageState extends ConsumerState<FunnelReportPage> {
       _error = null;
     });
     final api = ref.read(analyticsApiProvider);
-    final result = widget.personal ? await api.mineFunnel() : await api.funnel();
+    final result = widget.personal
+        ? await api.mineFunnel(range: _range)
+        : await api.funnel(range: _range);
     if (!mounted) {
       return;
     }
@@ -59,8 +66,29 @@ class _FunnelReportPageState extends ConsumerState<FunnelReportPage> {
     final report = _report;
     return AppScaffold(
       title: widget.personal ? AppStrings.staffFunnelReport : AppStrings.funnelReport,
-      actions: widget.personal ? null : const [ReportExportButton(dataset: 'funnel')],
-      body: _loading
+      actions: widget.personal
+          ? null
+          : [ReportExportButton(dataset: 'funnel', range: _range, dateMode: ReportDateMode.ymd)],
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+            child: ReportDateRangeBar(
+              range: _range,
+              onChanged: (range) {
+                setState(() => _range = range);
+                _load();
+              },
+            ),
+          ),
+          Expanded(child: _body(context, report)),
+        ],
+      ),
+    );
+  }
+
+  Widget _body(BuildContext context, FunnelReport? report) {
+    return _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
           ? Center(child: Text(_error!))
@@ -99,7 +127,10 @@ class _FunnelReportPageState extends ConsumerState<FunnelReportPage> {
                   const SizedBox(height: AppSpacing.sm),
                   FunnelCurrentChart(slices: report.currentChart),
                   const SizedBox(height: AppSpacing.lg),
-                  Text('Last 7 days', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    _range == null ? 'Last 7 days' : 'Daily trend',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: AppSpacing.sm),
                   FunnelTrendChart(points: report.trend, stages: report.stages),
                   const SizedBox(height: AppSpacing.lg),
@@ -135,7 +166,6 @@ class _FunnelReportPageState extends ConsumerState<FunnelReportPage> {
                   ],
                 ],
               ),
-            ),
-    );
+            );
   }
 }

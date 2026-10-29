@@ -11,7 +11,7 @@ class StaffApi {
   Future<Result<ApiSuccess<List<StaffMember>>>> listStaff({String? status}) {
     return _client.get(
       '/staff',
-      query: {if (status != null) 'status': status},
+      query: {'status': ?status},
       parse: (json) => _maps(json).map(StaffMember.fromJson).toList(),
     );
   }
@@ -30,6 +30,7 @@ class StaffApi {
     String? designation,
     String? employeeCode,
     List<String> teamIds = const [],
+    String? password,
   }) {
     return _client.post(
       '/staff',
@@ -40,6 +41,7 @@ class StaffApi {
         if (designation != null && designation.isNotEmpty) 'designation': designation,
         if (employeeCode != null && employeeCode.isNotEmpty) 'employeeCode': employeeCode,
         'teamIds': teamIds,
+        if (password != null && password.isNotEmpty) 'password': password,
       },
       parse: (json) => StaffMember.fromJson(json! as Map<String, dynamic>),
     );
@@ -57,12 +59,12 @@ class StaffApi {
     return _client.patch(
       '/staff/$id',
       data: {
-        if (fullName != null) 'fullName': fullName,
-        if (email != null) 'email': email,
-        if (designation != null) 'designation': designation,
-        if (employeeCode != null) 'employeeCode': employeeCode,
-        if (roleIds != null) 'roleIds': roleIds,
-        if (teamIds != null) 'teamIds': teamIds,
+        'fullName': ?fullName,
+        'email': ?email,
+        'designation': ?designation,
+        'employeeCode': ?employeeCode,
+        'roleIds': ?roleIds,
+        'teamIds': ?teamIds,
       },
       parse: (json) => StaffMember.fromJson(json! as Map<String, dynamic>),
     );
@@ -76,6 +78,26 @@ class StaffApi {
       '/staff/$id/status',
       data: {'active': active},
       parse: (json) => StaffMember.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
+  /// `DELETE /staff/:staffId` (`tenant:manage_users`) — removes the member
+  /// from the workspace. The API rejects self-removal and non-founders
+  /// removing a founder (403).
+  Future<Result<ApiSuccess<Object?>>> removeStaff(String id) {
+    return _client.delete('/staff/$id', parse: (json) => json);
+  }
+
+  /// `POST /staff/:staffId/password` (`tenant:manage_users`) — admin reset of
+  /// another staff member's password. Signs them out of every device.
+  Future<Result<ApiSuccess<Object?>>> resetPassword({
+    required String id,
+    required String newPassword,
+  }) {
+    return _client.post(
+      '/staff/$id/password',
+      data: {'newPassword': newPassword},
+      parse: (json) => json,
     );
   }
 
@@ -105,8 +127,8 @@ class StaffApi {
     return _client.patch(
       '/teams/$teamId',
       data: {
-        if (name != null) 'name': name,
-        if (isActive != null) 'isActive': isActive,
+        'name': ?name,
+        'isActive': ?isActive,
       },
       parse: (json) => StaffTeam.fromJson(json! as Map<String, dynamic>),
     );

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/error/result.dart';
 import '../../../design_system/components/app_scaffold.dart';
+import '../../../design_system/components/confirm_dialog.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
@@ -76,11 +77,39 @@ class _StaffDetailPageState extends ConsumerState<StaffDetailPage> {
     await _load();
   }
 
+  Future<void> _remove(StaffMember staff) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: AppStrings.removeFromWorkspace,
+      message: AppStrings.removeFromWorkspaceMessage(staff.fullName),
+      confirmLabel: AppStrings.removeFromWorkspace,
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    setState(() => _saving = true);
+    final result = unwrapApi<Object?>(
+      await ref.read(staffApiProvider).removeStaff(staff.id),
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _saving = false);
+    if (result is Err) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.failure.message)));
+      return;
+    }
+    context.pop(true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final staff = _staff;
-    final canReadPerformance =
-        ref.watch(authControllerProvider).user?.canReadPerformance == true;
+    final user = ref.watch(authControllerProvider).user;
+    final canReadPerformance = user?.canReadPerformance == true;
+    final isSelf = staff?.isCurrentUser(user) == true;
     return AppScaffold(
       title: staff?.fullName ?? AppStrings.staff,
       actions: [
@@ -134,11 +163,42 @@ class _StaffDetailPageState extends ConsumerState<StaffDetailPage> {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => context.push(AppRoutes.performanceDetailPath(staff.id)),
                   ),
-                SwitchListTile(
-                  title: Text(staff.active ? AppStrings.active : AppStrings.inactive),
-                  value: staff.active,
-                  onChanged: (_) => _toggle(),
-                ),
+                if (isSelf)
+                  ListTile(
+                    title: Text(staff.active ? AppStrings.active : AppStrings.inactive),
+                    subtitle: const Text(AppStrings.cannotDeactivateSelf),
+                  )
+                else
+                  SwitchListTile(
+                    title: Text(staff.active ? AppStrings.active : AppStrings.inactive),
+                    value: staff.active,
+                    onChanged: _saving ? null : (_) => _toggle(),
+                  ),
+                if (!isSelf && user?.canManageUsers == true)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.md),
+                    child: OutlinedButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () => context.push(
+                              AppRoutes.staffResetPasswordPath(staff.id, email: staff.email),
+                            ),
+                      icon: const Icon(Icons.lock_reset_outlined),
+                      label: const Text(AppStrings.resetPassword),
+                    ),
+                  ),
+                if (!isSelf && user?.canManageUsers == true)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.md),
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.error,
+                      ),
+                      onPressed: _saving ? null : () => _remove(staff),
+                      icon: const Icon(Icons.person_remove_outlined),
+                      label: const Text(AppStrings.removeFromWorkspace),
+                    ),
+                  ),
               ],
             ),
     );

@@ -4,11 +4,13 @@ import { AuthUser } from '../../../common/auth/current-user.decorator';
 import { AppException } from '../../../common/exceptions/app.exception';
 import { ErrorCodes } from '../../../common/exceptions/error-codes';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { AuthService } from '../../identity/application/auth.service';
 import { RbacService } from '../../identity/application/rbac.service';
 import {
   AssignStaffRolesRequest,
   AssignStaffTeamsRequest,
   CreateStaffRequest,
+  ResetStaffPasswordRequest,
   StaffQuery,
   StaffStatusRequest,
   UpdateStaffRequest,
@@ -44,6 +46,7 @@ export class StaffService {
     private readonly prisma: PrismaService,
     private readonly rbac: RbacService,
     private readonly teams: TeamService,
+    private readonly auth: AuthService,
   ) {}
 
   async list(actor: AuthUser, query: StaffQuery): Promise<StaffView[]> {
@@ -158,6 +161,17 @@ export class StaffService {
   async remove(actor: AuthUser, membershipId: string): Promise<{ id: string; removed: true }> {
     await this.rbac.updateMembership(actor, membershipId, { status: 'ended' });
     return { id: membershipId, removed: true };
+  }
+
+  async resetPassword(
+    actor: AuthUser,
+    membershipId: string,
+    dto: ResetStaffPasswordRequest,
+  ): Promise<{ id: string; changed: true }> {
+    const tenantId = this.requireTenant(actor);
+    const staff = await this.requireStaff(tenantId, membershipId);
+    await this.auth.adminResetPassword(staff.userId, staff.user.email, dto.newPassword);
+    return { id: membershipId, changed: true };
   }
 
   async assignRoles(

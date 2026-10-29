@@ -1,6 +1,8 @@
 import '../../../core/error/result.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_envelope.dart';
+import '../../reports/domain/report_date_range.dart';
+import '../domain/sales_board.dart';
 import '../domain/target.dart';
 
 class TargetApi {
@@ -35,11 +37,11 @@ class TargetApi {
       '/targets',
       query: {
         'limit': 20,
-        if (cursor != null) 'cursor': cursor,
-        if (periodType != null) 'periodType': periodType,
-        if (scopeType != null) 'scopeType': scopeType,
-        if (productId != null) 'productId': productId,
-        if (teamId != null) 'teamId': teamId,
+        'cursor': ?cursor,
+        'periodType': ?periodType,
+        'scopeType': ?scopeType,
+        'productId': ?productId,
+        'teamId': ?teamId,
         if (hasProduct == true) 'hasProduct': true,
         if (current == true) 'current': true,
       },
@@ -68,9 +70,36 @@ class TargetApi {
     );
   }
 
-  Future<Result<ApiSuccess<TargetReport>>> report() {
+  /// `PATCH /targets/:id` (`target:manage`).
+  Future<Result<ApiSuccess<Target>>> updateTarget(String id, Map<String, dynamic> data) {
+    return _client.patch(
+      '/targets/$id',
+      data: data,
+      parse: (json) => Target.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
+  /// `DELETE /targets/:id` (`target:manage`).
+  Future<Result<ApiSuccess<Object?>>> deleteTarget(String id) {
+    return _client.delete('/targets/$id', parse: (json) => json);
+  }
+
+  Future<Result<ApiSuccess<SalesBoard>>> salesBoard({
+    String? period,
+    String? scope,
+    String? metricCode,
+  }) {
+    return _client.get(
+      '/targets/sales-board',
+      query: {'period': ?period, 'scope': ?scope, 'metricCode': ?metricCode},
+      parse: (json) => SalesBoard.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
+  Future<Result<ApiSuccess<TargetReport>>> report({ReportDateRange? range}) {
     return _client.get(
       '/reports/targets',
+      query: reportRangeQuery(range, ReportDateMode.ymd),
       parse: (json) => TargetReport.fromJson(json! as Map<String, dynamic>),
     );
   }

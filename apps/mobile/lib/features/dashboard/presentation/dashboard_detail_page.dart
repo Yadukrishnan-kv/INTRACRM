@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../design_system/components/app_async_body.dart';
 import '../../../design_system/components/premium_ui.dart';
 import '../../../design_system/tokens/app_colors.dart';
+import '../../../design_system/tokens/app_palette.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
@@ -21,7 +22,7 @@ class DashboardDetailPage extends ConsumerWidget {
     final asyncBoard = ref.watch(dashboardOverviewProvider);
     final isSales = widgetCode == DashboardWidgets.sales;
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: context.palette.canvas,
       appBar: AppBar(title: Text(isSales ? 'MTD Performance' : DashboardWidgets.title(widgetCode))),
       body: RefreshIndicator(
         onRefresh: () => ref.read(dashboardOverviewProvider.notifier).refresh(),
@@ -51,7 +52,7 @@ class DashboardDetailPage extends ConsumerWidget {
                   board.month.label,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: AppSpacing.md),
+                SizedBox(height: AppSpacing.md),
                 SectionCard(
                   child: Row(
                     children: [
@@ -59,13 +60,13 @@ class DashboardDetailPage extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Target', style: TextStyle(color: AppColors.muted)),
+                            Text('Target', style: TextStyle(color: context.palette.muted)),
                             Text(
                               formatDashboardValue(target, money: data.isMoney, score: data.isScore),
                               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                             ),
-                            const SizedBox(height: 10),
-                            const Text('Achievement', style: TextStyle(color: AppColors.muted)),
+                            SizedBox(height: 10),
+                            Text('Achievement', style: TextStyle(color: context.palette.muted)),
                             Text(
                               formatDashboardValue(achieved, money: data.isMoney, score: data.isScore),
                               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
@@ -78,7 +79,7 @@ class DashboardDetailPage extends ConsumerWidget {
                   ),
                 ),
                 if (isSales) ...[
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(child: StatTile(icon: Icons.event_available_outlined, label: 'Working Days', value: '$workingDays')),
@@ -112,11 +113,11 @@ class DashboardDetailPage extends ConsumerWidget {
                               ),
                               Text(
                                 formatDashboardValue(slice.value, money: data.isMoney, score: data.isScore),
-                                style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                                style: TextStyle(fontSize: 12, color: context.palette.muted),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
+                          SizedBox(height: 6),
                           Row(
                             children: [
                               Expanded(
@@ -125,7 +126,7 @@ class DashboardDetailPage extends ConsumerWidget {
                                   minHeight: 8,
                                   borderRadius: BorderRadius.circular(99),
                                   color: AppColors.teal,
-                                  backgroundColor: AppColors.tealSoft,
+                                  backgroundColor: context.palette.tealSoft,
                                 ),
                               ),
                               const SizedBox(width: 8),

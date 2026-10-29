@@ -56,6 +56,7 @@ class _StaffListPageState extends ConsumerState<StaffListPage> {
     return AppScaffold(
       title: AppStrings.staff,
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-staff',
         onPressed: () async {
           await context.push(AppRoutes.staffCreate);
           await _load();

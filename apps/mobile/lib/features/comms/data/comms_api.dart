@@ -11,9 +11,42 @@ class CommsApi {
   Future<Result<ApiSuccess<List<CommsTemplate>>>> templates({String? channel}) {
     return _client.get(
       '/comms/templates',
-      query: {if (channel != null) 'channel': channel},
+      query: {'channel': ?channel},
       parse: (json) => _maps(json).map(CommsTemplate.fromJson).toList(),
     );
+  }
+
+  /// `POST /comms/templates` (`tenant:manage_settings`).
+  Future<Result<ApiSuccess<CommsTemplate>>> createTemplate({
+    required String channel,
+    required String code,
+    required String name,
+    required String body,
+  }) {
+    return _client.post(
+      '/comms/templates',
+      data: {'channel': channel, 'code': code, 'name': name, 'body': body},
+      parse: (json) => CommsTemplate.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
+  /// `PATCH /comms/templates/:id` (`tenant:manage_settings`).
+  Future<Result<ApiSuccess<CommsTemplate>>> updateTemplate(
+    String id, {
+    String? name,
+    String? body,
+    bool? isActive,
+  }) {
+    return _client.patch(
+      '/comms/templates/$id',
+      data: {'name': ?name, 'body': ?body, 'isActive': ?isActive},
+      parse: (json) => CommsTemplate.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
+  /// `DELETE /comms/templates/:id` (`tenant:manage_settings`).
+  Future<Result<ApiSuccess<Object?>>> deleteTemplate(String id) {
+    return _client.delete('/comms/templates/$id', parse: (json) => json);
   }
 
   Future<Result<ApiSuccess<CommsResult>>> call(String leadId, {String? notes}) {
@@ -33,7 +66,7 @@ class CommsApi {
       '/leads/$leadId/comms/whatsapp',
       data: {
         if (templateCode != null && templateCode.isNotEmpty) 'templateCode': templateCode,
-        if (body != null) 'body': body,
+        'body': ?body,
       },
       parse: (json) => CommsResult.fromJson(json! as Map<String, dynamic>),
     );
@@ -48,7 +81,7 @@ class CommsApi {
       '/leads/$leadId/comms/sms',
       data: {
         if (templateCode != null && templateCode.isNotEmpty) 'templateCode': templateCode,
-        if (body != null) 'body': body,
+        'body': ?body,
       },
       parse: (json) => CommsResult.fromJson(json! as Map<String, dynamic>),
     );
