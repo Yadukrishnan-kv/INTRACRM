@@ -22,6 +22,13 @@ class DashboardApi {
     );
   }
 
+  Future<Result<ApiSuccess<DashboardKpis>>> kpis() {
+    return _client.get(
+      '/dashboard/kpis',
+      parse: (json) => DashboardKpis.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
   Future<Result<ApiSuccess<StaffDashboard>>> mine() {
     return _client.get(
       '/dashboard/me',

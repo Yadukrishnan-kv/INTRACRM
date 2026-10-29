@@ -27,6 +27,7 @@ class IntraLeadsApp extends ConsumerWidget {
       darkTheme: AppTheme.dark(),
       themeMode: ThemeMode.system,
       routerConfig: router,
+      debugShowCheckedModeBanner: false,
     );
   }
 }

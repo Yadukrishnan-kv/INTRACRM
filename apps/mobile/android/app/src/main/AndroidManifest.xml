@@ -1,0 +1,96 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- API access, offline sync and connectivity_plus. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!-- geolocator: site-visit check-in / check-out stamps a GeoPoint. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- image_picker (visit photos) and mobile_scanner (warranty QR). -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+
+    <!-- firebase_messaging, required to prompt from Android 13 (API 33). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- The camera is optional so the app still installs on camera-less devices;
+         the QR scanner and photo capture degrade instead of blocking install. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+
+    <application
+        android:label="Intra CRM"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <!-- No default_notification_channel_id meta-data on purpose: the app does
+             not create a channel (it has no flutter_local_notifications dependency),
+             so FCM uses its own auto-created fallback channel. Pointing the meta-data
+             at a channel that is never created suppresses notifications on API 26+.
+             Add the dependency, create the channel, then set the meta-data. -->
+
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <!-- Package visibility (Android 11 / API 30+). These back canLaunchUrl,
+         which url_launcher documents as the only API that needs them: launchUrl
+         calls startActivity directly and reports a missing handler by returning
+         false, so the Comms feature works without them today. They are kept so
+         that adding a canLaunchUrl check does not silently start returning
+         false. Schemes must match what CommsLauncher actually opens. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- url_launcher builds ACTION_VIEW for both launchUrl and
+             canLaunchUrl (see UrlLauncher.java in url_launcher_android), never
+             DIAL or SENDTO, so a VIEW intent is what has to be declared. -->
+        <!-- CommsLauncher: tel: (click-to-call) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="tel"/>
+        </intent>
+        <!-- CommsLauncher: the API builds `sms:<e164>?body=...`; smsto: is
+             declared too because some OEM messaging apps only register it. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="sms"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="smsto"/>
+        </intent>
+        <!-- CommsLauncher: wa.me / https://api.whatsapp.com deep links. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+    </queries>
+</manifest>

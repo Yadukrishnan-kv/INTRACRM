@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../design_system/tokens/app_assets.dart';
 import '../../../design_system/tokens/app_colors.dart';
 import '../../../l10n/app_strings.dart';
 
@@ -15,15 +16,10 @@ class SplashPage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 88,
-              height: 88,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.12),
-                border: Border.all(color: Colors.white24),
-              ),
-              child: const Icon(Icons.apartment, color: Colors.white, size: 40),
+              width: 240,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+              child: Image.asset(AppAssets.logo, semanticLabel: AppStrings.appTitle),
             ),
             const SizedBox(height: 16),
             Text(

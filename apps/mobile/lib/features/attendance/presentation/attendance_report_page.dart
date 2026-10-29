@@ -5,6 +5,8 @@ import '../../../core/error/result.dart';
 import '../../../design_system/components/app_scaffold.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
+import '../../reports/domain/report_date_range.dart';
+import '../../reports/presentation/report_date_range_bar.dart';
 import '../../reports/presentation/report_metric_card.dart';
 import '../application/attendance_providers.dart';
 import '../domain/attendance.dart';
@@ -17,6 +19,7 @@ class AttendanceReportPage extends ConsumerStatefulWidget {
 }
 
 class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
+  ReportDateRange? _range;
   var _loading = true;
   String? _error;
   AttendanceReport? _report;
@@ -32,7 +35,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
       _loading = true;
       _error = null;
     });
-    final result = await ref.read(attendanceApiProvider).report();
+    final result = await ref.read(attendanceApiProvider).report(range: _range);
     if (!mounted) {
       return;
     }
@@ -52,51 +55,67 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
     final report = _report;
     return AppScaffold(
       title: AppStrings.attendanceReport,
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(child: Text(_error!))
-          : report == null
-          ? const SizedBox.shrink()
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                children: [
-                  Text('${report.from} – ${report.to} · late after ${report.lateAfter}'),
-                  const SizedBox(height: AppSpacing.md),
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    children: [
-                      ReportMetricCard(label: 'Present days', value: report.presentDays),
-                      ReportMetricCard(label: 'Late days', value: report.lateDays),
-                      ReportMetricCard(label: 'Open now', value: report.openNow),
-                      ReportMetricCard(label: 'Hours', valueLabel: report.hoursWorked.toStringAsFixed(1)),
-                      ReportMetricCard(label: 'Staff', value: report.staffCount),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text('By staff', style: Theme.of(context).textTheme.titleMedium),
-                  for (final row in report.byStaff)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(row.name ?? row.membershipId),
-                      subtitle: Text(
-                        'Present ${row.presentDays} · Late ${row.lateDays} · Open ${row.openNow} · ${formatMinutes(row.minutesWorked)}',
-                      ),
-                    ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text('By day', style: Theme.of(context).textTheme.titleMedium),
-                  for (final row in report.byDay)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(row.date),
-                      subtitle: Text('Present ${row.present} · Late ${row.late} · Open ${row.open}'),
-                    ),
-                ],
-              ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+            child: ReportDateRangeBar(
+              range: _range,
+              onChanged: (range) {
+                setState(() => _range = range);
+                _load();
+              },
             ),
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                ? Center(child: Text(_error!))
+                : report == null
+                ? const SizedBox.shrink()
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      children: [
+                        Text('${report.from} – ${report.to} · late after ${report.lateAfter}'),
+                        const SizedBox(height: AppSpacing.md),
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
+                          children: [
+                            ReportMetricCard(label: 'Present days', value: report.presentDays),
+                            ReportMetricCard(label: 'Late days', value: report.lateDays),
+                            ReportMetricCard(label: 'Open now', value: report.openNow),
+                            ReportMetricCard(label: 'Hours', valueLabel: report.hoursWorked.toStringAsFixed(1)),
+                            ReportMetricCard(label: 'Staff', value: report.staffCount),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        Text('By staff', style: Theme.of(context).textTheme.titleMedium),
+                        for (final row in report.byStaff)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(row.name ?? row.membershipId),
+                            subtitle: Text(
+                              'Present ${row.presentDays} · Late ${row.lateDays} · Open ${row.openNow} · ${formatMinutes(row.minutesWorked)}',
+                            ),
+                          ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text('By day', style: Theme.of(context).textTheme.titleMedium),
+                        for (final row in report.byDay)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(row.date),
+                            subtitle: Text('Present ${row.present} · Late ${row.late} · Open ${row.open}'),
+                          ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

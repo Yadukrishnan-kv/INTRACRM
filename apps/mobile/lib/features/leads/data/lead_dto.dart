@@ -264,6 +264,8 @@ class LeadFollowUpDto {
     this.leadId,
     this.leadNumber,
     this.leadTitle,
+    this.leadCustomerName,
+    this.leadPhone,
     this.overdue = false,
     this.rescheduleCount = 0,
     this.engineBucket,
@@ -284,6 +286,8 @@ class LeadFollowUpDto {
   final String? leadId;
   final String? leadNumber;
   final String? leadTitle;
+  final String? leadCustomerName;
+  final String? leadPhone;
   final bool overdue;
   final int rescheduleCount;
   final String? engineBucket;
@@ -306,6 +310,8 @@ class LeadFollowUpDto {
       leadId: json['leadId'] as String?,
       leadNumber: json['leadNumber'] as String?,
       leadTitle: json['leadTitle'] as String?,
+      leadCustomerName: json['leadCustomerName'] as String?,
+      leadPhone: json['leadPhone'] as String?,
       overdue: json['overdue'] as bool? ?? false,
       rescheduleCount: json['rescheduleCount'] as int? ?? 0,
       engineBucket: json['engineBucket'] as String?,
@@ -330,6 +336,8 @@ class LeadFollowUpDto {
       leadId: leadId,
       leadNumber: leadNumber,
       leadTitle: leadTitle,
+      leadCustomerName: leadCustomerName,
+      leadPhone: leadPhone,
       overdue: overdue,
       rescheduleCount: rescheduleCount,
       engineBucket: engineBucket,
@@ -354,6 +362,8 @@ class LeadFollowUpDto {
       'leadId': leadId,
       'leadNumber': leadNumber,
       'leadTitle': leadTitle,
+      'leadCustomerName': leadCustomerName,
+      'leadPhone': leadPhone,
       'overdue': overdue,
       'rescheduleCount': rescheduleCount,
       'engineBucket': engineBucket,

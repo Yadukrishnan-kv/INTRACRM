@@ -9,6 +9,7 @@ import '../../../core/storage/offline_store.dart';
 import '../../../core/storage/outbox_store.dart';
 import '../../../core/sync/sync_status.dart';
 import '../../../core/utils/id_generator.dart';
+import '../../../l10n/app_strings.dart';
 import '../domain/lead.dart';
 import '../domain/lead_repository.dart';
 import 'lead_api.dart';
@@ -237,7 +238,7 @@ class LeadRepositoryImpl implements LeadRepository {
         tenantId: tokens.tenantId,
         method: 'POST',
         path: '/leads',
-        body: jsonEncode(_createBody(input)),
+        body: jsonEncode(LeadApi.createBody(input, includeFollowUp: false)),
         idempotencyKey: _ids.v4(),
         status: OutboxStatus.pending,
         attempts: 0,
@@ -302,7 +303,7 @@ class LeadRepositoryImpl implements LeadRepository {
         tenantId: tokens.tenantId,
         method: 'PATCH',
         path: '/leads/$id',
-        body: jsonEncode({..._createBody(input), 'version': expectedVersion}),
+        body: jsonEncode({...LeadApi.updateBody(input), 'version': expectedVersion}),
         idempotencyKey: _ids.v4(),
         status: OutboxStatus.pending,
         attempts: 0,
@@ -313,6 +314,23 @@ class LeadRepositoryImpl implements LeadRepository {
       ),
     );
     return Success(_leadFromJson(payload));
+  }
+
+  @override
+  Future<Result<void>> delete(String id) async {
+    final tokens = await _tokenStore.read();
+    if (tokens == null) {
+      return const Err(UnauthorizedFailure('Session expired'));
+    }
+    if (!await _connectivity.isOnline) {
+      return const Err(OfflineFailure(AppStrings.deleteLeadOffline));
+    }
+    final result = await _api.deleteLead(id);
+    if (result is Err<ApiSuccess<Object?>>) {
+      return Err(result.failure);
+    }
+    await _offline.removeLead(tokens.tenantId, id);
+    return const Success(null);
   }
 
   @override
@@ -509,7 +527,7 @@ class LeadRepositoryImpl implements LeadRepository {
       'leadId': leadId,
       'status': 'completed',
       'completedAt': DateTime.now().toUtc().toIso8601String(),
-      if (notes != null) 'notes': notes,
+      'notes': ?notes,
       'syncStatus': SyncStatus.pending.name,
     };
     await _offline.upsertFollowUp(
@@ -626,21 +644,5 @@ class LeadRepositoryImpl implements LeadRepository {
 
   Lead _leadFromJson(Map<String, dynamic> json) {
     return LeadDto.fromJson(json).toDomain();
-  }
-
-  Map<String, dynamic> _createBody(CreateLeadInput input) {
-    return {
-      'title': input.title,
-      if (input.customerName != null) 'customerName': input.customerName,
-      if (input.primaryPhone != null) 'primaryPhone': input.primaryPhone,
-      if (input.primaryEmail != null) 'primaryEmail': input.primaryEmail,
-      if (input.city != null) 'city': input.city,
-      if (input.requirement != null) 'requirement': input.requirement,
-      if (input.sourceId != null) 'sourceId': input.sourceId,
-      if (input.quality != null) 'quality': input.quality,
-      if (input.estimatedValueMinor != null)
-        'estimatedValueMinor': input.estimatedValueMinor,
-      if (input.ownerMembershipId != null) 'ownerMembershipId': input.ownerMembershipId,
-    };
   }
 }

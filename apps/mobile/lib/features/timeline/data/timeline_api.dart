@@ -17,8 +17,8 @@ class TimelineApi {
       leadId == null ? '/timeline' : '/leads/$leadId/timeline',
       query: {
         'limit': 20,
-        if (cursor != null) 'cursor': cursor,
-        if (eventCode != null) 'eventCode': eventCode,
+        'cursor': ?cursor,
+        'eventCode': ?eventCode,
       },
       parse: (json) {
         final items = json as List<dynamic>? ?? const [];
@@ -49,6 +49,8 @@ class TimelineApi {
     );
   }
 
+  /// `POST /leads/:leadId/quotations` — requires BOTH `quotation:create` and
+  /// `quotation:send`; gate any caller on `canCreateQuotation && canSendQuotation`.
   Future<Result<ApiSuccess<Map<String, dynamic>>>> sendQuotation({
     required String leadId,
     required int totalMinor,

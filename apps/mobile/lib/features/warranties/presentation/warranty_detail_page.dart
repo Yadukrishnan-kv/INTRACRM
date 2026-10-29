@@ -14,6 +14,7 @@ import '../../../design_system/components/app_error_view.dart';
 import '../../../design_system/components/app_loading.dart';
 import '../../../design_system/components/premium_ui.dart';
 import '../../../design_system/tokens/app_colors.dart';
+import '../../../design_system/tokens/app_palette.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../features/auth/application/auth_controller.dart';
 import '../../../l10n/app_strings.dart';
@@ -177,9 +178,9 @@ class _WarrantyDetailPageState extends ConsumerState<WarrantyDetailPage> {
               ].join(' · '),
           ].where((value) => value.trim().isNotEmpty).join('\n');
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: context.palette.canvas,
       appBar: AppBar(
-        title: const Text('Warranty Card'),
+        title: Text('Warranty Card'),
         actions: [
           IconButton(
             tooltip: AppStrings.copyVerificationUrl,
@@ -221,9 +222,9 @@ class _WarrantyDetailPageState extends ConsumerState<WarrantyDetailPage> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(color: AppColors.teal, width: 2),
-                              color: AppColors.tealSoft,
+                              color: context.palette.tealSoft,
                             ),
-                            child: const Icon(Icons.verified, color: AppColors.teal, size: 36),
+                            child: Icon(Icons.verified, color: AppColors.teal, size: 36),
                           ),
                           const SizedBox(height: 6),
                           const Text(
@@ -247,32 +248,32 @@ class _WarrantyDetailPageState extends ConsumerState<WarrantyDetailPage> {
                             alignment: Alignment.centerRight,
                             child: Column(
                               children: [
-                                Container(width: 88, height: 1, color: AppColors.muted),
-                                const SizedBox(height: 6),
+                                Container(width: 88, height: 1, color: context.palette.muted),
+                                SizedBox(height: 6),
                                 Text(
                                   item.issuedByName ?? 'Authorised Signatory',
-                                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                                  style: TextStyle(fontSize: 12, color: context.palette.muted),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           const Divider(),
                           const SizedBox(height: 8),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Expanded(
+                              Expanded(
                                 child: Text(
                                   'For support, scan the QR code or share the verification link with the customer.',
-                                  style: TextStyle(fontSize: 12, color: AppColors.muted),
+                                  style: TextStyle(fontSize: 12, color: context.palette.muted),
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              SizedBox(width: 12),
                               if (qrBytes != null)
                                 Image.memory(qrBytes, width: 84, height: 84)
                               else
-                                const Icon(Icons.qr_code_2, size: 84, color: AppColors.muted),
+                                Icon(Icons.qr_code_2, size: 84, color: context.palette.muted),
                             ],
                           ),
                         ],
@@ -367,7 +368,7 @@ class _WarrantyDetailPageState extends ConsumerState<WarrantyDetailPage> {
         children: [
           SizedBox(
             width: 130,
-            child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+            child: Text(label, style: TextStyle(fontSize: 12, color: context.palette.muted)),
           ),
           Expanded(
             child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),

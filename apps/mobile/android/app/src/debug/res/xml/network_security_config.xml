@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEBUG BUILDS ONLY. This file lives in src/debug, so the manifest merger never
+  applies it to a release build - those stay cleartext-blocked by the Android 9+
+  default.
+
+  Android 9 (API 28) rejects plain HTTP unless it is explicitly permitted, which
+  is why `APP_ENV=dev` against http://<LAN-IP>:3000 fails with a connection error
+  even though the Dart layer allows it.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system"/>
+            <!-- Lets a local mitm proxy (Charles, Proxyman) be trusted in debug. -->
+            <certificates src="user"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>

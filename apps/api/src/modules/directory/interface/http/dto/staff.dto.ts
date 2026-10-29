@@ -151,6 +151,14 @@ export class StaffStatusRequest {
   active!: boolean;
 }
 
+export class ResetStaffPasswordRequest {
+  @ApiProperty()
+  @IsString()
+  @MinLength(10)
+  @MaxLength(128)
+  newPassword!: string;
+}
+
 export class AssignStaffRolesRequest {
   @ApiProperty({ type: [String] })
   @IsArray()

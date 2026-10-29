@@ -14,6 +14,7 @@ class AppTextField extends StatelessWidget {
     this.maxLines = 1,
     this.inputFormatters,
     this.onChanged,
+    this.enabled = true,
   });
 
   final TextEditingController controller;
@@ -26,6 +27,7 @@ class AppTextField extends StatelessWidget {
   final int maxLines;
   final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +41,7 @@ class AppTextField extends StatelessWidget {
       maxLines: obscureText ? 1 : maxLines,
       inputFormatters: inputFormatters,
       onChanged: onChanged,
+      enabled: enabled,
       decoration: InputDecoration(labelText: label),
     );
   }

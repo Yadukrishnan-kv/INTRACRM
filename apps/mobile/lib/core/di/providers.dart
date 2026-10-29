@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/follow_ups/data/follow_up_api.dart';
+import '../../features/leads/data/lead_api.dart';
 import '../auth/auth_session_invalidator.dart';
 import '../auth/token_store.dart';
 import '../config/app_env.dart';
@@ -10,6 +12,9 @@ import '../network/connectivity_service.dart';
 import '../network/interceptors/auth_refresh_interceptor.dart';
 import '../network/interceptors/error_interceptor.dart';
 import '../network/interceptors/header_interceptor.dart';
+import '../security/aes_cipher.dart';
+import '../security/ssl_pinning.dart';
+import '../security/ssl_pinning_adapter.dart';
 import '../storage/cache_store.dart';
 import '../storage/id_map_store.dart';
 import '../storage/local_database.dart';
@@ -20,12 +25,7 @@ import '../sync/outbox_processor.dart';
 import '../sync/sync_api.dart';
 import '../sync/sync_cursor_store.dart';
 import '../sync/sync_engine.dart';
-import '../../features/follow_ups/data/follow_up_api.dart';
-import '../../features/leads/data/lead_api.dart';
 import '../utils/id_generator.dart';
-import '../security/aes_cipher.dart';
-import '../security/ssl_pinning.dart';
-import '../security/ssl_pinning_adapter.dart';
 
 final appFlavorProvider = Provider<AppFlavor>((ref) {
   return AppFlavor.fromEnvironment();

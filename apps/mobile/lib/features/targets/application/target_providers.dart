@@ -4,6 +4,7 @@ import '../../../core/di/providers.dart';
 import '../../../core/error/result.dart';
 import '../../../core/network/api_envelope.dart';
 import '../data/target_api.dart';
+import '../domain/sales_board.dart';
 import '../domain/target.dart';
 
 final targetApiProvider = Provider<TargetApi>((ref) {
@@ -116,6 +117,68 @@ class TargetProgressController extends AsyncNotifier<Result<TargetProgressDashbo
 
   Future<Result<TargetProgressDashboard>> _load() async {
     final result = await ref.read(targetApiProvider).progress();
+    return switch (result) {
+      Success(:final value) => Success(value.data),
+      Err(:final failure) => Err(failure),
+    };
+  }
+}
+
+/// Which slice of the sales board is on screen. Held outside the controller
+/// so a period or scope change rebuilds through the same load path as a pull
+/// to refresh.
+class SalesBoardFilter {
+  const SalesBoardFilter({
+    this.period = 'this_month',
+    this.scope = 'tenant',
+    this.mine = false,
+  });
+
+  final String period;
+  final String scope;
+
+  /// The "My Target" toggle. It picks which card the board renders; both
+  /// cards arrive in one response, so flipping it never refetches.
+  final bool mine;
+
+  SalesBoardFilter copyWith({String? period, String? scope, bool? mine}) {
+    return SalesBoardFilter(
+      period: period ?? this.period,
+      scope: scope ?? this.scope,
+      mine: mine ?? this.mine,
+    );
+  }
+}
+
+final salesBoardFilterProvider = StateProvider<SalesBoardFilter>((ref) {
+  return const SalesBoardFilter();
+});
+
+final salesBoardProvider = AsyncNotifierProvider<SalesBoardController, Result<SalesBoard>>(
+  SalesBoardController.new,
+);
+
+class SalesBoardController extends AsyncNotifier<Result<SalesBoard>> {
+  @override
+  Future<Result<SalesBoard>> build() {
+    // Watched, not read: changing period or scope reloads the board, while
+    // the local-only "mine" toggle is filtered out below.
+    final filter = ref.watch(
+      salesBoardFilterProvider.select((value) => (value.period, value.scope)),
+    );
+    return _load(period: filter.$1, scope: filter.$2);
+  }
+
+  Future<void> refresh() async {
+    final filter = ref.read(salesBoardFilterProvider);
+    state = const AsyncLoading();
+    state = AsyncData(await _load(period: filter.period, scope: filter.scope));
+  }
+
+  Future<Result<SalesBoard>> _load({required String period, required String scope}) async {
+    final result = await ref
+        .read(targetApiProvider)
+        .salesBoard(period: period, scope: scope);
     return switch (result) {
       Success(:final value) => Success(value.data),
       Err(:final failure) => Err(failure),

@@ -181,9 +181,8 @@ class FollowUpRepositoryImpl implements FollowUpRepository {
           'dueAt': dueAt.toUtc().toIso8601String(),
           if (title != null && title.isNotEmpty) 'title': title,
           if (notes != null && notes.isNotEmpty) 'notes': notes,
-          if (priority != null) 'priority': priority,
-          if (assignedToMembershipId != null)
-            'assignedToMembershipId': assignedToMembershipId,
+          'priority': ?priority,
+          'assignedToMembershipId': ?assignedToMembershipId,
         }),
         idempotencyKey: _ids.v4(),
         status: OutboxStatus.pending,
@@ -231,12 +230,11 @@ class FollowUpRepositoryImpl implements FollowUpRepository {
     final payload = {
       ...?current?.payload,
       'id': id,
-      if (type != null) 'type': type,
-      if (title != null) 'title': title,
+      'type': ?type,
+      'title': ?title,
       'notes': notes,
-      if (priority != null) 'priority': priority,
-      if (assignedToMembershipId != null)
-        'assignedToMembershipId': assignedToMembershipId,
+      'priority': ?priority,
+      'assignedToMembershipId': ?assignedToMembershipId,
       'syncStatus': SyncStatus.pending.name,
       'updatedAt': DateTime.now().toUtc().toIso8601String(),
     };
@@ -254,12 +252,11 @@ class FollowUpRepositoryImpl implements FollowUpRepository {
         path: '/follow-ups/$id',
         body: jsonEncode({
           'version': version,
-          if (type != null) 'type': type,
+          'type': ?type,
           if (title != null && title.isNotEmpty) 'title': title,
           'notes': notes,
-          if (priority != null) 'priority': priority,
-          if (assignedToMembershipId != null)
-            'assignedToMembershipId': assignedToMembershipId,
+          'priority': ?priority,
+          'assignedToMembershipId': ?assignedToMembershipId,
         }),
         idempotencyKey: _ids.v4(),
         status: OutboxStatus.pending,
@@ -298,7 +295,7 @@ class FollowUpRepositoryImpl implements FollowUpRepository {
       'id': id,
       'status': 'completed',
       'completedAt': DateTime.now().toUtc().toIso8601String(),
-      if (notes != null) 'notes': notes,
+      'notes': ?notes,
       'syncStatus': SyncStatus.pending.name,
     };
     await _offline.upsertFollowUp(

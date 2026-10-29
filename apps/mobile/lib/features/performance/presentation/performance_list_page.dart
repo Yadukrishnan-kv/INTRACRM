@@ -6,7 +6,7 @@ import '../../../core/error/result.dart';
 import '../../../design_system/components/app_async_body.dart';
 import '../../../design_system/components/premium_ui.dart';
 import '../../../design_system/tokens/app_colors.dart';
-import '../../../design_system/tokens/app_spacing.dart';
+import '../../../design_system/tokens/app_palette.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
 import '../../auth/application/auth_controller.dart';
@@ -25,7 +25,7 @@ class PerformanceListPage extends ConsumerWidget {
     final membershipId = ref.watch(authControllerProvider).user?.membershipId;
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: context.palette.canvas,
       appBar: AppBar(
         title: const Text('Target & Achievement'),
         actions: [
@@ -46,8 +46,8 @@ class PerformanceListPage extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Row(
               children: [
-                _periodTab(ref, filter, 'Monthly', 'monthly'),
-                _periodTab(ref, filter, 'Daily', 'daily'),
+                _periodTab(context, ref, filter, 'Monthly', 'monthly'),
+                _periodTab(context, ref, filter, 'Daily', 'daily'),
               ],
             ),
           ),
@@ -124,14 +124,14 @@ class PerformanceListPage extends ConsumerWidget {
                         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                         child: Column(
                           children: [
-                            const Padding(
+                            Padding(
                               padding: EdgeInsets.symmetric(vertical: 8),
                               child: Row(
                                 children: [
-                                  Expanded(flex: 3, child: Text('Staff', style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w700, fontSize: 12))),
-                                  Expanded(child: Text('Target', textAlign: TextAlign.right, style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w700, fontSize: 12))),
-                                  Expanded(child: Text('Ach.', textAlign: TextAlign.right, style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w700, fontSize: 12))),
-                                  SizedBox(width: 52, child: Text('%', textAlign: TextAlign.right, style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w700, fontSize: 12))),
+                                  Expanded(flex: 3, child: Text('Staff', style: TextStyle(color: context.palette.muted, fontWeight: FontWeight.w700, fontSize: 12))),
+                                  Expanded(child: Text('Target', textAlign: TextAlign.right, style: TextStyle(color: context.palette.muted, fontWeight: FontWeight.w700, fontSize: 12))),
+                                  Expanded(child: Text('Ach.', textAlign: TextAlign.right, style: TextStyle(color: context.palette.muted, fontWeight: FontWeight.w700, fontSize: 12))),
+                                  SizedBox(width: 52, child: Text('%', textAlign: TextAlign.right, style: TextStyle(color: context.palette.muted, fontWeight: FontWeight.w700, fontSize: 12))),
                                 ],
                               ),
                             ),
@@ -220,7 +220,7 @@ class PerformanceListPage extends ConsumerWidget {
     );
   }
 
-  Widget _periodTab(WidgetRef ref, PerformanceFilter filter, String label, String value) {
+  Widget _periodTab(BuildContext context, WidgetRef ref, PerformanceFilter filter, String label, String value) {
     final selected = filter.periodType == value;
     return Expanded(
       child: Padding(
@@ -228,9 +228,9 @@ class PerformanceListPage extends ConsumerWidget {
         child: ChoiceChip(
           selected: selected,
           label: Center(child: Text(label)),
-          selectedColor: AppColors.tealSoft,
+          selectedColor: context.palette.tealSoft,
           labelStyle: TextStyle(
-            color: selected ? AppColors.teal : AppColors.muted,
+            color: selected ? AppColors.teal : context.palette.muted,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),
           onSelected: (_) => _apply(ref, filter, periodType: value),

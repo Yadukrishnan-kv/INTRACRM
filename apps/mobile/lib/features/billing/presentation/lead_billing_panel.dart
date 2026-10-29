@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/error/result.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
+import '../../auth/application/auth_controller.dart';
 import '../application/billing_providers.dart';
 import '../domain/billing_models.dart';
 
@@ -20,6 +21,7 @@ class _LeadBillingPanelState extends ConsumerState<LeadBillingPanel> {
   BillingSnapshot? _snapshot;
   String? _error;
   var _loading = true;
+  var _syncing = false;
 
   @override
   void initState() {
@@ -46,14 +48,52 @@ class _LeadBillingPanelState extends ConsumerState<LeadBillingPanel> {
     });
   }
 
+  Future<void> _syncCustomer() async {
+    setState(() => _syncing = true);
+    final result = unwrapBilling<BillingCustomer>(
+      await ref.read(billingApiProvider).syncCustomer(widget.leadId),
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _syncing = false);
+    final message = switch (result) {
+      Success(:final value) => value.warning ?? AppStrings.customerSynced,
+      Err(:final failure) => failure.message,
+    };
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    if (result is Success) {
+      await _load();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final canSync = ref.watch(authControllerProvider).user?.canSyncBilling == true;
+    final customer = _snapshot?.customer;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(AppStrings.invoices, style: Theme.of(context).textTheme.titleMedium),
+          Row(
+            children: [
+              Expanded(
+                child: Text(AppStrings.invoices, style: Theme.of(context).textTheme.titleMedium),
+              ),
+              if (canSync)
+                TextButton.icon(
+                  onPressed: _syncing ? null : _syncCustomer,
+                  icon: const Icon(Icons.sync, size: 18),
+                  label: Text(_syncing ? AppStrings.syncingCustomer : AppStrings.syncCustomer),
+                ),
+            ],
+          ),
+          if (customer != null)
+            Text(
+              '${customer.displayName} · ${customer.syncStatus}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           const SizedBox(height: AppSpacing.sm),
           if (_loading) const LinearProgressIndicator(),
           if (_error != null) Text(_error!),

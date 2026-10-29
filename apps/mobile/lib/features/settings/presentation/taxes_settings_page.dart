@@ -108,7 +108,7 @@ class _TaxesSettingsPageState extends ConsumerState<TaxesSettingsPage> {
   Future<void> _save() async {
     final items = [
       for (var index = 0; index < _rows.length; index++)
-        if (_rows[index].toPayload(index) case final payload?) payload,
+        ?_rows[index].toPayload(index),
     ];
     if (items.isEmpty) {
       setState(() => _error = 'Add at least one named tax');

@@ -45,7 +45,6 @@ class _CatalogFormPageState extends ConsumerState<CatalogFormPage> {
   String? _parentId;
   String? _categoryId;
   String? _warrantyPeriodId;
-  CatalogItem? _existing;
   List<CatalogItem> _categories = const [];
   List<CatalogItem> _periods = const [];
 
@@ -112,7 +111,6 @@ class _CatalogFormPageState extends ConsumerState<CatalogFormPage> {
       _loading = false;
       _categories = lookups.categories;
       _periods = lookups.warrantyPeriods;
-      _existing = existing;
       if (existing != null) {
         _codeTouched = true;
         _name.text = existing.name;
@@ -165,18 +163,24 @@ class _CatalogFormPageState extends ConsumerState<CatalogFormPage> {
     });
     final data = <String, dynamic>{
       'name': _name.text.trim(),
-      'sortOrder': int.tryParse(_sortOrder.text.trim()) ?? 0,
       'isActive': _isActive,
     };
     if (_isProduct) {
+      // Product DTOs have no sortOrder; the API rejects unknown keys.
+      final description = _description.text.trim();
+      final price = _price.text.trim();
       data['sku'] = _sku.text.trim();
-      data['description'] = _description.text.trim();
       data['categoryId'] = _categoryId;
       data['warrantyPeriodId'] = _warrantyPeriodId;
-      if (_price.text.trim().isNotEmpty) {
-        data['unitPriceMinor'] = rupeesToMinor(_price.text);
+      // On edit, send null so a cleared description or price is actually cleared.
+      if (description.isNotEmpty || _isEdit) {
+        data['description'] = description.isEmpty ? null : description;
+      }
+      if (price.isNotEmpty || _isEdit) {
+        data['unitPriceMinor'] = price.isEmpty ? null : rupeesToMinor(price);
       }
     } else {
+      data['sortOrder'] = int.tryParse(_sortOrder.text.trim()) ?? 0;
       data['code'] = catalogCodeFromName(_code.text);
     }
     if (_isCategory) {
@@ -378,13 +382,15 @@ class _CatalogFormPageState extends ConsumerState<CatalogFormPage> {
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     ),
                   ],
-                  const SizedBox(height: AppSpacing.md),
-                  AppTextField(
-                    controller: _sortOrder,
-                    label: AppStrings.sortOrder,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  ),
+                  if (!_isProduct) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    AppTextField(
+                      controller: _sortOrder,
+                      label: AppStrings.sortOrder,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    ),
+                  ],
                   SwitchListTile(
                     title: const Text(AppStrings.active),
                     value: _isActive,

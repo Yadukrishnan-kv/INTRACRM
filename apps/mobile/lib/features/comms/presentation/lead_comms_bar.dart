@@ -125,7 +125,11 @@ class LeadCommsBar extends ConsumerWidget {
     if (confirmed != true) {
       return;
     }
-    await _send(context, ref, unwrapComms<CommsResult>(await ref.read(commsApiProvider).call(lead.id)));
+    final result = unwrapComms<CommsResult>(await ref.read(commsApiProvider).call(lead.id));
+    if (!context.mounted) {
+      return;
+    }
+    await _send(context, ref, result);
   }
 
   Future<void> _compose(BuildContext context, WidgetRef ref, String channel) async {

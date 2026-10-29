@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -54,7 +56,9 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text(AppStrings.resetCodeSent)));
-    context.push('${AppRoutes.resetPassword}?email=${Uri.encodeQueryComponent(email)}');
+    unawaited(
+      context.push('${AppRoutes.resetPassword}?email=${Uri.encodeQueryComponent(email)}'),
+    );
   }
 
   @override

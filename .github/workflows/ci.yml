@@ -32,13 +32,17 @@ jobs:
       - run: npm run test:load
 
   mobile:
-    name: Flutter analyze and test
+    name: Flutter analyze, test, build
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: apps/mobile
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.35.0"
@@ -47,6 +51,10 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+      # Compiles the Dart tree and validates the Android Gradle/manifest config.
+      # Debug-signed: release signing needs android/key.properties, which is not
+      # in the repo. Push is inert here (no google-services.json in CI).
+      - run: flutter build apk --debug
 
   terraform:
     name: Terraform fmt and validate

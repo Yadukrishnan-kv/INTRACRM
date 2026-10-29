@@ -25,9 +25,12 @@ class AuthUser {
   bool get canCreateLead => can('lead:create');
   bool get canReadLead => can('lead:read');
   bool get canUpdateLead => can('lead:update');
+  bool get canExportLead => can('lead:export');
+  bool get canDeleteLead => can('lead:delete');
   bool get canAssignLead => can('lead:assign');
   bool get canChangeStage => can('lead:change_stage');
   bool get canCreateActivity => can('activity:create');
+  bool get canReadActivity => can('activity:read');
   bool get canCreateFollowUp => can('follow_up:create');
   bool get canReadFollowUp => can('follow_up:read');
   bool get canUpdateFollowUp => can('follow_up:update');
@@ -39,6 +42,7 @@ class AuthUser {
   bool get canReadAttendance => can('attendance:read');
   bool get canReadTeamAttendance => can('attendance:read_team');
   bool get canCreateQuotation => can('quotation:create');
+  bool get canDeleteQuotation => can('quotation:delete');
   bool get canReadQuotation => can('quotation:read');
   bool get canSendQuotation => can('quotation:send');
   bool get canAcceptQuotation => can('quotation:accept');
@@ -53,6 +57,8 @@ class AuthUser {
   bool get canReadNotifications => can('notification:read');
   bool get canManageNotifications => can('notification:manage');
   bool get canReadAudit => can('audit:read');
+  bool get canReadIncentive => can('incentive:read');
+  bool get canManageIncentive => can('incentive:manage');
   bool get canReadBilling => can('billing:read');
   bool get canSyncBilling => can('billing:sync');
 }

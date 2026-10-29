@@ -342,3 +342,129 @@ class StaffDashboard {
     );
   }
 }
+
+/// The six KPI tiles at the top of the founder dashboard.
+///
+/// Each tile carries its own [format], so the row renders without the client
+/// knowing what any individual metric means: `money` is minor currency,
+/// `percent` is basis points, `count` is a plain integer.
+class FounderKpi {
+  const FounderKpi({
+    required this.code,
+    required this.title,
+    required this.value,
+    required this.format,
+    required this.detail,
+    this.deltaBps,
+  });
+
+  final String code;
+  final String title;
+  final num value;
+  final String format;
+  final String detail;
+  final int? deltaBps;
+
+  bool get isMoney => format == 'money';
+  bool get isPercent => format == 'percent';
+
+  String get valueLabel {
+    if (isPercent) {
+      return '${(value / 100).round()}%';
+    }
+    if (isMoney) {
+      return formatRupeesShort(value);
+    }
+    return value.round().toString();
+  }
+
+  String? get deltaLabel {
+    final bps = deltaBps;
+    if (bps == null) {
+      return null;
+    }
+    final percent = (bps / 100).round();
+    return '${percent >= 0 ? '+' : ''}$percent%';
+  }
+
+  bool get deltaIsUp => (deltaBps ?? 0) >= 0;
+
+  factory FounderKpi.fromJson(Map<String, dynamic> json) {
+    return FounderKpi(
+      code: json['code'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      value: (json['value'] as num?) ?? 0,
+      format: json['format'] as String? ?? 'count',
+      detail: json['detail'] as String? ?? '',
+      deltaBps: json['deltaBps'] as int?,
+    );
+  }
+}
+
+/// Indian short form for a minor-currency amount: `₹18.5L`, `₹1.2Cr`.
+String formatRupeesShort(num minor) {
+  final major = minor / 100;
+  final abs = major.abs();
+  if (abs >= 10000000) {
+    return '₹${_short(major / 10000000)}Cr';
+  }
+  if (abs >= 100000) {
+    return '₹${_short(major / 100000)}L';
+  }
+  if (abs >= 1000) {
+    return '₹${_short(major / 1000)}K';
+  }
+  return '₹${major.toStringAsFixed(0)}';
+}
+
+/// One decimal, dropped when it is zero: `18.5L`, but `15L` not `15.0L`.
+String _short(double value) {
+  final text = value.toStringAsFixed(1);
+  return text.endsWith('.0') ? text.substring(0, text.length - 2) : text;
+}
+
+class DashboardKpis {
+  const DashboardKpis({
+    required this.generatedAt,
+    required this.today,
+    required this.monthLabel,
+    this.items = const [],
+  });
+
+  final DateTime generatedAt;
+  final String today;
+  final String monthLabel;
+  final List<FounderKpi> items;
+
+  FounderKpi? item(String code) {
+    for (final entry in items) {
+      if (entry.code == code) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  factory DashboardKpis.fromJson(Map<String, dynamic> json) {
+    final month = json['month'] as Map<String, dynamic>? ?? const {};
+    final items = json['items'] as List<dynamic>? ?? const [];
+    return DashboardKpis(
+      generatedAt: DateTime.tryParse(json['generatedAt'] as String? ?? '') ?? DateTime.now().toUtc(),
+      today: json['today'] as String? ?? '',
+      monthLabel: month['label'] as String? ?? '',
+      items: [
+        for (final item in items)
+          if (item is Map<String, dynamic>) FounderKpi.fromJson(item),
+      ],
+    );
+  }
+}
+
+class FounderKpiCodes {
+  static const todaysFollowUps = 'todays_follow_ups';
+  static const mtdBilling = 'mtd_billing';
+  static const targetAchieved = 'target_achieved';
+  static const activeLeads = 'active_leads';
+  static const pendingQuotations = 'pending_quotations';
+  static const wonThisMonth = 'won_this_month';
+}

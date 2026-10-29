@@ -172,7 +172,8 @@ class _QuotationDetailPageState extends ConsumerState<QuotationDetailPage> {
             'quantity': row.quantity,
             'unitPriceMinor': row.unitPriceMinor,
             'discountMinor': row.discountMinor,
-            'taxBps': row.taxBps,
+            if (row.taxRateIds.isNotEmpty) 'taxRateIds': row.taxRateIds,
+            if (row.taxRateIds.isEmpty) 'taxBps': row.taxBps,
           },
     ];
     if (remaining.isEmpty) {
@@ -402,6 +403,8 @@ class _QuotationDetailPageState extends ConsumerState<QuotationDetailPage> {
               },
             ),
             const SizedBox(height: AppSpacing.sm),
+          ],
+          if (!_busy && item.isDraft && user?.canDeleteQuotation == true) ...[
             AppButton(
               label: AppStrings.deleteQuotation,
               onPressed: _deleteQuotation,

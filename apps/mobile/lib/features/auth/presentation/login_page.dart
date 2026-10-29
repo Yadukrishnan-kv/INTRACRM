@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/error/result.dart';
 import '../../../design_system/components/app_button.dart';
 import '../../../design_system/components/app_text_field.dart';
+import '../../../design_system/tokens/app_assets.dart';
 import '../../../design_system/tokens/app_colors.dart';
+import '../../../design_system/tokens/app_palette.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
@@ -53,12 +55,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: context.palette.canvas,
       body: Column(
         children: [
           Container(
             width: double.infinity,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.teal,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
             ),
@@ -69,15 +71,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 child: Column(
                   children: [
                     Container(
-                      width: 72,
-                      height: 72,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white24),
-                      ),
-                      child: const Icon(Icons.apartment, color: Colors.white, size: 34),
+                      width: 220,
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+                      child: Image.asset(AppAssets.logo, semanticLabel: AppStrings.appTitle),
                     ),
                     const SizedBox(height: 14),
                     Text(
@@ -115,7 +112,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 4),
-                        const Text('Sign in to continue', style: TextStyle(color: AppColors.muted)),
+                        Text('Sign in to continue', style: TextStyle(color: context.palette.muted)),
                         const SizedBox(height: AppSpacing.lg),
                         AppTextField(
                           controller: _email,

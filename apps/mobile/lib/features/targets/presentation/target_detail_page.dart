@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
 import '../../../design_system/components/app_error_view.dart';
 import '../../../design_system/components/app_loading.dart';
 import '../../../design_system/components/app_scaffold.dart';
+import '../../../design_system/components/confirm_dialog.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
+import '../../../router/app_routes.dart';
+import '../../auth/application/auth_controller.dart';
 import '../application/target_providers.dart';
 import '../domain/target.dart';
 
@@ -24,6 +28,7 @@ class _TargetDetailPageState extends ConsumerState<TargetDetailPage> {
   Target? _item;
   Failure? _failure;
   var _loading = true;
+  var _saving = false;
 
   @override
   void initState() {
@@ -50,11 +55,56 @@ class _TargetDetailPageState extends ConsumerState<TargetDetailPage> {
     });
   }
 
+  Future<void> _edit(Target item) async {
+    final saved = await context.push<bool>(AppRoutes.targetEditPath(item.id));
+    if (saved == true && mounted) {
+      await _reload();
+    }
+  }
+
+  Future<void> _delete(Target item) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: AppStrings.deleteTarget,
+      message: AppStrings.deleteTargetMessage(item.displayTitle),
+      confirmLabel: AppStrings.deleteTarget,
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    setState(() => _saving = true);
+    final result = await ref.read(targetApiProvider).deleteTarget(item.id);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _saving = false);
+    if (result is Err) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.failure.message)));
+      return;
+    }
+    context.pop(true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final item = _item;
+    final canManage = ref.watch(authControllerProvider).user?.canManageTarget == true;
     return AppScaffold(
       title: AppStrings.target,
+      actions: [
+        if (item != null && canManage) ...[
+          IconButton(
+            tooltip: AppStrings.editTarget,
+            onPressed: _saving ? null : () => _edit(item),
+            icon: const Icon(Icons.edit),
+          ),
+          IconButton(
+            tooltip: AppStrings.deleteTarget,
+            onPressed: _saving ? null : () => _delete(item),
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
+      ],
       body: _loading
           ? const AppLoading()
           : _failure != null

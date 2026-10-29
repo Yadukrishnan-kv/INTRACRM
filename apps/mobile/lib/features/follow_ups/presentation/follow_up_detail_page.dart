@@ -9,6 +9,7 @@ import '../../../design_system/components/app_error_view.dart';
 import '../../../design_system/components/app_loading.dart';
 import '../../../design_system/components/app_scaffold.dart';
 import '../../../design_system/components/app_text_field.dart';
+import '../../../design_system/components/confirm_dialog.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../features/auth/application/auth_controller.dart';
 import '../../../l10n/app_strings.dart';
@@ -93,6 +94,33 @@ class _FollowUpDetailPageState extends ConsumerState<FollowUpDetailPage> {
         SnackBar(content: Text(result.failure.message)),
       );
     }
+  }
+
+  Future<void> _cancel(LeadFollowUp item) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: AppStrings.cancelFollowUp,
+      message: AppStrings.cancelFollowUpMessage,
+      confirmLabel: AppStrings.cancelFollowUp,
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    final result = await ref.read(followUpApiProvider).cancel(
+      id: item.id,
+      version: item.version,
+    );
+    if (!mounted) {
+      return;
+    }
+    if (result is Err) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.failure.message)),
+      );
+      return;
+    }
+    await ref.read(followUpListProvider.notifier).refresh();
+    await _reload();
   }
 
   Future<void> _reschedule() async {
@@ -210,6 +238,11 @@ class _FollowUpDetailPageState extends ConsumerState<FollowUpDetailPage> {
                   AppButton(
                     label: AppStrings.rescheduleFollowUp,
                     onPressed: _reschedule,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextButton(
+                    onPressed: () => _cancel(item),
+                    child: const Text(AppStrings.cancelFollowUp),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                 ],

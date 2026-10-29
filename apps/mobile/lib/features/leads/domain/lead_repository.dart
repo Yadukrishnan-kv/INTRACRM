@@ -17,6 +17,9 @@ abstract class LeadRepository {
     int? version,
   });
 
+  /// Deletes the lead on the server and drops it from the offline cache.
+  Future<Result<void>> delete(String id);
+
   Future<Result<Lead>> assign({
     required String id,
     required String ownerMembershipId,

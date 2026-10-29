@@ -1,7 +1,7 @@
+import '../../features/leads/data/lead_dto.dart';
+import '../error/result.dart';
 import '../network/api_client.dart';
 import '../network/api_envelope.dart';
-import '../error/result.dart';
-import '../../features/leads/data/lead_dto.dart';
 
 class SyncDelta {
   const SyncDelta({
@@ -11,6 +11,9 @@ class SyncDelta {
     this.cursor,
     this.updatedSince,
     this.hasMore = false,
+    this.deletedLeads = const [],
+    this.deletedNotes = const [],
+    this.deletedFollowUps = const [],
   });
 
   final List<LeadDto> leads;
@@ -19,6 +22,37 @@ class SyncDelta {
   final String? cursor;
   final String? updatedSince;
   final bool hasMore;
+  final List<String> deletedLeads;
+  final List<String> deletedNotes;
+  final List<String> deletedFollowUps;
+
+  factory SyncDelta.fromJson(Map<String, dynamic> map) {
+    return SyncDelta(
+      cursor: map['cursor'] as String?,
+      updatedSince: map['updatedSince'] as String?,
+      hasMore: map['hasMore'] as bool? ?? false,
+      leads: [
+        for (final item in map['leads'] as List? ?? const [])
+          if (item is Map<String, dynamic>) LeadDto.fromJson(item),
+      ],
+      notes: [
+        for (final item in map['notes'] as List? ?? const [])
+          if (item is Map<String, dynamic>) LeadActivityDto.fromJson(item),
+      ],
+      followUps: [
+        for (final item in map['followUps'] as List? ?? const [])
+          if (item is Map<String, dynamic>) LeadFollowUpDto.fromJson(item),
+      ],
+      deletedLeads: _ids(map['deletedLeads']),
+      deletedNotes: _ids(map['deletedNotes']),
+      deletedFollowUps: _ids(map['deletedFollowUps']),
+    );
+  }
+
+  static List<String> _ids(Object? value) => [
+    for (final item in value as List? ?? const [])
+      if (item is String && item.isNotEmpty) item,
+  ];
 }
 
 class SyncApi {
@@ -31,28 +65,9 @@ class SyncApi {
       '/sync',
       query: {
         'limit': limit,
-        if (updatedSince != null) 'updatedSince': updatedSince,
+        'updatedSince': ?updatedSince,
       },
-      parse: (json) {
-        final map = json! as Map<String, dynamic>;
-        return SyncDelta(
-          cursor: map['cursor'] as String?,
-          updatedSince: map['updatedSince'] as String?,
-          hasMore: map['hasMore'] as bool? ?? false,
-          leads: [
-            for (final item in map['leads'] as List? ?? const [])
-              if (item is Map<String, dynamic>) LeadDto.fromJson(item),
-          ],
-          notes: [
-            for (final item in map['notes'] as List? ?? const [])
-              if (item is Map<String, dynamic>) LeadActivityDto.fromJson(item),
-          ],
-          followUps: [
-            for (final item in map['followUps'] as List? ?? const [])
-              if (item is Map<String, dynamic>) LeadFollowUpDto.fromJson(item),
-          ],
-        );
-      },
+      parse: (json) => SyncDelta.fromJson(json! as Map<String, dynamic>),
     );
   }
 }

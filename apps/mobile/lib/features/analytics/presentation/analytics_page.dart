@@ -8,6 +8,8 @@ import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
 import '../../dashboard/presentation/widgets/dashboard_widget_card.dart';
+import '../../reports/domain/report_date_range.dart';
+import '../../reports/presentation/report_date_range_bar.dart';
 import '../../reports/presentation/report_export_button.dart';
 import '../application/analytics_providers.dart';
 import '../domain/analytics.dart';
@@ -19,24 +21,41 @@ class AnalyticsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncBoard = ref.watch(analyticsOverviewProvider);
+    final range = ref.watch(analyticsRangeProvider);
     return AppScaffold(
       title: AppStrings.analyticsDashboard,
-      actions: const [ReportExportButton(dataset: 'analytics')],
-      body: RefreshIndicator(
-        onRefresh: () => ref.read(analyticsOverviewProvider.notifier).refresh(),
-        child: AppAsyncBody(
-          asyncValue: asyncBoard,
-          isEmpty: (board) => board.ordered.isEmpty,
-          emptyTitle: 'No analytics yet',
-          emptyMessage: 'Leads, qualifications, quotations, and wins will appear here as work is logged.',
-          builder: (board) => _AnalyticsBoard(
-            board: board,
-            onWidgetTap: (code) async {
-              await context.push(AppRoutes.analyticsMetricPath(code));
-              await ref.read(analyticsOverviewProvider.notifier).refresh();
-            },
+      actions: [
+        ReportExportButton(dataset: 'analytics', range: range, dateMode: ReportDateMode.ymd),
+      ],
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+            child: ReportDateRangeBar(
+              range: range,
+              onChanged: (value) => ref.read(analyticsRangeProvider.notifier).state = value,
+            ),
           ),
-        ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => ref.read(analyticsOverviewProvider.notifier).refresh(),
+              child: AppAsyncBody(
+                asyncValue: asyncBoard,
+                isEmpty: (board) => board.ordered.isEmpty,
+                emptyTitle: 'No analytics yet',
+                emptyMessage:
+                    'Leads, qualifications, quotations, and wins will appear here as work is logged.',
+                builder: (board) => _AnalyticsBoard(
+                  board: board,
+                  onWidgetTap: (code) async {
+                    await context.push(AppRoutes.analyticsMetricPath(code));
+                    await ref.read(analyticsOverviewProvider.notifier).refresh();
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -74,20 +93,25 @@ class _AnalyticsBoard extends StatelessWidget {
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,
           children: [
-            Chip(label: Text('Lead → Qualified ${analyticsPercent(conversion.leadToQualifiedBps)}')),
-            Chip(label: Text('Qualified → Quotation ${analyticsPercent(conversion.qualifiedToQuotationBps)}')),
+            Chip(
+              label: Text('Lead → Qualified ${analyticsPercent(conversion.leadToQualifiedBps)}'),
+            ),
+            Chip(
+              label: Text(
+                'Qualified → Quotation ${analyticsPercent(conversion.qualifiedToQuotationBps)}',
+              ),
+            ),
             Chip(label: Text('Quotation → Won ${analyticsPercent(conversion.quotationToWonBps)}')),
-            Chip(label: Text('${AppStrings.conversion} ${analyticsPercent(conversion.overallBps)}')),
+            Chip(
+              label: Text('${AppStrings.conversion} ${analyticsPercent(conversion.overallBps)}'),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
         Text(AppStrings.analytics, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: AppSpacing.sm),
         for (final widget in board.ordered) ...[
-          DashboardWidgetCard(
-            data: widget,
-            onTap: () => onWidgetTap(widget.code),
-          ),
+          DashboardWidgetCard(data: widget, onTap: () => onWidgetTap(widget.code)),
           const SizedBox(height: AppSpacing.md),
         ],
       ],

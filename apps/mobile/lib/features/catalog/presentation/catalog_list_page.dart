@@ -92,6 +92,7 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
     return AppScaffold(
       title: CatalogKinds.label(widget.kind),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-catalog',
         onPressed: () async {
           await context.push(AppRoutes.catalogCreatePath(widget.kind));
           await _load();

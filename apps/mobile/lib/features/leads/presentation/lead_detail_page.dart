@@ -8,9 +8,11 @@ import '../../../core/network/api_envelope.dart';
 import '../../../design_system/components/app_button.dart';
 import '../../../design_system/components/app_error_view.dart';
 import '../../../design_system/components/app_loading.dart';
+import '../../../design_system/components/app_text_field.dart';
+import '../../../design_system/components/confirm_dialog.dart';
 import '../../../design_system/components/premium_ui.dart';
 import '../../../design_system/tokens/app_colors.dart';
-import '../../../design_system/components/app_text_field.dart';
+import '../../../design_system/tokens/app_palette.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../features/auth/application/auth_controller.dart';
 import '../../../features/auth/domain/auth_user.dart';
@@ -25,6 +27,7 @@ import '../../settings/application/sync_controller.dart';
 import '../../timeline/application/timeline_providers.dart';
 import '../../timeline/domain/timeline_models.dart';
 import '../../timeline/presentation/timeline_page.dart';
+import '../../tracks/presentation/lead_audit_trail.dart';
 import '../application/lead_list_controller.dart';
 import '../domain/lead.dart';
 
@@ -43,6 +46,7 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
   List<TimelineEvent> _timeline = const [];
   Failure? _failure;
   var _loading = true;
+  var _deleting = false;
   var _tab = 0;
   List<PipelineStage> _stages = const [];
 
@@ -276,6 +280,9 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
         return;
       }
       lostReasonId = board.lossReasons.first.id;
+      if (!mounted) {
+        return;
+      }
       final chosen = await showDialog<String>(
         context: context,
         builder: (context) {
@@ -322,6 +329,38 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
     }
   }
 
+  Future<void> _delete(Lead lead) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: AppStrings.deleteLead,
+      message: AppStrings.deleteLeadMessage(lead.title),
+      confirmLabel: AppStrings.deleteLead,
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    setState(() => _deleting = true);
+    final result = await ref.read(leadRepositoryProvider).delete(lead.id);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _deleting = false);
+    if (result is Err) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.failure.message)),
+      );
+      return;
+    }
+    await ref.read(leadListControllerProvider.notifier).refresh();
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text(AppStrings.leadDeleted)),
+    );
+    context.pop();
+  }
+
   Future<void> _complete(LeadFollowUp followUp) async {
     final result = await ref.read(leadRepositoryProvider).completeFollowUp(
       leadId: widget.leadId,
@@ -341,7 +380,7 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
     final user = ref.watch(authControllerProvider).user;
     final lead = _lead;
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: context.palette.canvas,
       appBar: AppBar(
         title: const Text('Lead Details'),
         actions: [
@@ -351,7 +390,7 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
                 await context.push(AppRoutes.leadEditPath(lead.id));
                 await _reload();
               },
-              child: const Text('Edit'),
+              child: Text('Edit'),
             ),
         ],
       ),
@@ -375,16 +414,22 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
                           children: [
                             _detailTab('DETAILS', 0),
                             _detailTab('ACTIVITY', 1),
+                            if (user?.canReadAudit == true) _detailTab(AppStrings.auditTab, 2),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        if (_tab == 0) _detailsTab(context, lead, user) else _activityTab(context, lead),
+                        if (_deleting) const LinearProgressIndicator(),
+                        switch (_tab) {
+                          1 => _activityTab(context, lead),
+                          2 when user?.canReadAudit == true => LeadAuditTrail(leadId: lead.id),
+                          _ => _detailsTab(context, lead, user),
+                        },
                       ],
                     ),
                   ),
                 ),
                 Material(
-                  color: AppColors.card,
+                  color: context.palette.card,
                   elevation: 8,
                   child: LeadCommsBar(
                     lead: lead,
@@ -410,7 +455,7 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
-                color: selected ? AppColors.teal : AppColors.muted,
+                color: selected ? AppColors.teal : context.palette.muted,
               ),
             ),
             const SizedBox(height: 8),
@@ -599,7 +644,7 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
                     _addActivity();
                   },
                 ),
-              if (user?.canCreateQuotation == true || user?.canSendQuotation == true)
+              if (user?.canCreateQuotation == true)
                 ListTile(
                   leading: const Icon(Icons.request_quote_outlined),
                   title: const Text(AppStrings.createQuotation),
@@ -628,6 +673,18 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
                 ),
               if (user?.canCreateActivity == true)
                 LeadCommsBar(lead: lead, onLogged: _reload),
+              if (user?.canDeleteLead == true)
+                ListTile(
+                  leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                  title: Text(
+                    AppStrings.deleteLead,
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _delete(lead);
+                  },
+                ),
             ],
           ),
         );
@@ -652,20 +709,20 @@ class _ProfileHeader extends StatelessWidget {
     return Column(
       children: [
         InitialsAvatar(name: lead.displayName, size: 72),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         Text(lead.displayName, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
         StatusBadge(label: lead.stageName ?? lead.lifecycleStatus),
         const SizedBox(height: 8),
         if (lead.primaryPhone != null && lead.primaryPhone!.isNotEmpty)
-          Text(lead.primaryPhone!, style: const TextStyle(color: AppColors.muted)),
+          Text(lead.primaryPhone!, style: TextStyle(color: context.palette.muted)),
         if (lead.city != null && lead.city!.isNotEmpty)
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.place_outlined, size: 14, color: AppColors.muted),
-              const SizedBox(width: 4),
-              Text(lead.city!, style: const TextStyle(color: AppColors.muted)),
+              Icon(Icons.place_outlined, size: 14, color: context.palette.muted),
+              SizedBox(width: 4),
+              Text(lead.city!, style: TextStyle(color: context.palette.muted)),
             ],
           ),
         if (lead.isPendingSync || lead.hasConflict)

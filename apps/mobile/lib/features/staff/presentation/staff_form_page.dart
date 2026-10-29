@@ -8,6 +8,8 @@ import '../../../design_system/components/app_scaffold.dart';
 import '../../../design_system/components/app_text_field.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/domain/password_rules.dart';
 import '../../rbac/application/rbac_controller.dart';
 import '../../rbac/domain/rbac_models.dart';
 import '../application/staff_providers.dart';
@@ -28,12 +30,14 @@ class _StaffFormPageState extends ConsumerState<StaffFormPage> {
   final _email = TextEditingController();
   final _designation = TextEditingController();
   final _employeeCode = TextEditingController();
+  final _password = TextEditingController();
   final _selectedRoles = <String>{};
   final _selectedTeams = <String>{};
   List<RbacRole> _roles = const [];
   List<StaffTeam> _teams = const [];
   var _loading = true;
   var _submitting = false;
+  var _isSelf = false;
   String? _error;
 
   bool get _isEdit => widget.staffId != null;
@@ -50,6 +54,7 @@ class _StaffFormPageState extends ConsumerState<StaffFormPage> {
     _email.dispose();
     _designation.dispose();
     _employeeCode.dispose();
+    _password.dispose();
     super.dispose();
   }
 
@@ -81,6 +86,7 @@ class _StaffFormPageState extends ConsumerState<StaffFormPage> {
         _teams = teams.value;
       }
       if (existing != null) {
+        _isSelf = existing.isCurrentUser(ref.read(authControllerProvider).user);
         _name.text = existing.fullName;
         _email.text = existing.email ?? '';
         _designation.text = existing.designation ?? '';
@@ -109,6 +115,7 @@ class _StaffFormPageState extends ConsumerState<StaffFormPage> {
               designation: _designation.text.trim(),
               employeeCode: _employeeCode.text.trim(),
               teamIds: _selectedTeams.toList(),
+              password: _password.text,
             ),
           )
         : unwrapApi<StaffMember>(
@@ -118,7 +125,8 @@ class _StaffFormPageState extends ConsumerState<StaffFormPage> {
               fullName: _name.text.trim(),
               designation: _designation.text.trim(),
               employeeCode: _employeeCode.text.trim(),
-              roleIds: _selectedRoles.toList(),
+              // Users cannot change their own roles; leave them untouched.
+              roleIds: _isSelf ? null : _selectedRoles.toList(),
               teamIds: _selectedTeams.toList(),
             ),
           );
@@ -179,8 +187,23 @@ class _StaffFormPageState extends ConsumerState<StaffFormPage> {
                       controller: _employeeCode,
                       label: AppStrings.employeeCode,
                     ),
+                    if (!_isEdit) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      AppTextField(
+                        controller: _password,
+                        label: AppStrings.password,
+                        obscureText: true,
+                        validator: (value) =>
+                            PasswordRules.validate(value, email: _email.text.trim()),
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.lg),
                     Text(AppStrings.assignRoles, style: Theme.of(context).textTheme.titleMedium),
+                    if (_isSelf)
+                      Text(
+                        AppStrings.cannotEditOwnRoles,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     const SizedBox(height: AppSpacing.sm),
                     Wrap(
                       spacing: AppSpacing.xs,
@@ -189,15 +212,17 @@ class _StaffFormPageState extends ConsumerState<StaffFormPage> {
                           FilterChip(
                             label: Text(role.name),
                             selected: _selectedRoles.contains(role.id),
-                            onSelected: (selected) {
-                              setState(() {
-                                if (selected) {
-                                  _selectedRoles.add(role.id);
-                                } else {
-                                  _selectedRoles.remove(role.id);
-                                }
-                              });
-                            },
+                            onSelected: _isSelf
+                                ? null
+                                : (selected) {
+                                    setState(() {
+                                      if (selected) {
+                                        _selectedRoles.add(role.id);
+                                      } else {
+                                        _selectedRoles.remove(role.id);
+                                      }
+                                    });
+                                  },
                           ),
                       ],
                     ),

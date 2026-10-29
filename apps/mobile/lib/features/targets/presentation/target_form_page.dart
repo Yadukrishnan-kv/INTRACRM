@@ -13,7 +13,10 @@ import '../application/target_providers.dart';
 import '../domain/target.dart';
 
 class TargetFormPage extends ConsumerStatefulWidget {
-  const TargetFormPage({super.key});
+  const TargetFormPage({super.key, this.targetId});
+
+  /// When set, the form edits this target instead of creating a new one.
+  final String? targetId;
 
   @override
   ConsumerState<TargetFormPage> createState() => _TargetFormPageState();
@@ -33,6 +36,9 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
   var _loading = true;
   var _saving = false;
   String? _error;
+  Target? _existing;
+
+  bool get _isEdit => widget.targetId != null;
 
   @override
   void initState() {
@@ -48,7 +54,9 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
   }
 
   Future<void> _loadCatalog() async {
-    final result = await ref.read(targetApiProvider).catalog();
+    final api = ref.read(targetApiProvider);
+    final result = await api.catalog();
+    final existing = _isEdit ? await api.getById(widget.targetId!) : null;
     if (!mounted) {
       return;
     }
@@ -57,11 +65,44 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
       switch (result) {
         case Success(:final value):
           _catalog = value.data;
+          if (existing case Success(:final value)) {
+            _prefill(value.data);
+          }
           _metricCode ??= value.data.metrics.isNotEmpty ? value.data.metrics.first.code : null;
         case Err(:final failure):
           _error = failure.message;
       }
+      if (existing case Err(:final failure)) {
+        _error = failure.message;
+      }
     });
+  }
+
+  void _prefill(Target target) {
+    _existing = target;
+    _metricCode = target.metricCode;
+    _scopeType = target.scopeType;
+    _productId = target.productId;
+    _anchor = DateTime.tryParse(target.periodStart) ?? _anchor;
+    _notes.text = target.notes ?? '';
+    switch (target.scopeType) {
+      case 'team':
+        _teamId = target.scopeId;
+      case 'membership':
+        _staffId = target.scopeId;
+    }
+    _kind = target.periodType == TargetKinds.daily
+        ? TargetKinds.daily
+        : target.scopeType == 'team'
+        ? TargetKinds.team
+        : target.productId != null
+        ? TargetKinds.product
+        : TargetKinds.monthly;
+    final isMoney = _metric?.isMoney == true;
+    final display = isMoney ? target.targetValue / 100 : target.targetValue;
+    _value.text = display == display.roundToDouble()
+        ? display.toStringAsFixed(0)
+        : display.toString();
   }
 
   TargetMetric? get _metric {
@@ -125,16 +166,21 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
     };
     final targetValue = metric.isMoney ? (raw * 100).roundToDouble() : raw;
     setState(() => _saving = true);
-    final result = await ref.read(targetApiProvider).create({
+    final body = <String, dynamic>{
       'periodType': _periodType,
       'scopeType': scopeType,
       'metricCode': metric.code,
       'targetValue': targetValue,
       'periodStart': _anchor.toIso8601String().substring(0, 10),
-      if (scopeId != null) 'scopeId': scopeId,
+      'scopeId': ?scopeId,
       if (_productId != null) 'productId': _productId,
       if (_notes.text.trim().isNotEmpty) 'notes': _notes.text.trim(),
-    });
+    };
+    final existing = _existing;
+    final api = ref.read(targetApiProvider);
+    final result = existing == null
+        ? await api.create(body)
+        : await api.updateTarget(existing.id, {...body, 'version': existing.version});
     if (!mounted) {
       return;
     }
@@ -148,15 +194,16 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    final title = _isEdit ? AppStrings.editTarget : AppStrings.createTarget;
     if (_loading) {
-      return const AppScaffold(title: AppStrings.createTarget, body: AppLoading());
+      return AppScaffold(title: title, body: const AppLoading());
     }
     if (_error != null) {
-      return AppScaffold(title: AppStrings.createTarget, body: Center(child: Text(_error!)));
+      return AppScaffold(title: title, body: Center(child: Text(_error!)));
     }
     final catalog = _catalog;
     return AppScaffold(
-      title: AppStrings.createTarget,
+      title: title,
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
@@ -183,7 +230,7 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
           ),
           const SizedBox(height: AppSpacing.md),
           DropdownButtonFormField<String>(
-            value: _metricCode,
+            initialValue: _metricCode,
             decoration: const InputDecoration(labelText: AppStrings.metric),
             items: [
               for (final metric in catalog?.metrics ?? const <TargetMetric>[])
@@ -208,7 +255,7 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
           if (_kind != TargetKinds.team) ...[
             const SizedBox(height: AppSpacing.sm),
             DropdownButtonFormField<String>(
-              value: _scopeType,
+              initialValue: _scopeType,
               decoration: const InputDecoration(labelText: AppStrings.scope),
               items: const [
                 DropdownMenuItem(value: 'tenant', child: Text('Company')),
@@ -221,7 +268,7 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
           if (_kind == TargetKinds.team || _scopeType == 'team') ...[
             const SizedBox(height: AppSpacing.md),
             DropdownButtonFormField<String>(
-              value: _teamId,
+              initialValue: _teamId,
               decoration: const InputDecoration(labelText: AppStrings.team),
               items: [
                 for (final team in catalog?.teams ?? const <TargetOption>[])
@@ -233,7 +280,7 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
           if (_scopeType == 'membership' && _kind != TargetKinds.team) ...[
             const SizedBox(height: AppSpacing.md),
             DropdownButtonFormField<String>(
-              value: _staffId,
+              initialValue: _staffId,
               decoration: const InputDecoration(labelText: AppStrings.staff),
               items: [
                 for (final member in catalog?.staff ?? const <TargetOption>[])
@@ -244,7 +291,7 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
           ],
           const SizedBox(height: AppSpacing.md),
           DropdownButtonFormField<String>(
-            value: _productId ?? '',
+            initialValue: _productId ?? '',
             decoration: InputDecoration(
               labelText: _kind == TargetKinds.product ? AppStrings.product : '${AppStrings.product} (optional)',
             ),

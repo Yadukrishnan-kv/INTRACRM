@@ -1,0 +1,10 @@
+# Copy to android/key.properties and fill in before a release build.
+# android/key.properties is gitignored - never commit the real values.
+#
+# Generate an upload keystore with:
+#   keytool -genkey -v -keystore ~/intra-leads-upload.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+storePassword=
+keyPassword=
+keyAlias=upload
+storeFile=/absolute/path/to/intra-leads-upload.jks

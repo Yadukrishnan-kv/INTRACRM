@@ -1,6 +1,7 @@
 import '../../../core/error/result.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_envelope.dart';
+import '../../reports/domain/report_date_range.dart';
 import '../../site_visits/domain/site_visit.dart';
 import '../domain/attendance.dart';
 
@@ -20,7 +21,7 @@ class AttendanceApi {
     return _client.get(
       '/attendance/days',
       query: {
-        if (membershipId != null) 'membershipId': membershipId,
+        'membershipId': ?membershipId,
       },
       parse: (json) => AttendanceDaysPage.fromJson(json! as Map<String, dynamic>),
     );
@@ -54,9 +55,10 @@ class AttendanceApi {
     );
   }
 
-  Future<Result<ApiSuccess<AttendanceReport>>> report() {
+  Future<Result<ApiSuccess<AttendanceReport>>> report({ReportDateRange? range}) {
     return _client.get(
       '/reports/attendance',
+      query: reportRangeQuery(range, ReportDateMode.ymd),
       parse: (json) => AttendanceReport.fromJson(json! as Map<String, dynamic>),
     );
   }

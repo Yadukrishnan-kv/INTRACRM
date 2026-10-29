@@ -4,10 +4,16 @@
 .idea/
 .vscode/
 *.iml
-*.lock
+# pubspec.lock is committed on purpose: this is an application, not a
+# package, so builds must be reproducible. Only ignore other lock files.
+*.podfile.lock
 .packages
 build/
 coverage/
 *.g.dart
 *.freezed.dart
 .DS_Store
+
+# Machine-specific API host for `--dart-define-from-file`; commit only the
+# example. See README "Run against a local API".
+dart_defines/local.json

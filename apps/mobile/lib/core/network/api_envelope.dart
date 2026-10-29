@@ -1,3 +1,5 @@
+import '../error/result.dart';
+
 class PageMeta {
   const PageMeta({
     required this.limit,
@@ -120,4 +122,16 @@ class PagedData<T> {
 
   final List<T> items;
   final PageMeta page;
+}
+
+/// Unwraps the `data` payload out of a successful envelope, preserving the
+/// failure of an unsuccessful one.
+///
+/// Typed against [ApiSuccess] so the payload type is checked by the compiler
+/// rather than cast at runtime.
+Result<T> unwrapEnvelope<T>(Result<ApiSuccess<T>> result) {
+  return switch (result) {
+    Success(:final value) => Success(value.data),
+    Err(:final failure) => Err(failure),
+  };
 }

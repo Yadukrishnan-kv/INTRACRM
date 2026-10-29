@@ -58,3 +58,30 @@ class StaffDashboardController extends AsyncNotifier<Result<StaffDashboard>> {
     };
   }
 }
+
+final dashboardKpisProvider =
+    AsyncNotifierProvider<DashboardKpisController, Result<DashboardKpis>>(
+      DashboardKpisController.new,
+    );
+
+/// Loaded separately from the full overview so the KPI row paints as soon as
+/// its own queries return, rather than waiting on the week-long series.
+class DashboardKpisController extends AsyncNotifier<Result<DashboardKpis>> {
+  @override
+  Future<Result<DashboardKpis>> build() {
+    return _load();
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = AsyncData(await _load());
+  }
+
+  Future<Result<DashboardKpis>> _load() async {
+    final result = await ref.read(dashboardApiProvider).kpis();
+    return switch (result) {
+      Success(:final value) => Success(value.data),
+      Err(:final failure) => Err(failure),
+    };
+  }
+}

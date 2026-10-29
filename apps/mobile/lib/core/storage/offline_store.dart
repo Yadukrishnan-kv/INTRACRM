@@ -116,8 +116,37 @@ class OfflineStore {
     return _get('offline_leads', SyncResource.lead, tenantId, id);
   }
 
+  /// Drops a lead (and its cached notes and follow-ups) after a server delete.
+  Future<void> removeLead(String tenantId, String id) async {
+    final localId = await _ids.toLocal(
+      tenantId: tenantId,
+      resourceType: SyncResource.lead,
+      serverId: id,
+    );
+    final ids = {id, localId}.toList();
+    final marks = List.filled(ids.length, '?').join(', ');
+    final db = await _database.instance;
+    await db.delete(
+      'offline_leads',
+      where: 'tenant_id = ? AND (id IN ($marks) OR server_id IN ($marks))',
+      whereArgs: [tenantId, ...ids, ...ids],
+    );
+    for (final table in const ['offline_notes', 'offline_follow_ups']) {
+      await db.delete(
+        table,
+        where: 'tenant_id = ? AND lead_id IN ($marks)',
+        whereArgs: [tenantId, ...ids],
+      );
+    }
+  }
+
   Future<OfflineRecord?> getNote(String tenantId, String id) {
     return _get('offline_notes', SyncResource.note, tenantId, id);
+  }
+
+  /// Drops one cached activity after the server reports its soft deletion.
+  Future<void> removeNote(String tenantId, String id) {
+    return _remove('offline_notes', SyncResource.note, tenantId, id);
   }
 
   Future<List<OfflineRecord>> listNotesForLead(String tenantId, String leadId) {
@@ -134,6 +163,25 @@ class OfflineStore {
 
   Future<OfflineRecord?> getFollowUp(String tenantId, String id) {
     return _get('offline_follow_ups', SyncResource.followUp, tenantId, id);
+  }
+
+  /// Drops one cached follow-up after the server reports its soft deletion.
+  Future<void> removeFollowUp(String tenantId, String id) {
+    return _remove('offline_follow_ups', SyncResource.followUp, tenantId, id);
+  }
+
+  Future<void> _remove(String table, String resourceType, String tenantId, String id) async {
+    final localId = await _ids.toLocal(
+      tenantId: tenantId,
+      resourceType: resourceType,
+      serverId: id,
+    );
+    final db = await _database.instance;
+    await db.delete(
+      table,
+      where: 'tenant_id = ? AND (id = ? OR server_id = ?)',
+      whereArgs: [tenantId, localId, id],
+    );
   }
 
   Future<void> rekey({

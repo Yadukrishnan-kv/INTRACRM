@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../tokens/app_colors.dart';
+import '../tokens/app_palette.dart';
 import '../tokens/app_radii.dart';
 
 class AppTheme {
@@ -10,14 +11,15 @@ class AppTheme {
 
   static ThemeData _build(Brightness brightness) {
     final isLight = brightness == Brightness.light;
+    final palette = isLight ? AppPalette.light : AppPalette.dark;
     final scheme = ColorScheme.fromSeed(
       seedColor: AppColors.seed,
       brightness: brightness,
       primary: AppColors.teal,
       onPrimary: Colors.white,
-      surface: isLight ? AppColors.card : null,
+      surface: palette.card,
     ).copyWith(
-      surface: isLight ? AppColors.card : null,
+      surface: palette.card,
     );
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadii.md),
@@ -26,11 +28,12 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: isLight ? AppColors.canvas : scheme.surface,
+      extensions: <ThemeExtension<dynamic>>[palette],
+      scaffoldBackgroundColor: palette.canvas,
       visualDensity: VisualDensity.standard,
       appBarTheme: AppBarTheme(
         centerTitle: true,
-        backgroundColor: isLight ? AppColors.card : scheme.surface,
+        backgroundColor: palette.card,
         foregroundColor: scheme.onSurface,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -42,7 +45,7 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: isLight ? AppColors.card : scheme.surfaceContainerLow,
+        color: palette.card,
         margin: EdgeInsets.zero,
         shape: shape.copyWith(
           side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
@@ -56,7 +59,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isLight ? AppColors.card : scheme.surfaceContainerHighest,
+        fillColor: palette.card,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
@@ -93,14 +96,14 @@ class AppTheme {
         elevation: 3,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: isLight ? AppColors.card : scheme.surface,
-        indicatorColor: AppColors.tealSoft,
+        backgroundColor: palette.card,
+        indicatorColor: palette.tealSoft,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return TextStyle(
             fontSize: 11,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? AppColors.teal : AppColors.muted,
+            color: selected ? AppColors.teal : palette.muted,
           );
         }),
       ),

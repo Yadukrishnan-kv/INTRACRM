@@ -5,11 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../design_system/components/app_async_body.dart';
 import '../../../design_system/components/premium_ui.dart';
 import '../../../design_system/tokens/app_colors.dart';
+import '../../../design_system/tokens/app_palette.dart';
 import '../../../design_system/tokens/app_spacing.dart';
-import '../../home/presentation/app_nav_drawer.dart';
 import '../../../features/auth/application/auth_controller.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
+import '../../home/presentation/app_nav_drawer.dart';
 import '../application/lead_list_controller.dart';
 import '../domain/lead.dart';
 
@@ -32,7 +33,7 @@ class _LeadListPageState extends ConsumerState<LeadListPage> {
     final membershipId = ref.watch(authControllerProvider).user?.membershipId;
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: context.palette.canvas,
       drawer: const AppNavDrawer(),
       appBar: AppBar(
         leading: const MenuDrawerButton(),
@@ -52,6 +53,7 @@ class _LeadListPageState extends ConsumerState<LeadListPage> {
       ),
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
+              heroTag: 'fab-leads',
               onPressed: () async {
                 await context.push(AppRoutes.leadCreate);
                 await ref.read(leadListControllerProvider.notifier).refresh();
@@ -122,9 +124,9 @@ class _LeadListPageState extends ConsumerState<LeadListPage> {
         child: ChoiceChip(
           selected: selected,
           label: Text(label),
-          selectedColor: AppColors.tealSoft,
+          selectedColor: context.palette.tealSoft,
           labelStyle: TextStyle(
-            color: selected ? AppColors.teal : AppColors.muted,
+            color: selected ? AppColors.teal : context.palette.muted,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             fontSize: 12,
           ),
@@ -165,21 +167,21 @@ class _LeadCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(lead.displayName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    child: Text(lead.displayName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   ),
                   StatusBadge(label: lead.stageName ?? lead.lifecycleStatus),
                   const SizedBox(width: 8),
-                  Text(_relative(lead.lastActivityAt ?? lead.updatedAt), style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+                  Text(_relative(lead.lastActivityAt ?? lead.updatedAt), style: TextStyle(color: context.palette.muted, fontSize: 11)),
                 ],
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Wrap(
                 spacing: 12,
                 runSpacing: 4,
                 children: [
-                  _meta(Icons.campaign_outlined, lead.sourceName ?? '—'),
-                  _meta(Icons.place_outlined, lead.city ?? '—'),
-                  _meta(Icons.inventory_2_outlined, lead.requirement ?? lead.title),
+                  _meta(context, Icons.campaign_outlined, lead.sourceName ?? '—'),
+                  _meta(context, Icons.place_outlined, lead.city ?? '—'),
+                  _meta(context, Icons.inventory_2_outlined, lead.requirement ?? lead.title),
                 ],
               ),
               const SizedBox(height: 8),
@@ -192,12 +194,12 @@ class _LeadCard extends StatelessWidget {
                       follow == null
                           ? 'No follow-up scheduled'
                           : 'Next Follow-up  ${follow.day.toString().padLeft(2, '0')} ${_month(follow.month)} ${follow.year}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                      style: TextStyle(fontSize: 12, color: context.palette.muted),
                     ),
                   ),
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: AppColors.tealSoft,
+                    backgroundColor: context.palette.tealSoft,
                     child: IconButton(
                       padding: EdgeInsets.zero,
                       iconSize: 18,
@@ -215,15 +217,15 @@ class _LeadCard extends StatelessWidget {
     );
   }
 
-  Widget _meta(IconData icon, String text) {
+  Widget _meta(BuildContext context, IconData icon, String text) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: AppColors.muted),
-        const SizedBox(width: 4),
+        Icon(icon, size: 14, color: context.palette.muted),
+        SizedBox(width: 4),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 140),
-          child: Text(text, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          child: Text(text, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: context.palette.muted)),
         ),
       ],
     );

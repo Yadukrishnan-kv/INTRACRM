@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/error/result.dart';
 import '../../../design_system/components/app_scaffold.dart';
+import '../../../design_system/components/confirm_dialog.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
 import '../application/rbac_controller.dart';
@@ -47,11 +48,40 @@ class _RolesPageState extends ConsumerState<RolesPage> {
     });
   }
 
+  Future<void> _edit(RbacRole role) async {
+    final saved = await context.push<bool>(AppRoutes.roleEditPath(role.id));
+    if (saved == true && mounted) {
+      await _load();
+    }
+  }
+
+  Future<void> _delete(RbacRole role) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: AppStrings.deleteRole,
+      message: AppStrings.deleteRoleMessage(role.name),
+      confirmLabel: AppStrings.deleteRole,
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    final result = await ref.read(rbacRepositoryProvider).deleteRole(role.id);
+    if (!mounted) {
+      return;
+    }
+    if (result is Err) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.failure.message)));
+      return;
+    }
+    await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
       title: AppStrings.roles,
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-roles',
         onPressed: () async {
           await context.push(AppRoutes.roleCreate);
           await _load();
@@ -77,7 +107,24 @@ class _RolesPageState extends ConsumerState<RolesPage> {
                         '${role.permissionCodes.length} permissions',
                       ].join(' · '),
                     ),
-                    onTap: () => context.push(AppRoutes.permissionMatrix),
+                    trailing: role.isSystem
+                        ? null
+                        : PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                _edit(role);
+                              } else if (value == 'delete') {
+                                _delete(role);
+                              }
+                            },
+                            itemBuilder: (context) => const [
+                              PopupMenuItem(value: 'edit', child: Text(AppStrings.editRole)),
+                              PopupMenuItem(value: 'delete', child: Text(AppStrings.deleteRole)),
+                            ],
+                          ),
+                    onTap: role.isSystem
+                        ? () => context.push(AppRoutes.permissionMatrix)
+                        : () => _edit(role),
                   );
                 },
               ),

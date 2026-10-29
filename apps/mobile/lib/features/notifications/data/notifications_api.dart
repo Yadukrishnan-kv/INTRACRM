@@ -47,7 +47,7 @@ class NotificationsApi {
   Future<Result<ApiSuccess<List<InboxNotification>>>> list({String? cursor}) {
     return _client.get(
       '/notifications',
-      query: {'limit': 20, if (cursor != null) 'cursor': cursor},
+      query: {'limit': 20, 'cursor': ?cursor},
       parse: (json) {
         final items = json as List<dynamic>? ?? const [];
         return [

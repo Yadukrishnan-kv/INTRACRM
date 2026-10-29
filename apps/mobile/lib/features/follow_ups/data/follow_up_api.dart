@@ -3,6 +3,8 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_envelope.dart';
 import '../../leads/data/lead_dto.dart';
 import '../../leads/domain/lead.dart';
+import '../../reports/domain/report_date_range.dart';
+import '../domain/follow_up_calendar.dart';
 import '../domain/follow_up_dashboard.dart';
 import '../domain/follow_up_report.dart';
 
@@ -11,6 +13,24 @@ class FollowUpApi {
 
   final ApiClient _client;
 
+  /// Per-day counts for the calendar grid. [month] is `YYYY-MM`; omitting it
+  /// asks the server for the current month in the tenant zone.
+  Future<Result<ApiSuccess<FollowUpCalendarMonth>>> calendar({
+    String? month,
+    String? assignedToMembershipId,
+    String? type,
+  }) {
+    return _client.get(
+      '/follow-ups/calendar',
+      query: {
+        'month': ?month,
+        'assignedToMembershipId': ?assignedToMembershipId,
+        'type': ?type,
+      },
+      parse: (json) => FollowUpCalendarMonth.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
   Future<Result<ApiSuccess<List<LeadFollowUp>>>> list({
     String? cursor,
     String? status,
@@ -18,17 +38,22 @@ class FollowUpApi {
     String? leadId,
     bool? overdue,
     String? bucket,
+    String? dueOn,
+    String? assignedToMembershipId,
+    int limit = 20,
   }) {
     return _client.get(
       '/follow-ups',
       query: {
-        'limit': 20,
-        if (cursor != null) 'cursor': cursor,
-        if (status != null) 'status': status,
-        if (type != null) 'type': type,
-        if (leadId != null) 'leadId': leadId,
+        'limit': limit,
+        'cursor': ?cursor,
+        'status': ?status,
+        'type': ?type,
+        'leadId': ?leadId,
         if (overdue == true) 'overdue': true,
-        if (bucket != null) 'bucket': bucket,
+        'bucket': ?bucket,
+        'dueOn': ?dueOn,
+        'assignedToMembershipId': ?assignedToMembershipId,
       },
       parse: (json) {
         final items = json as List<dynamic>? ?? const [];
@@ -65,8 +90,8 @@ class FollowUpApi {
         'dueAt': dueAt.toUtc().toIso8601String(),
         if (title != null && title.isNotEmpty) 'title': title,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
-        if (priority != null) 'priority': priority,
-        if (assignedToMembershipId != null) 'assignedToMembershipId': assignedToMembershipId,
+        'priority': ?priority,
+        'assignedToMembershipId': ?assignedToMembershipId,
       },
       parse: (json) =>
           LeadFollowUpDto.fromJson(json! as Map<String, dynamic>).toDomain(),
@@ -86,11 +111,11 @@ class FollowUpApi {
       '/follow-ups/$id',
       data: {
         'version': version,
-        if (type != null) 'type': type,
+        'type': ?type,
         if (title != null && title.isNotEmpty) 'title': title,
         'notes': notes,
-        if (priority != null) 'priority': priority,
-        if (assignedToMembershipId != null) 'assignedToMembershipId': assignedToMembershipId,
+        'priority': ?priority,
+        'assignedToMembershipId': ?assignedToMembershipId,
       },
       parse: (json) =>
           LeadFollowUpDto.fromJson(json! as Map<String, dynamic>).toDomain(),
@@ -131,6 +156,23 @@ class FollowUpApi {
     );
   }
 
+  /// `POST /follow-ups/:id/cancel` (`follow_up:update`); 409 unless pending.
+  Future<Result<ApiSuccess<LeadFollowUp>>> cancel({
+    required String id,
+    required int version,
+    String? reason,
+  }) {
+    return _client.post(
+      '/follow-ups/$id/cancel',
+      data: {
+        'version': version,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+      parse: (json) =>
+          LeadFollowUpDto.fromJson(json! as Map<String, dynamic>).toDomain(),
+    );
+  }
+
   Future<Result<ApiSuccess<FollowUpDashboard>>> dashboard() {
     return _client.get(
       '/follow-ups/engine/dashboard',
@@ -151,9 +193,10 @@ class FollowUpApi {
     );
   }
 
-  Future<Result<ApiSuccess<FollowUpReport>>> report() {
+  Future<Result<ApiSuccess<FollowUpReport>>> report({ReportDateRange? range}) {
     return _client.get(
       '/reports/follow-ups',
+      query: reportRangeQuery(range, ReportDateMode.instant),
       parse: (json) => FollowUpReport.fromJson(json! as Map<String, dynamic>),
     );
   }

@@ -13,6 +13,7 @@ import '../../../design_system/components/app_error_view.dart';
 import '../../../design_system/components/app_loading.dart';
 import '../../../design_system/components/app_scaffold.dart';
 import '../../../design_system/components/app_text_field.dart';
+import '../../../design_system/components/confirm_dialog.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../features/auth/application/auth_controller.dart';
 import '../../../l10n/app_strings.dart';
@@ -260,6 +261,59 @@ class _SiteVisitDetailPageState extends ConsumerState<SiteVisitDetailPage> {
     );
   }
 
+  Future<void> _cancelVisit(SiteVisit item) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: AppStrings.cancelVisit,
+      message: AppStrings.cancelVisitMessage,
+      confirmLabel: AppStrings.cancelVisit,
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    await _run(
+      () => ref.read(siteVisitApiProvider).cancel(id: item.id, version: item.version),
+    );
+  }
+
+  Future<void> _markNoShow(SiteVisit item) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: AppStrings.markNoShow,
+      message: AppStrings.markNoShowMessage,
+      confirmLabel: AppStrings.markNoShow,
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    await _run(
+      () => ref.read(siteVisitApiProvider).markNoShow(id: item.id, version: item.version),
+    );
+  }
+
+  Future<void> _removePhoto(SiteVisit item, SiteVisitPhoto photo) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: AppStrings.removePhoto,
+      message: AppStrings.removePhotoMessage,
+      confirmLabel: AppStrings.removePhoto,
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    await _run(
+      () => ref.read(siteVisitApiProvider).removePhoto(visitId: item.id, photoId: photo.id),
+    );
+    _photoBytes.remove(photo.id);
+  }
+
+  Future<void> _edit(SiteVisit item) async {
+    final saved = await context.push<bool>(AppRoutes.siteVisitEditPath(item.id));
+    if (saved == true && mounted) {
+      await _reload();
+    }
+  }
+
   Future<void> _complete() async {
     final item = _item;
     if (item == null) {
@@ -271,6 +325,9 @@ class _SiteVisitDetailPageState extends ConsumerState<SiteVisitDetailPage> {
       if (location == null) {
         return;
       }
+    }
+    if (!mounted) {
+      return;
     }
     final outcome = TextEditingController(text: item.outcome ?? '');
     final saved = await showDialog<bool>(
@@ -314,8 +371,17 @@ class _SiteVisitDetailPageState extends ConsumerState<SiteVisitDetailPage> {
         body: AppErrorView(failure: _failure ?? const UnexpectedFailure('Visit not found')),
       );
     }
+    final canManagePhotos = !_busy && item.isOpen && user?.canCompleteSiteVisit == true;
     return AppScaffold(
       title: item.title,
+      actions: [
+        if (item.isScheduled && user?.canCreateSiteVisit == true)
+          IconButton(
+            tooltip: AppStrings.editSiteVisit,
+            onPressed: _busy ? null : () => _edit(item),
+            icon: const Icon(Icons.edit),
+          ),
+      ],
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
@@ -361,9 +427,27 @@ class _SiteVisitDetailPageState extends ConsumerState<SiteVisitDetailPage> {
                 SizedBox(
                   width: 96,
                   height: 96,
-                  child: _photoBytes[photo.id] == null
-                      ? const ColoredBox(color: Color(0x11000000), child: Icon(Icons.image))
-                      : Image.memory(_photoBytes[photo.id]!, fit: BoxFit.cover),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (_photoBytes[photo.id] == null)
+                        const ColoredBox(color: Color(0x11000000), child: Icon(Icons.image))
+                      else
+                        Image.memory(_photoBytes[photo.id]!, fit: BoxFit.cover),
+                      if (canManagePhotos)
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: IconButton.filledTonal(
+                            tooltip: AppStrings.removePhoto,
+                            visualDensity: VisualDensity.compact,
+                            iconSize: 18,
+                            onPressed: () => _removePhoto(item, photo),
+                            icon: const Icon(Icons.delete_outline),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
             ],
           ),
@@ -410,14 +494,22 @@ class _SiteVisitDetailPageState extends ConsumerState<SiteVisitDetailPage> {
             const SizedBox(height: AppSpacing.sm),
             AppButton(label: AppStrings.completeVisit, onPressed: _complete),
             const SizedBox(height: AppSpacing.sm),
-            TextButton(
-              onPressed: () => _run(
-                () => ref.read(siteVisitApiProvider).cancel(
-                  id: item.id,
-                  version: item.version,
+            Row(
+              children: [
+                if (item.isScheduled)
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => _markNoShow(item),
+                      child: const Text(AppStrings.markNoShow),
+                    ),
+                  ),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => _cancelVisit(item),
+                    child: const Text(AppStrings.cancelVisit),
+                  ),
                 ),
-              ),
-              child: const Text('Cancel visit'),
+              ],
             ),
           ],
         ],

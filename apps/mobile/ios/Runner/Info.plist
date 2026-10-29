@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Intra Leads</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>intra_leads</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<!-- Required by image_picker (site-visit photos) and mobile_scanner
+	     (warranty QR). iOS terminates the app on first use without these. -->
+	<key>NSCameraUsageDescription</key>
+	<string>INTRA LEADS uses the camera to attach site-visit photos and to scan warranty QR codes.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>INTRA LEADS lets you attach existing photos from your library to a site visit.</string>
+	<!-- Required by geolocator for site-visit check-in / check-out stamps. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>INTRA LEADS records your location when you check in or out of a site visit.</string>
+	<!-- Background delivery of FCM notifications. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<!-- url_launcher package visibility. canLaunchUrl returns false for any
+	     scheme not listed here, which silently breaks the Comms feature. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>sms</string>
+		<string>mailto</string>
+		<string>whatsapp</string>
+		<string>https</string>
+	</array>
+	<!-- Allows cleartext HTTP to private/LAN addresses and .local hostnames only
+	     (192.168.x.x, 10.x.x.x, 172.16-31.x.x), so `APP_ENV=dev` can talk to an
+	     API on your machine. This does NOT disable ATS: public HTTPS is still
+	     enforced, so production traffic is unaffected. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<!-- iOS 14+ prompts before an app may reach devices on the local network.
+	     Without this string the connection to a 192.168.x.x API is refused. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>INTRA LEADS connects to a development API server running on your local network.</string>
+</dict>
+</plist>

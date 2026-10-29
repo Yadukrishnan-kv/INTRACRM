@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -91,7 +93,7 @@ class NotificationsPage extends ConsumerWidget {
                       resourceId: item.resourceId,
                     );
                     if (location != null && location != AppRoutes.notifications) {
-                      context.push(location);
+                      unawaited(context.push(location));
                     }
                     await ref.read(notificationInboxProvider.notifier).refresh();
                   },

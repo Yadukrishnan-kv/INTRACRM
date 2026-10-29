@@ -1,3 +1,5 @@
+import '../../auth/domain/auth_user.dart';
+
 class StaffMember {
   const StaffMember({
     required this.id,
@@ -22,6 +24,15 @@ class StaffMember {
   final String? userId;
   final List<StaffRef> roles;
   final List<StaffRef> teams;
+
+  /// True when this record is the signed-in user's own membership.
+  bool isCurrentUser(AuthUser? user) {
+    if (user == null) {
+      return false;
+    }
+    return (userId != null && userId == user.id) ||
+        (user.membershipId != null && id == user.membershipId);
+  }
 
   factory StaffMember.fromJson(Map<String, dynamic> json) {
     final user = json['user'] as Map<String, dynamic>? ?? const {};

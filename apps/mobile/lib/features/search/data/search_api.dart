@@ -17,7 +17,7 @@ class SearchApi {
       query: {
         'q': q,
         'limit': 20,
-        if (by != null) 'by': by,
+        'by': ?by,
       },
       parse: (json) {
         final map = json! as Map<String, dynamic>;
