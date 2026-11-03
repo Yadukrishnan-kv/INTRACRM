@@ -1,7 +1,7 @@
 name: intra_leads
 description: INTRA LEADS mobile CRM
 publish_to: none
-version: 1.0.2+4
+version: 1.0.2+6
 
 environment:
   sdk: ^3.9.0
