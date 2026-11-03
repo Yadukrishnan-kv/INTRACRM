@@ -43,6 +43,9 @@ import '../features/quotations/presentation/quotation_detail_page.dart';
 import '../features/quotations/presentation/quotation_form_page.dart';
 import '../features/quotations/presentation/quotation_list_page.dart';
 import '../features/quotations/presentation/quotation_report_page.dart';
+import '../features/rbac/domain/rbac_models.dart';
+import '../features/rbac/presentation/member_roles_page.dart';
+import '../features/rbac/presentation/members_page.dart';
 import '../features/rbac/presentation/permission_matrix_page.dart';
 import '../features/rbac/presentation/role_form_page.dart';
 import '../features/rbac/presentation/roles_page.dart';
@@ -232,6 +235,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.permissionMatrix,
         builder: (context, state) => const PermissionMatrixPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.members,
+        builder: (context, state) => const MembersPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.memberRoles,
+        builder: (context, state) {
+          return MemberRolesPage(membership: state.extra as RbacMembership);
+        },
       ),
       GoRoute(
         path: AppRoutes.staff,

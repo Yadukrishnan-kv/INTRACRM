@@ -192,6 +192,12 @@ class SettingsPage extends ConsumerWidget {
                 ),
               if (user?.canManageRoles == true)
                 IconMenuTile(
+                  icon: Icons.people_outline,
+                  title: AppStrings.members,
+                  onTap: () => context.push(AppRoutes.members),
+                ),
+              if (user?.canManageRoles == true)
+                IconMenuTile(
                   icon: Icons.grid_view_outlined,
                   title: AppStrings.permissionMatrix,
                   onTap: () => context.push(AppRoutes.permissionMatrix),
