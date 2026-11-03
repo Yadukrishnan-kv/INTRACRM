@@ -11,7 +11,6 @@ import {
 } from '../../../common/pagination/cursor-page';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { wholeQuantity } from '../../../common/whole-quantity';
-import { DEFAULT_TAX_RATES } from '../../catalog/domain/catalog';
 import { TIMELINE_EVENT } from '../../activities/domain/timeline-events';
 import { TimelineWriter } from '../../activities/application/timeline.writer';
 import { AuditWriter, trackPayload } from '../../audit/application/audit.writer';
@@ -106,32 +105,10 @@ export class QuotationsService {
   }
 
   private async listTaxes(tenantId: string) {
-    let taxes = await this.prisma.taxRate.findMany({
+    const taxes = await this.prisma.taxRate.findMany({
       where: { tenantId, deletedAt: null, isActive: true },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
-    if (!taxes.length) {
-      for (const tax of DEFAULT_TAX_RATES) {
-        const existing = await this.prisma.taxRate.findFirst({
-          where: { tenantId, code: tax.code, deletedAt: null },
-        });
-        if (!existing) {
-          await this.prisma.taxRate.create({
-            data: {
-              tenantId,
-              code: tax.code,
-              name: tax.name,
-              rateBps: tax.rateBps,
-              sortOrder: tax.sortOrder,
-            },
-          });
-        }
-      }
-      taxes = await this.prisma.taxRate.findMany({
-        where: { tenantId, deletedAt: null, isActive: true },
-        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-      });
-    }
     return taxes.map((tax) => ({
       id: tax.id,
       code: tax.code,
