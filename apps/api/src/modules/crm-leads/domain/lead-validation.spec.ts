@@ -13,6 +13,18 @@ describe('parseLeadPhone', () => {
     expect(parseLeadPhone('')).toEqual({ ok: true, value: null });
     expect(parseLeadPhone('123')).toEqual({ ok: false });
   });
+
+  it('accepts international numbers in common formats', () => {
+    expect(parseLeadPhone('+1 (415) 555-2671')).toEqual({ ok: true, value: '+14155552671' });
+    expect(parseLeadPhone('+44 20 7946 0958')).toEqual({ ok: true, value: '+442079460958' });
+    expect(parseLeadPhone('0044 20 7946 0958')).toEqual({ ok: true, value: '+442079460958' });
+    expect(parseLeadPhone('+971 50 123 4567')).toEqual({ ok: true, value: '+971501234567' });
+  });
+
+  it('rejects garbage input', () => {
+    expect(parseLeadPhone('not a phone number')).toEqual({ ok: false });
+    expect(parseLeadPhone('+1')).toEqual({ ok: false });
+  });
 });
 
 describe('parseEstimatedValueMinor', () => {
