@@ -345,6 +345,21 @@ export class FollowUpEngineService {
     title: string;
     body: string;
   }): Promise<number> {
+    const alreadySent = await this.prisma.followUpEngineEvent.findFirst({
+      where: {
+        tenantId: input.tenantId,
+        resourceType: input.resourceType,
+        resourceId: input.resourceId,
+        eventType: input.eventType,
+        escalationLevel: input.escalationLevel,
+        windowDate: input.windowDate,
+        recipientUserId: input.recipientUserId,
+      },
+      select: { id: true },
+    });
+    if (alreadySent) {
+      return 0;
+    }
     try {
       await this.prisma.followUpEngineEvent.create({
         data: {
@@ -359,6 +374,8 @@ export class FollowUpEngineService {
         },
       });
     } catch (error) {
+      // Belt-and-suspenders for a concurrent tick racing on the same idempotency key;
+      // the findFirst above already prevents this on the common, sequential-tick path.
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         return 0;
       }

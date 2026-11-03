@@ -29,34 +29,54 @@ class HomeShell extends ConsumerWidget {
     return Scaffold(
       body: Column(
         children: [
-          if (!sync.online || sync.pendingCount > 0 || sync.conflictCount > 0)
+          if (!sync.online ||
+              sync.pendingCount > 0 ||
+              sync.conflictCount > 0 ||
+              sync.failedCount > 0)
             Material(
-              color: !sync.online
+              color: sync.failedCount > 0
+                  ? Theme.of(context).colorScheme.errorContainer
+                  : !sync.online
                   ? Theme.of(context).colorScheme.tertiaryContainer
                   : Theme.of(context).colorScheme.secondaryContainer,
               child: SafeArea(
                 bottom: false,
                 child: ListTile(
                   dense: true,
-                  leading: Icon(!sync.online ? Icons.cloud_off : Icons.sync),
+                  leading: Icon(
+                    sync.failedCount > 0
+                        ? Icons.sync_problem
+                        : !sync.online
+                        ? Icons.cloud_off
+                        : Icons.sync,
+                  ),
                   title: Text(
-                    !sync.online
+                    sync.failedCount > 0
+                        ? AppStrings.syncFailures
+                        : !sync.online
                         ? AppStrings.offlineBanner
                         : sync.conflictCount > 0
                         ? AppStrings.syncConflicts
                         : AppStrings.pendingSync,
                   ),
                   subtitle: Text(
-                    sync.pendingCount == 0
+                    sync.failedCount > 0
+                        ? '${sync.failedCount} could not be saved — tap to review'
+                        : sync.pendingCount == 0
                         ? AppStrings.offlineMode
                         : '${sync.pendingCount} queued',
                   ),
-                  trailing: TextButton(
-                    onPressed: sync.syncing
-                        ? null
-                        : () => ref.read(syncControllerProvider.notifier).syncNow(),
-                    child: Text(sync.syncing ? '…' : AppStrings.syncNow),
-                  ),
+                  trailing: sync.failedCount > 0
+                      ? null
+                      : TextButton(
+                          onPressed: sync.syncing
+                              ? null
+                              : () => ref.read(syncControllerProvider.notifier).syncNow(),
+                          child: Text(sync.syncing ? '…' : AppStrings.syncNow),
+                        ),
+                  onTap: sync.failedCount > 0
+                      ? () => context.push(AppRoutes.settings)
+                      : null,
                 ),
               ),
             ),

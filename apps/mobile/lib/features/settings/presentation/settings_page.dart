@@ -265,6 +265,50 @@ class SettingsPage extends ConsumerWidget {
               ),
             ),
           ],
+          if (sync.failedCommands.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${AppStrings.syncFailures} (${sync.failedCommands.length})',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => ref
+                            .read(syncControllerProvider.notifier)
+                            .retryAllFailed(),
+                        child: const Text(AppStrings.retryAllSync),
+                      ),
+                    ],
+                  ),
+                  for (final command in sync.failedCommands)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(command.resourceType ?? command.path),
+                      subtitle: Text(
+                        command.lastError ?? 'This change could not be saved to the server.',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: TextButton(
+                        onPressed: () => ref
+                            .read(syncControllerProvider.notifier)
+                            .retryFailed(command.id),
+                        child: const Text(AppStrings.retrySync),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           FilledButton.tonal(
             onPressed: () => ref.read(authControllerProvider.notifier).logout(),

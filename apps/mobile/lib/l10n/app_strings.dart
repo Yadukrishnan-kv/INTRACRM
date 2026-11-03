@@ -283,6 +283,9 @@ class AppStrings {
   static const queuedOffline = 'Queued';
   static const syncConflict = 'Conflict merged';
   static const acknowledgeConflict = 'Dismiss';
+  static const syncFailures = 'Sync failures';
+  static const retrySync = 'Retry';
+  static const retryAllSync = 'Retry all';
 
   // Monthly sales target
   static const monthlySalesTarget = 'Monthly Sales Target';

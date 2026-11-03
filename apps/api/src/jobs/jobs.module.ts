@@ -18,6 +18,12 @@ import { QueueNames } from '../common/queue/queue.names';
             ...(redis.password ? { password: redis.password } : {}),
             ...(redis.tls ? { tls: {} } : {}),
           },
+          defaultJobOptions: {
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 10_000 },
+            removeOnComplete: 100,
+            removeOnFail: 500,
+          },
         };
       },
     }),
