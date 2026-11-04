@@ -189,7 +189,7 @@ export function FollowUpReportPage() {
             />
           </div>
           <BreakdownTable
-            title="By assignee"
+            title="By assigned"
             rows={r.byAssignee}
             rowKey={(x) => x.membershipId}
             bar={(x) => x.total}
@@ -264,7 +264,7 @@ export function QuotationReportPage() {
               ]}
             />
             <BreakdownTable
-              title="By assignee"
+              title="By assigned"
               rows={r.byAssignee}
               rowKey={(x, i) => x.membershipId ?? `none-${i}`}
               bar={(x) => x.total}

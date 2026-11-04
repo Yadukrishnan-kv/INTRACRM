@@ -17,7 +17,8 @@ class QuotationReportPage extends ConsumerStatefulWidget {
   const QuotationReportPage({super.key});
 
   @override
-  ConsumerState<QuotationReportPage> createState() => _QuotationReportPageState();
+  ConsumerState<QuotationReportPage> createState() =>
+      _QuotationReportPageState();
 }
 
 class _QuotationReportPageState extends ConsumerState<QuotationReportPage> {
@@ -61,7 +62,12 @@ class _QuotationReportPageState extends ConsumerState<QuotationReportPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              0,
+            ),
             child: ReportDateRangeBar(
               range: _range,
               onChanged: (range) {
@@ -86,33 +92,84 @@ class _QuotationReportPageState extends ConsumerState<QuotationReportPage> {
                           spacing: AppSpacing.sm,
                           runSpacing: AppSpacing.sm,
                           children: [
-                            ReportMetricCard(label: 'Total', value: report.totals.total),
-                            ReportMetricCard(label: 'Draft', value: report.totals.draft),
-                            ReportMetricCard(label: 'Sent', value: report.totals.sent),
-                            ReportMetricCard(label: 'Follow-up', value: report.totals.followUp),
-                            ReportMetricCard(label: 'Deciding', value: report.totals.customerDeciding),
-                            ReportMetricCard(label: 'Negotiation', value: report.totals.negotiation),
-                            ReportMetricCard(label: 'Approved', value: report.totals.approved),
-                            ReportMetricCard(label: 'Won', value: report.totals.won),
-                            ReportMetricCard(label: 'Lost', value: report.totals.lost),
+                            ReportMetricCard(
+                              label: 'Total',
+                              value: report.totals.total,
+                            ),
+                            ReportMetricCard(
+                              label: 'Draft',
+                              value: report.totals.draft,
+                            ),
+                            ReportMetricCard(
+                              label: 'Sent',
+                              value: report.totals.sent,
+                            ),
+                            ReportMetricCard(
+                              label: 'Follow-up',
+                              value: report.totals.followUp,
+                            ),
+                            ReportMetricCard(
+                              label: 'Deciding',
+                              value: report.totals.customerDeciding,
+                            ),
+                            ReportMetricCard(
+                              label: 'Negotiation',
+                              value: report.totals.negotiation,
+                            ),
+                            ReportMetricCard(
+                              label: 'Approved',
+                              value: report.totals.approved,
+                            ),
+                            ReportMetricCard(
+                              label: 'Won',
+                              value: report.totals.won,
+                            ),
+                            ReportMetricCard(
+                              label: 'Lost',
+                              value: report.totals.lost,
+                            ),
                             ReportMetricCard(
                               label: 'Open value',
-                              valueLabel: minorToRupeesLabel(report.totals.openValueMinor),
+                              valueLabel: minorToRupeesLabel(
+                                report.totals.openValueMinor,
+                              ),
                             ),
                             ReportMetricCard(
                               label: 'Won value',
-                              valueLabel: minorToRupeesLabel(report.totals.wonValueMinor),
+                              valueLabel: minorToRupeesLabel(
+                                report.totals.wonValueMinor,
+                              ),
                             ),
-                            ReportMetricCard(label: 'Win rate', valueLabel: report.totals.winRateLabel),
-                            ReportMetricCard(label: 'Pending', value: report.totals.pending),
+                            ReportMetricCard(
+                              label: 'Win rate',
+                              valueLabel: report.totals.winRateLabel,
+                            ),
+                            ReportMetricCard(
+                              label: 'Pending',
+                              value: report.totals.pending,
+                            ),
                             ReportMetricCard(
                               label: 'Pending value',
-                              valueLabel: minorToRupeesLabel(report.totals.pendingValueMinor),
+                              valueLabel: minorToRupeesLabel(
+                                report.totals.pendingValueMinor,
+                              ),
                             ),
-                            ReportMetricCard(label: 'Overdue reminders', value: report.totals.overdueReminders),
-                            ReportMetricCard(label: 'Closing soon', value: report.totals.closingSoon),
-                            ReportMetricCard(label: 'Closing overdue', value: report.totals.closingOverdue),
-                            ReportMetricCard(label: 'No reminder', value: report.totals.noFollowUp),
+                            ReportMetricCard(
+                              label: 'Overdue reminders',
+                              value: report.totals.overdueReminders,
+                            ),
+                            ReportMetricCard(
+                              label: 'Closing soon',
+                              value: report.totals.closingSoon,
+                            ),
+                            ReportMetricCard(
+                              label: 'Closing overdue',
+                              value: report.totals.closingOverdue,
+                            ),
+                            ReportMetricCard(
+                              label: 'No reminder',
+                              value: report.totals.noFollowUp,
+                            ),
                             ReportMetricCard(
                               label: 'Avg close chance',
                               valueLabel: report.totals.averagePredictionLabel,
@@ -127,18 +184,22 @@ class _QuotationReportPageState extends ConsumerState<QuotationReportPage> {
                             report.byStatus,
                             label: (row) => QuotationStatuses.title(row.status),
                             count: (row) => row.count,
-                            valueLabel: (row) => minorToRupeesLabel(row.valueMinor),
+                            valueLabel: (row) =>
+                                minorToRupeesLabel(row.valueMinor),
                           ),
                         ),
                         ReportRankedSection(
-                          title: 'By assignee',
+                          title: 'By assigned',
                           icon: Icons.person_outline,
                           items: rankedBy(
                             report.byAssignee,
-                            label: (row) => row.name ?? row.membershipId ?? 'Unassigned',
+                            label: (row) =>
+                                row.name ?? row.membershipId ?? 'Unassigned',
                             count: (row) => row.total,
-                            valueLabel: (row) => minorToRupeesLabel(row.wonValueMinor),
-                            subtitle: (row) => 'Won ${row.won} · Lost ${row.lost}',
+                            valueLabel: (row) =>
+                                minorToRupeesLabel(row.wonValueMinor),
+                            subtitle: (row) =>
+                                'Won ${row.won} · Lost ${row.lost}',
                           ),
                         ),
                       ],

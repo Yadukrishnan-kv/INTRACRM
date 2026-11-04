@@ -16,7 +16,8 @@ class SiteVisitReportPage extends ConsumerStatefulWidget {
   const SiteVisitReportPage({super.key});
 
   @override
-  ConsumerState<SiteVisitReportPage> createState() => _SiteVisitReportPageState();
+  ConsumerState<SiteVisitReportPage> createState() =>
+      _SiteVisitReportPageState();
 }
 
 class _SiteVisitReportPageState extends ConsumerState<SiteVisitReportPage> {
@@ -59,7 +60,12 @@ class _SiteVisitReportPageState extends ConsumerState<SiteVisitReportPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              0,
+            ),
             child: ReportDateRangeBar(
               range: _range,
               onChanged: (range) {
@@ -84,17 +90,45 @@ class _SiteVisitReportPageState extends ConsumerState<SiteVisitReportPage> {
                           spacing: AppSpacing.sm,
                           runSpacing: AppSpacing.sm,
                           children: [
-                            ReportMetricCard(label: 'Total', value: report.totals.total),
-                            ReportMetricCard(label: 'Scheduled', value: report.totals.scheduled),
-                            ReportMetricCard(label: 'In progress', value: report.totals.inProgress),
-                            ReportMetricCard(label: 'Completed', value: report.totals.completed),
-                            ReportMetricCard(label: 'No show', value: report.totals.noShow),
-                            ReportMetricCard(label: 'With GPS', value: report.totals.withGps),
-                            ReportMetricCard(label: 'With photos', value: report.totals.withPhotos),
-                            ReportMetricCard(label: 'With feedback', value: report.totals.withFeedback),
+                            ReportMetricCard(
+                              label: 'Total',
+                              value: report.totals.total,
+                            ),
+                            ReportMetricCard(
+                              label: 'Scheduled',
+                              value: report.totals.scheduled,
+                            ),
+                            ReportMetricCard(
+                              label: 'In progress',
+                              value: report.totals.inProgress,
+                            ),
+                            ReportMetricCard(
+                              label: 'Completed',
+                              value: report.totals.completed,
+                            ),
+                            ReportMetricCard(
+                              label: 'No show',
+                              value: report.totals.noShow,
+                            ),
+                            ReportMetricCard(
+                              label: 'With GPS',
+                              value: report.totals.withGps,
+                            ),
+                            ReportMetricCard(
+                              label: 'With photos',
+                              value: report.totals.withPhotos,
+                            ),
+                            ReportMetricCard(
+                              label: 'With feedback',
+                              value: report.totals.withFeedback,
+                            ),
                             ReportMetricCard(
                               label: 'Avg rating',
-                              valueLabel: report.totals.averageRating?.toStringAsFixed(1) ?? '—',
+                              valueLabel:
+                                  report.totals.averageRating?.toStringAsFixed(
+                                    1,
+                                  ) ??
+                                  '—',
                             ),
                           ],
                         ),
@@ -109,13 +143,14 @@ class _SiteVisitReportPageState extends ConsumerState<SiteVisitReportPage> {
                           ),
                         ),
                         ReportRankedSection(
-                          title: 'By assignee',
+                          title: 'By assigned',
                           icon: Icons.person_outline,
                           items: rankedBy(
                             report.byAssignee,
                             label: (row) => row.name ?? row.membershipId,
                             count: (row) => row.total,
-                            subtitle: (row) => 'Completed ${row.completed} · GPS ${row.withGps} · no-show ${row.noShow}'
+                            subtitle: (row) =>
+                                'Completed ${row.completed} · GPS ${row.withGps} · no-show ${row.noShow}'
                                 '${row.averageRating == null ? '' : ' · ${row.averageRating}★'}',
                           ),
                         ),
