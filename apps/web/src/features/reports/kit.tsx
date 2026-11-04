@@ -319,13 +319,22 @@ export type Column<T> = {
   num?: boolean;
 };
 
-/** Titled breakdown table; `bar` adds an inline relative bar to the first column. */
+/**
+ * Titled breakdown table; `bar` adds an inline relative bar to the first column.
+ *
+ * `sortBy` sorts rows by that numeric accessor, descending, before rendering
+ * — the biggest contributor always leads. `rank` additionally numbers rows
+ * and highlights the top 3, for sections where "what's biggest" is the point
+ * (e.g. lead sources, owners).
+ */
 export function BreakdownTable<T>({
   title,
   rows,
   columns,
   rowKey,
   bar,
+  sortBy,
+  rank,
   empty = 'Nothing to show.',
   footer,
 }: {
@@ -334,20 +343,24 @@ export function BreakdownTable<T>({
   columns: Column<T>[];
   rowKey: (row: T, index: number) => string;
   bar?: (row: T) => number;
+  sortBy?: (row: T) => number;
+  rank?: boolean;
   empty?: string;
   footer?: ReactNode;
 }) {
-  const max = bar ? rows.reduce((acc, r) => Math.max(acc, bar(r) || 0), 0) : 0;
+  const sorted = sortBy ? [...rows].sort((a, b) => sortBy(b) - sortBy(a)) : rows;
+  const max = bar ? sorted.reduce((acc, r) => Math.max(acc, bar(r) || 0), 0) : 0;
   return (
     <section className="card reports-section">
       <h2 className="reports-section-title">{title}</h2>
-      {rows.length === 0 ? (
+      {sorted.length === 0 ? (
         <p className="muted reports-empty">{empty}</p>
       ) : (
         <div className="table-wrap">
           <table className="table reports-table">
             <thead>
               <tr>
+                {rank ? <th className="reports-rank-col" aria-hidden /> : null}
                 {columns.map((c) => (
                   <th key={c.header} className={c.num ? 'num' : undefined}>
                     {c.header}
@@ -356,8 +369,9 @@ export function BreakdownTable<T>({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, i) => (
-                <tr key={rowKey(row, i)}>
+              {sorted.map((row, i) => (
+                <tr key={rowKey(row, i)} className={rank && i < 3 ? 'reports-row-top' : undefined}>
+                  {rank ? <td className="reports-rank">{i + 1}</td> : null}
                   {columns.map((c, ci) => (
                     <td key={c.header} className={c.num ? 'num' : undefined} data-label={c.header}>
                       {c.cell(row)}

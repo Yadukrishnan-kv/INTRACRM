@@ -12,6 +12,7 @@ import '../domain/report_date_range.dart';
 import 'report_date_range_bar.dart';
 import 'report_export_button.dart';
 import 'report_metric_card.dart';
+import 'report_ranked_section.dart';
 
 class FollowUpReportPage extends ConsumerStatefulWidget {
   const FollowUpReportPage({super.key});
@@ -100,31 +101,35 @@ class _FollowUpReportPageState extends ConsumerState<FollowUpReportPage> {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        Text('By status', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byStatus)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(_statusTitle(row.status)),
-                            trailing: Text('${row.count}'),
+                        ReportRankedSection(
+                          title: 'By status',
+                          icon: Icons.flag_outlined,
+                          items: rankedBy(
+                            report.byStatus,
+                            label: (row) => _statusTitle(row.status),
+                            count: (row) => row.count,
                           ),
-                        Text('By type', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byType)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(FollowUpTypes.title(row.type)),
-                            subtitle: Text('Completed ${row.completed}'),
-                            trailing: Text('${row.count}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By type',
+                          icon: Icons.category_outlined,
+                          items: rankedBy(
+                            report.byType,
+                            label: (row) => FollowUpTypes.title(row.type),
+                            count: (row) => row.count,
+                            subtitle: (row) => 'Completed ${row.completed}',
                           ),
-                        Text('By assignee', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byAssignee)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.name ?? row.membershipId),
-                            subtitle: Text(
-                              'Pending ${row.pending} · Done ${row.completed} · Overdue ${row.overdue}',
-                            ),
-                            trailing: Text('${row.total}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By assignee',
+                          icon: Icons.person_outline,
+                          items: rankedBy(
+                            report.byAssignee,
+                            label: (row) => row.name ?? row.membershipId,
+                            count: (row) => row.total,
+                            subtitle: (row) => 'Pending ${row.pending} · Done ${row.completed} · Overdue ${row.overdue}',
                           ),
+                        ),
                       ],
                     ),
                   ),

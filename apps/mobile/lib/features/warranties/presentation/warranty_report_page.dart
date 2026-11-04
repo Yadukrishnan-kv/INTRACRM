@@ -5,6 +5,7 @@ import '../../../core/error/result.dart';
 import '../../../design_system/components/app_scaffold.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
+import '../../reports/presentation/report_metric_card.dart';
 import '../application/warranty_providers.dart';
 import '../domain/warranty.dart';
 
@@ -67,42 +68,16 @@ class _WarrantyReportPageState extends ConsumerState<WarrantyReportPage> {
                     spacing: AppSpacing.sm,
                     runSpacing: AppSpacing.sm,
                     children: [
-                      _MetricCard(label: 'Total', value: report.total),
-                      _MetricCard(label: 'Active', value: report.active),
-                      _MetricCard(label: 'Expired', value: report.expired),
-                      _MetricCard(label: 'Claimed', value: report.claimed),
-                      _MetricCard(label: 'Void', value: report.voided),
+                      ReportMetricCard(label: 'Total', value: report.total),
+                      ReportMetricCard(label: 'Active', value: report.active),
+                      ReportMetricCard(label: 'Expired', value: report.expired),
+                      ReportMetricCard(label: 'Claimed', value: report.claimed),
+                      ReportMetricCard(label: 'Void', value: report.voided),
                     ],
                   ),
                 ],
               ),
             ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, required this.value});
-
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 160,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.labelMedium),
-              Text('$value', style: Theme.of(context).textTheme.headlineSmall),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

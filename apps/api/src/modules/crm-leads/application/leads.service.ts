@@ -187,6 +187,8 @@ export class LeadsService {
       ...(query.sourceId ? { sourceId: query.sourceId } : {}),
       ...(query.ownerMembershipId ? { ownerMembershipId: query.ownerMembershipId } : {}),
       ...(query.status ? { lifecycleStatus: query.status } : {}),
+      ...(query.stageName ? { stage: { name: query.stageName } } : {}),
+      ...(query.city ? { city: query.city } : {}),
       ...(query.q
         ? {
             OR: [

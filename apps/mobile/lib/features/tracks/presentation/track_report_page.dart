@@ -10,6 +10,7 @@ import '../../reports/domain/report_date_range.dart';
 import '../../reports/presentation/report_date_range_bar.dart';
 import '../../reports/presentation/report_export_button.dart';
 import '../../reports/presentation/report_metric_card.dart';
+import '../../reports/presentation/report_ranked_section.dart';
 import '../data/tracks_api.dart';
 import '../domain/track_report.dart';
 
@@ -105,42 +106,44 @@ class _TrackReportPageState extends ConsumerState<TrackReportPage> {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        Text('By action', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byAction)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.name),
-                            trailing: Text('${row.count}'),
+                        ReportRankedSection(
+                          title: 'By action',
+                          icon: Icons.bolt_outlined,
+                          items: rankedBy(
+                            report.byAction,
+                            label: (row) => row.name,
+                            count: (row) => row.count,
                           ),
-                        Text('By resource', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byResource)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(_resourceLabel(row.name)),
-                            trailing: Text('${row.count}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By resource',
+                          icon: Icons.inventory_2_outlined,
+                          items: rankedBy(
+                            report.byResource,
+                            label: (row) => _resourceLabel(row.name),
+                            count: (row) => row.count,
                           ),
-                        Text('By actor', style: Theme.of(context).textTheme.titleMedium),
-                        if (report.byActor.isEmpty)
-                          const ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text('No tracked changes yet'),
-                          )
-                        else
-                          for (final row in report.byActor)
-                            ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(row.name ?? 'System'),
-                              trailing: Text('${row.count}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By actor',
+                          icon: Icons.person_outline,
+                          emptyLabel: 'No tracked changes yet',
+                          items: rankedBy(
+                            report.byActor,
+                            label: (row) => row.name ?? 'System',
+                            count: (row) => row.count,
+                          ),
+                        ),
+                        if (report.byDay.isNotEmpty)
+                          ReportRankedSection(
+                            title: 'By day',
+                            icon: Icons.calendar_today_outlined,
+                            items: rankedBy(
+                              report.byDay,
+                              label: (row) => row.date,
+                              count: (row) => row.count,
                             ),
-                        if (report.byDay.isNotEmpty) ...[
-                          Text('By day', style: Theme.of(context).textTheme.titleMedium),
-                          for (final row in report.byDay)
-                            ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(row.date),
-                              trailing: Text('${row.count}'),
-                            ),
-                        ],
+                          ),
                       ],
                     ),
                   ),

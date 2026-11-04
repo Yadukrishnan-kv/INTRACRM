@@ -29,6 +29,7 @@ import '../features/home/presentation/home_shell.dart';
 import '../features/incentives/presentation/incentive_plan_form_page.dart';
 import '../features/incentives/presentation/incentive_plan_list_page.dart';
 import '../features/incentives/presentation/incentive_report_page.dart';
+import '../features/leads/domain/lead_list_filter.dart';
 import '../features/leads/presentation/lead_detail_page.dart';
 import '../features/leads/presentation/lead_form_page.dart';
 import '../features/leads/presentation/lead_list_page.dart';
@@ -589,7 +590,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.leads,
-                builder: (context, state) => const LeadListPage(),
+                builder: (context, state) =>
+                    LeadListPage(initialFilter: state.extra as LeadListFilter?),
                 routes: [
                   GoRoute(
                     path: 'create',

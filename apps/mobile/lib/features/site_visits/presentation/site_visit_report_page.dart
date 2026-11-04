@@ -7,6 +7,8 @@ import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
 import '../../reports/domain/report_date_range.dart';
 import '../../reports/presentation/report_date_range_bar.dart';
+import '../../reports/presentation/report_metric_card.dart';
+import '../../reports/presentation/report_ranked_section.dart';
 import '../application/site_visit_providers.dart';
 import '../domain/site_visit.dart';
 
@@ -82,75 +84,46 @@ class _SiteVisitReportPageState extends ConsumerState<SiteVisitReportPage> {
                           spacing: AppSpacing.sm,
                           runSpacing: AppSpacing.sm,
                           children: [
-                            _MetricCard(label: 'Total', value: report.totals.total),
-                            _MetricCard(label: 'Scheduled', value: report.totals.scheduled),
-                            _MetricCard(label: 'In progress', value: report.totals.inProgress),
-                            _MetricCard(label: 'Completed', value: report.totals.completed),
-                            _MetricCard(label: 'No show', value: report.totals.noShow),
-                            _MetricCard(label: 'With GPS', value: report.totals.withGps),
-                            _MetricCard(label: 'With photos', value: report.totals.withPhotos),
-                            _MetricCard(label: 'With feedback', value: report.totals.withFeedback),
-                            _MetricCard(
+                            ReportMetricCard(label: 'Total', value: report.totals.total),
+                            ReportMetricCard(label: 'Scheduled', value: report.totals.scheduled),
+                            ReportMetricCard(label: 'In progress', value: report.totals.inProgress),
+                            ReportMetricCard(label: 'Completed', value: report.totals.completed),
+                            ReportMetricCard(label: 'No show', value: report.totals.noShow),
+                            ReportMetricCard(label: 'With GPS', value: report.totals.withGps),
+                            ReportMetricCard(label: 'With photos', value: report.totals.withPhotos),
+                            ReportMetricCard(label: 'With feedback', value: report.totals.withFeedback),
+                            ReportMetricCard(
                               label: 'Avg rating',
                               valueLabel: report.totals.averageRating?.toStringAsFixed(1) ?? '—',
                             ),
                           ],
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        Text('By status', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byStatus)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(SiteVisitStatuses.title(row.status)),
-                            trailing: Text('${row.count}'),
+                        ReportRankedSection(
+                          title: 'By status',
+                          icon: Icons.flag_outlined,
+                          items: rankedBy(
+                            report.byStatus,
+                            label: (row) => SiteVisitStatuses.title(row.status),
+                            count: (row) => row.count,
                           ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text('By assignee', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byAssignee)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.name ?? row.membershipId),
-                            subtitle: Text(
-                              'Completed ${row.completed} · GPS ${row.withGps} · no-show ${row.noShow}'
-                              '${row.averageRating == null ? '' : ' · ${row.averageRating}★'}',
-                            ),
-                            trailing: Text('${row.total}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By assignee',
+                          icon: Icons.person_outline,
+                          items: rankedBy(
+                            report.byAssignee,
+                            label: (row) => row.name ?? row.membershipId,
+                            count: (row) => row.total,
+                            subtitle: (row) => 'Completed ${row.completed} · GPS ${row.withGps} · no-show ${row.noShow}'
+                                '${row.averageRating == null ? '' : ' · ${row.averageRating}★'}',
                           ),
+                        ),
                       ],
                     ),
                   ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, this.value, this.valueLabel});
-
-  final String label;
-  final int? value;
-  final String? valueLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 150,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                valueLabel ?? '${value ?? 0}',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              Text(label),
-            ],
-          ),
-        ),
       ),
     );
   }

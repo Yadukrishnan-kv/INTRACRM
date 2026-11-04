@@ -13,11 +13,16 @@ import '../../../router/app_routes.dart';
 import '../../home/presentation/app_nav_drawer.dart';
 import '../application/lead_list_controller.dart';
 import '../domain/lead.dart';
+import '../domain/lead_list_filter.dart';
 
 enum _LeadScope { all, mine, unassigned }
 
 class LeadListPage extends ConsumerStatefulWidget {
-  const LeadListPage({super.key});
+  const LeadListPage({super.key, this.initialFilter});
+
+  /// A drill-down filter from a report row, e.g. tapping "Facebook" under
+  /// By source. Passed via `GoRouterState.extra` when pushing [AppRoutes.leads].
+  final LeadListFilter? initialFilter;
 
   @override
   ConsumerState<LeadListPage> createState() => _LeadListPageState();
@@ -25,6 +30,13 @@ class LeadListPage extends ConsumerStatefulWidget {
 
 class _LeadListPageState extends ConsumerState<LeadListPage> {
   var _scope = _LeadScope.all;
+  LeadListFilter? _filter;
+
+  @override
+  void initState() {
+    super.initState();
+    _filter = widget.initialFilter;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +86,21 @@ class _LeadListPageState extends ConsumerState<LeadListPage> {
               ],
             ),
           ),
+          if (_filter != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Chip(
+                  avatar: const Icon(Icons.filter_alt, size: 16, color: AppColors.teal),
+                  label: Text(_filter!.label),
+                  backgroundColor: context.palette.tealSoft,
+                  labelStyle: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w600),
+                  deleteIcon: const Icon(Icons.close, size: 16),
+                  onDeleted: () => setState(() => _filter = null),
+                ),
+              ),
+            ),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => ref.read(leadListControllerProvider.notifier).refresh(),
@@ -139,9 +166,11 @@ class _LeadListPageState extends ConsumerState<LeadListPage> {
   List<Lead> _visible(List<Lead> items, String? membershipId) {
     return [
       for (final lead in items)
-        if (_scope == _LeadScope.all ||
-            (_scope == _LeadScope.mine && lead.ownerMembershipId == membershipId) ||
-            (_scope == _LeadScope.unassigned && (lead.ownerMembershipId == null || lead.ownerMembershipId!.isEmpty)))
+        if ((_scope == _LeadScope.all ||
+                (_scope == _LeadScope.mine && lead.ownerMembershipId == membershipId) ||
+                (_scope == _LeadScope.unassigned &&
+                    (lead.ownerMembershipId == null || lead.ownerMembershipId!.isEmpty))) &&
+            (_filter?.matches(lead) ?? true))
           lead,
     ];
   }

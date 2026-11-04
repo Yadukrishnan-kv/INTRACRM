@@ -51,6 +51,8 @@ export function LeadReportPage() {
               rows={r.byLifecycle}
               rowKey={(x) => x.status}
               bar={(x) => x.count}
+              sortBy={(x) => x.count}
+              rank
               columns={[
                 { header: 'Status', cell: (x) => <Badge value={x.status} /> },
                 { header: 'Leads', cell: (x) => formatCount(x.count), num: true },
@@ -62,6 +64,8 @@ export function LeadReportPage() {
               rows={r.byQuality}
               rowKey={(x) => x.quality}
               bar={(x) => x.count}
+              sortBy={(x) => x.count}
+              rank
               columns={[
                 { header: 'Quality', cell: (x) => humanize(x.quality) },
                 { header: 'Leads', cell: (x) => formatCount(x.count), num: true },
@@ -73,6 +77,8 @@ export function LeadReportPage() {
             rows={r.bySource}
             rowKey={(x, i) => x.sourceId ?? `none-${i}`}
             bar={(x) => x.count}
+            sortBy={(x) => x.count}
+            rank
             columns={[
               { header: 'Source', cell: (x) => x.name ?? 'Unknown' },
               { header: 'Leads', cell: (x) => formatCount(x.count), num: true },
@@ -84,6 +90,8 @@ export function LeadReportPage() {
             rows={r.byOwner}
             rowKey={(x, i) => x.membershipId ?? `none-${i}`}
             bar={(x) => x.total}
+            sortBy={(x) => x.total}
+            rank
             columns={[
               { header: 'Owner', cell: (x) => x.name ?? 'Unassigned' },
               { header: 'Total', cell: (x) => formatCount(x.total), num: true },
@@ -99,6 +107,8 @@ export function LeadReportPage() {
               rows={r.byStage ?? []}
               rowKey={(x, i) => x.stageId ?? `${x.stageName}-${i}`}
               bar={(x) => x.count}
+              sortBy={(x) => x.count}
+              rank
               columns={[
                 { header: 'Stage', cell: (x) => x.stageName },
                 { header: 'Leads', cell: (x) => formatCount(x.count), num: true },
@@ -110,6 +120,8 @@ export function LeadReportPage() {
                 rows={r.byCity}
                 rowKey={(x) => x.city}
                 bar={(x) => x.count}
+                sortBy={(x) => x.count}
+                rank
                 columns={[
                   { header: 'City', cell: (x) => x.city },
                   { header: 'Leads', cell: (x) => formatCount(x.count), num: true },

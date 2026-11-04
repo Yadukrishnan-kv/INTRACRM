@@ -8,6 +8,8 @@ import '../../../l10n/app_strings.dart';
 import '../../reports/domain/report_date_range.dart';
 import '../../reports/presentation/report_date_range_bar.dart';
 import '../../reports/presentation/report_export_button.dart';
+import '../../reports/presentation/report_metric_card.dart';
+import '../../reports/presentation/report_ranked_section.dart';
 import '../application/performance_providers.dart';
 import '../domain/performance.dart';
 
@@ -129,15 +131,15 @@ class _PerformanceReportPageState extends ConsumerState<PerformanceReportPage> {
                     spacing: AppSpacing.sm,
                     runSpacing: AppSpacing.sm,
                     children: [
-                      _MetricCard(label: 'Staff', value: report.staff),
-                      _MetricCard(label: 'Scored', value: report.scored),
-                      _MetricCard(
+                      ReportMetricCard(label: 'Staff', value: report.staff),
+                      ReportMetricCard(label: 'Scored', value: report.scored),
+                      ReportMetricCard(
                         label: 'Average',
                         valueLabel: bpsLabel(report.averageScoreBps),
                       ),
-                      _MetricCard(label: 'Outstanding', value: report.outstanding),
-                      _MetricCard(label: 'Strong', value: report.strong),
-                      _MetricCard(label: 'Needs work', value: report.needsWork),
+                      ReportMetricCard(label: 'Outstanding', value: report.outstanding),
+                      ReportMetricCard(label: 'Strong', value: report.strong),
+                      ReportMetricCard(label: 'Needs work', value: report.needsWork),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -148,45 +150,21 @@ class _PerformanceReportPageState extends ConsumerState<PerformanceReportPage> {
                       title: Text(row.name),
                       subtitle: Text('${row.scoreLabel} · ${row.bandLabel}'),
                     ),
-                  if (report.byTeam.isNotEmpty) ...[
-                    Text('Teams', style: Theme.of(context).textTheme.titleMedium),
-                    for (final row in report.byTeam)
-                      ListTile(
-                        title: Text(row.teamName),
-                        subtitle: Text(
-                          '${row.count} staff · ${bpsLabel(row.averageScoreBps)} avg',
-                        ),
+                  if (report.byTeam.isNotEmpty)
+                    ReportRankedSection(
+                      title: 'Teams',
+                      icon: Icons.groups_outlined,
+                      items: rankedBy(
+                        report.byTeam,
+                        label: (row) => row.teamName,
+                        count: (row) => row.count,
+                        valueLabel: (row) => bpsLabel(row.averageScoreBps),
+                        subtitle: (row) => 'avg score',
                       ),
-                  ],
+                    ),
                 ],
               ),
             );
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, this.value, this.valueLabel});
-
-  final String label;
-  final int? value;
-  final String? valueLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
-            Text(
-              valueLabel ?? '${value ?? 0}',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
