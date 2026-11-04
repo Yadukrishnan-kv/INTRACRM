@@ -46,6 +46,18 @@ export class LeadListQuery extends CursorPageQueryDto {
   @IsOptional()
   @IsIn(['open', 'won', 'lost', 'unqualified', 'recycled'])
   status?: 'open' | 'won' | 'lost' | 'unqualified' | 'recycled';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  stageName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  city?: string;
 }
 
 export class CreateFollowUpRequest {

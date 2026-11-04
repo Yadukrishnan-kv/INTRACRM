@@ -8,6 +8,8 @@ import '../../../l10n/app_strings.dart';
 import '../../reports/domain/report_date_range.dart';
 import '../../reports/presentation/report_date_range_bar.dart';
 import '../../reports/presentation/report_export_button.dart';
+import '../../reports/presentation/report_metric_card.dart';
+import '../../reports/presentation/report_ranked_section.dart';
 import '../application/quotation_providers.dart';
 import '../domain/quotation.dart';
 
@@ -15,7 +17,8 @@ class QuotationReportPage extends ConsumerStatefulWidget {
   const QuotationReportPage({super.key});
 
   @override
-  ConsumerState<QuotationReportPage> createState() => _QuotationReportPageState();
+  ConsumerState<QuotationReportPage> createState() =>
+      _QuotationReportPageState();
 }
 
 class _QuotationReportPageState extends ConsumerState<QuotationReportPage> {
@@ -59,7 +62,12 @@ class _QuotationReportPageState extends ConsumerState<QuotationReportPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              0,
+            ),
             child: ReportDateRangeBar(
               range: _range,
               onChanged: (range) {
@@ -84,94 +92,121 @@ class _QuotationReportPageState extends ConsumerState<QuotationReportPage> {
                           spacing: AppSpacing.sm,
                           runSpacing: AppSpacing.sm,
                           children: [
-                            _MetricCard(label: 'Total', value: report.totals.total),
-                            _MetricCard(label: 'Draft', value: report.totals.draft),
-                            _MetricCard(label: 'Sent', value: report.totals.sent),
-                            _MetricCard(label: 'Follow-up', value: report.totals.followUp),
-                            _MetricCard(label: 'Deciding', value: report.totals.customerDeciding),
-                            _MetricCard(label: 'Negotiation', value: report.totals.negotiation),
-                            _MetricCard(label: 'Approved', value: report.totals.approved),
-                            _MetricCard(label: 'Won', value: report.totals.won),
-                            _MetricCard(label: 'Lost', value: report.totals.lost),
-                            _MetricCard(
+                            ReportMetricCard(
+                              label: 'Total',
+                              value: report.totals.total,
+                            ),
+                            ReportMetricCard(
+                              label: 'Draft',
+                              value: report.totals.draft,
+                            ),
+                            ReportMetricCard(
+                              label: 'Sent',
+                              value: report.totals.sent,
+                            ),
+                            ReportMetricCard(
+                              label: 'Follow-up',
+                              value: report.totals.followUp,
+                            ),
+                            ReportMetricCard(
+                              label: 'Deciding',
+                              value: report.totals.customerDeciding,
+                            ),
+                            ReportMetricCard(
+                              label: 'Negotiation',
+                              value: report.totals.negotiation,
+                            ),
+                            ReportMetricCard(
+                              label: 'Approved',
+                              value: report.totals.approved,
+                            ),
+                            ReportMetricCard(
+                              label: 'Won',
+                              value: report.totals.won,
+                            ),
+                            ReportMetricCard(
+                              label: 'Lost',
+                              value: report.totals.lost,
+                            ),
+                            ReportMetricCard(
                               label: 'Open value',
-                              valueLabel: minorToRupeesLabel(report.totals.openValueMinor),
+                              valueLabel: minorToRupeesLabel(
+                                report.totals.openValueMinor,
+                              ),
                             ),
-                            _MetricCard(
+                            ReportMetricCard(
                               label: 'Won value',
-                              valueLabel: minorToRupeesLabel(report.totals.wonValueMinor),
+                              valueLabel: minorToRupeesLabel(
+                                report.totals.wonValueMinor,
+                              ),
                             ),
-                            _MetricCard(label: 'Win rate', valueLabel: report.totals.winRateLabel),
-                            _MetricCard(label: 'Pending', value: report.totals.pending),
-                            _MetricCard(
+                            ReportMetricCard(
+                              label: 'Win rate',
+                              valueLabel: report.totals.winRateLabel,
+                            ),
+                            ReportMetricCard(
+                              label: 'Pending',
+                              value: report.totals.pending,
+                            ),
+                            ReportMetricCard(
                               label: 'Pending value',
-                              valueLabel: minorToRupeesLabel(report.totals.pendingValueMinor),
+                              valueLabel: minorToRupeesLabel(
+                                report.totals.pendingValueMinor,
+                              ),
                             ),
-                            _MetricCard(label: 'Overdue reminders', value: report.totals.overdueReminders),
-                            _MetricCard(label: 'Closing soon', value: report.totals.closingSoon),
-                            _MetricCard(label: 'Closing overdue', value: report.totals.closingOverdue),
-                            _MetricCard(label: 'No reminder', value: report.totals.noFollowUp),
-                            _MetricCard(
+                            ReportMetricCard(
+                              label: 'Overdue reminders',
+                              value: report.totals.overdueReminders,
+                            ),
+                            ReportMetricCard(
+                              label: 'Closing soon',
+                              value: report.totals.closingSoon,
+                            ),
+                            ReportMetricCard(
+                              label: 'Closing overdue',
+                              value: report.totals.closingOverdue,
+                            ),
+                            ReportMetricCard(
+                              label: 'No reminder',
+                              value: report.totals.noFollowUp,
+                            ),
+                            ReportMetricCard(
                               label: 'Avg close chance',
                               valueLabel: report.totals.averagePredictionLabel,
                             ),
                           ],
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        Text('By status', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byStatus)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(QuotationStatuses.title(row.status)),
-                            subtitle: Text(minorToRupeesLabel(row.valueMinor)),
-                            trailing: Text('${row.count}'),
+                        ReportRankedSection(
+                          title: 'By status',
+                          icon: Icons.flag_outlined,
+                          items: rankedBy(
+                            report.byStatus,
+                            label: (row) => QuotationStatuses.title(row.status),
+                            count: (row) => row.count,
+                            valueLabel: (row) =>
+                                minorToRupeesLabel(row.valueMinor),
                           ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text('By assignee', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byAssignee)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.name ?? row.membershipId ?? 'Unassigned'),
-                            subtitle: Text(
-                              'Won ${row.won} · Lost ${row.lost} · ${minorToRupeesLabel(row.wonValueMinor)}',
-                            ),
-                            trailing: Text('${row.total}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By assigned',
+                          icon: Icons.person_outline,
+                          items: rankedBy(
+                            report.byAssignee,
+                            label: (row) =>
+                                row.name ?? row.membershipId ?? 'Unassigned',
+                            count: (row) => row.total,
+                            valueLabel: (row) =>
+                                minorToRupeesLabel(row.wonValueMinor),
+                            subtitle: (row) =>
+                                'Won ${row.won} · Lost ${row.lost}',
                           ),
+                        ),
                       ],
                     ),
                   ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, this.value, this.valueLabel});
-
-  final String label;
-  final int? value;
-  final String? valueLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 150,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                valueLabel ?? '${value ?? 0}',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              Text(label),
-            ],
-          ),
-        ),
       ),
     );
   }

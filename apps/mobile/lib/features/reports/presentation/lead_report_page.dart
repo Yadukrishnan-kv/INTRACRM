@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/error/result.dart';
 import '../../../design_system/components/app_scaffold.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
+import '../../../router/app_routes.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../leads/application/lead_list_controller.dart';
+import '../../leads/domain/lead_list_filter.dart';
 import '../../leads/domain/lead_report.dart';
 import '../../quotations/domain/quotation.dart';
 import '../domain/report_date_range.dart';
 import 'report_date_range_bar.dart';
 import 'report_export_button.dart';
 import 'report_metric_card.dart';
+import 'report_ranked_section.dart';
 
 class LeadReportPage extends ConsumerStatefulWidget {
   const LeadReportPage({super.key});
@@ -51,6 +55,10 @@ class _LeadReportPageState extends ConsumerState<LeadReportPage> {
           _error = failure.message;
       }
     });
+  }
+
+  void _openLeads(Object payload) {
+    context.push(AppRoutes.leads, extra: payload as LeadListFilter);
   }
 
   @override
@@ -112,53 +120,82 @@ class _LeadReportPageState extends ConsumerState<LeadReportPage> {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        Text('By lifecycle', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byLifecycle)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.title),
-                            subtitle: Text(minorToRupeesLabel(row.valueMinor)),
-                            trailing: Text('${row.count}'),
+                        ReportRankedSection(
+                          title: 'By lifecycle',
+                          icon: Icons.timeline_outlined,
+                          onItemTap: _openLeads,
+                          items: rankedBy(
+                            report.byLifecycle,
+                            label: (row) => row.title,
+                            count: (row) => row.count,
+                            valueLabel: (row) => minorToRupeesLabel(row.valueMinor),
+                            payload: (row) => LeadListFilter(label: row.title, status: row.status),
                           ),
-                        Text('By quality', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byQuality)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.title),
-                            trailing: Text('${row.count}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By quality',
+                          icon: Icons.star_outline,
+                          onItemTap: _openLeads,
+                          items: rankedBy(
+                            report.byQuality,
+                            label: (row) => row.title,
+                            count: (row) => row.count,
+                            payload: (row) => LeadListFilter(label: row.title, quality: row.quality),
                           ),
-                        Text('By source', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.bySource)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.name ?? 'Unknown'),
-                            subtitle: Text(minorToRupeesLabel(row.valueMinor)),
-                            trailing: Text('${row.count}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By source',
+                          icon: Icons.share_outlined,
+                          onItemTap: _openLeads,
+                          items: rankedBy(
+                            report.bySource,
+                            label: (row) => row.name ?? 'Unknown',
+                            count: (row) => row.count,
+                            valueLabel: (row) => minorToRupeesLabel(row.valueMinor),
+                            payload: (row) => row.sourceId != null
+                                ? LeadListFilter(label: row.name ?? 'Unknown', sourceId: row.sourceId)
+                                : const LeadListFilter(label: 'Unknown source', matchUnknownSource: true),
                           ),
-                        Text('By owner', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byOwner)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.name ?? 'Unassigned'),
-                            subtitle: Text('Open ${row.open} · Won ${row.won} · Lost ${row.lost}'),
-                            trailing: Text('${row.total}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By owner',
+                          icon: Icons.person_outline,
+                          onItemTap: _openLeads,
+                          items: rankedBy(
+                            report.byOwner,
+                            label: (row) => row.name ?? 'Unassigned',
+                            count: (row) => row.total,
+                            valueLabel: (row) => minorToRupeesLabel(row.valueMinor),
+                            subtitle: (row) => 'Open ${row.open} · Won ${row.won} · Lost ${row.lost}',
+                            payload: (row) => row.membershipId != null
+                                ? LeadListFilter(label: row.name ?? 'Unassigned', ownerMembershipId: row.membershipId)
+                                : const LeadListFilter(label: 'Unassigned', matchUnassignedOwner: true),
                           ),
-                        Text('By stage', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byStage)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.stageName),
-                            trailing: Text('${row.count}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By stage',
+                          icon: Icons.stacked_bar_chart_outlined,
+                          onItemTap: _openLeads,
+                          items: rankedBy(
+                            report.byStage,
+                            label: (row) => row.stageName,
+                            count: (row) => row.count,
+                            valueLabel: (row) => minorToRupeesLabel(row.valueMinor),
+                            payload: (row) => LeadListFilter(label: row.stageName, stageName: row.stageName),
                           ),
-                        if (report.byCity.isNotEmpty) ...[
-                          Text('By city', style: Theme.of(context).textTheme.titleMedium),
-                          for (final row in report.byCity)
-                            ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(row.city),
-                              trailing: Text('${row.count}'),
+                        ),
+                        if (report.byCity.isNotEmpty)
+                          ReportRankedSection(
+                            title: 'By city',
+                            icon: Icons.location_city_outlined,
+                            onItemTap: _openLeads,
+                            items: rankedBy(
+                              report.byCity,
+                              label: (row) => row.city,
+                              count: (row) => row.count,
+                              payload: (row) => LeadListFilter(label: row.city, city: row.city),
                             ),
-                        ],
+                          ),
                       ],
                     ),
                   ),

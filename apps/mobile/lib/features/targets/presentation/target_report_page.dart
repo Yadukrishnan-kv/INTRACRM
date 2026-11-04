@@ -7,6 +7,8 @@ import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
 import '../../reports/domain/report_date_range.dart';
 import '../../reports/presentation/report_date_range_bar.dart';
+import '../../reports/presentation/report_metric_card.dart';
+import '../../reports/presentation/report_ranked_section.dart';
 import '../application/target_providers.dart';
 import '../domain/target.dart';
 
@@ -82,20 +84,20 @@ class _TargetReportPageState extends ConsumerState<TargetReportPage> {
                           spacing: AppSpacing.sm,
                           runSpacing: AppSpacing.sm,
                           children: [
-                            _MetricCard(label: 'Targets', value: report.count),
-                            _MetricCard(label: 'On track', value: report.onTrack),
-                            _MetricCard(label: 'Behind', value: report.behind),
-                            _MetricCard(label: 'Hit', value: report.hit),
-                            _MetricCard(label: 'Missed', value: report.missed),
-                            _MetricCard(label: 'Ahead', value: report.ahead),
-                            _MetricCard(label: 'At risk', value: report.atRisk),
-                            _MetricCard(
+                            ReportMetricCard(label: 'Targets', value: report.count),
+                            ReportMetricCard(label: 'On track', value: report.onTrack),
+                            ReportMetricCard(label: 'Behind', value: report.behind),
+                            ReportMetricCard(label: 'Hit', value: report.hit),
+                            ReportMetricCard(label: 'Missed', value: report.missed),
+                            ReportMetricCard(label: 'Ahead', value: report.ahead),
+                            ReportMetricCard(label: 'At risk', value: report.atRisk),
+                            ReportMetricCard(
                               label: 'Achievement',
                               valueLabel: report.averageAttainmentBps == null
                                   ? '—'
                                   : '${(report.averageAttainmentBps! / 100).toStringAsFixed(0)}%',
                             ),
-                            _MetricCard(
+                            ReportMetricCard(
                               label: 'Forecast',
                               valueLabel: report.averageForecastBps == null
                                   ? '—'
@@ -104,48 +106,67 @@ class _TargetReportPageState extends ConsumerState<TargetReportPage> {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        if (report.byForecast.isNotEmpty) ...[
-                          Text('Forecast', style: Theme.of(context).textTheme.titleMedium),
-                          for (final row in report.byForecast)
-                            ListTile(
-                              title: Text(TargetForecast.bandTitle(row['band'] as String?)),
-                              trailing: Text('${row['count']}'),
+                        if (report.byForecast.isNotEmpty)
+                          ReportRankedSection(
+                            title: 'Forecast',
+                            icon: Icons.insights_outlined,
+                            items: rankedBy(
+                              report.byForecast,
+                              label: (row) => TargetForecast.bandTitle(row['band'] as String?),
+                              count: (row) => row['count'] as int? ?? 0,
                             ),
-                        ],
-                        Text('By period', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byPeriod)
-                          ListTile(
-                            title: Text(TargetKinds.title(row['periodType'] as String? ?? '')),
-                            subtitle: Text('On track ${row['onTrack']} of ${row['count']}'),
                           ),
-                        Text('By scope', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byScope)
-                          ListTile(
-                            title: Text(TargetKinds.title(row['scopeType'] as String? ?? '')),
-                            subtitle: Text('On track ${row['onTrack']} of ${row['count']}'),
+                        ReportRankedSection(
+                          title: 'By period',
+                          icon: Icons.calendar_month_outlined,
+                          items: rankedBy(
+                            report.byPeriod,
+                            label: (row) => TargetKinds.title(row['periodType'] as String? ?? ''),
+                            count: (row) => row['count'] as int? ?? 0,
+                            subtitle: (row) => 'On track ${row['onTrack']}',
                           ),
-                        Text('By metric', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byMetric)
-                          ListTile(
-                            title: Text(row['metricName'] as String? ?? row['metricCode'] as String? ?? ''),
-                            subtitle: Text('${row['count']} targets'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By scope',
+                          icon: Icons.layers_outlined,
+                          items: rankedBy(
+                            report.byScope,
+                            label: (row) => TargetKinds.title(row['scopeType'] as String? ?? ''),
+                            count: (row) => row['count'] as int? ?? 0,
+                            subtitle: (row) => 'On track ${row['onTrack']}',
                           ),
-                        if (report.teams.isNotEmpty) ...[
-                          Text('Teams', style: Theme.of(context).textTheme.titleMedium),
-                          for (final row in report.teams)
-                            ListTile(
-                              title: Text(row['scopeName'] as String? ?? 'Team'),
-                              subtitle: Text('On track ${row['onTrack']} of ${row['count']}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By metric',
+                          icon: Icons.speed_outlined,
+                          items: rankedBy(
+                            report.byMetric,
+                            label: (row) => row['metricName'] as String? ?? row['metricCode'] as String? ?? '',
+                            count: (row) => row['count'] as int? ?? 0,
+                          ),
+                        ),
+                        if (report.teams.isNotEmpty)
+                          ReportRankedSection(
+                            title: 'Teams',
+                            icon: Icons.groups_outlined,
+                            items: rankedBy(
+                              report.teams,
+                              label: (row) => row['scopeName'] as String? ?? 'Team',
+                              count: (row) => row['count'] as int? ?? 0,
+                              subtitle: (row) => 'On track ${row['onTrack']}',
                             ),
-                        ],
-                        if (report.products.isNotEmpty) ...[
-                          Text('Products', style: Theme.of(context).textTheme.titleMedium),
-                          for (final row in report.products)
-                            ListTile(
-                              title: Text(row['productName'] as String? ?? 'Product'),
-                              subtitle: Text('On track ${row['onTrack']} of ${row['count']}'),
+                          ),
+                        if (report.products.isNotEmpty)
+                          ReportRankedSection(
+                            title: 'Products',
+                            icon: Icons.inventory_2_outlined,
+                            items: rankedBy(
+                              report.products,
+                              label: (row) => row['productName'] as String? ?? 'Product',
+                              count: (row) => row['count'] as int? ?? 0,
+                              subtitle: (row) => 'On track ${row['onTrack']}',
                             ),
-                        ],
+                          ),
                       ],
                     ),
                   ),
@@ -156,29 +177,3 @@ class _TargetReportPageState extends ConsumerState<TargetReportPage> {
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, this.value, this.valueLabel});
-
-  final String label;
-  final int? value;
-  final String? valueLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
-            Text(
-              valueLabel ?? '${value ?? 0}',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

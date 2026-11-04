@@ -5,6 +5,8 @@ import '../../../core/error/result.dart';
 import '../../../design_system/components/app_scaffold.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
+import '../../reports/presentation/report_metric_card.dart';
+import '../../reports/presentation/report_ranked_section.dart';
 import '../application/staff_providers.dart';
 import '../domain/staff_models.dart';
 
@@ -68,32 +70,30 @@ class _StaffReportPageState extends ConsumerState<StaffReportPage> {
                     spacing: AppSpacing.sm,
                     runSpacing: AppSpacing.sm,
                     children: [
-                      _MetricCard(label: 'Total', value: report.totals.total),
-                      _MetricCard(label: AppStrings.active, value: report.totals.active),
-                      _MetricCard(label: AppStrings.inactive, value: report.totals.inactive),
-                      _MetricCard(label: 'Invited', value: report.totals.invited),
+                      ReportMetricCard(label: 'Total', value: report.totals.total),
+                      ReportMetricCard(label: AppStrings.active, value: report.totals.active),
+                      ReportMetricCard(label: AppStrings.inactive, value: report.totals.inactive),
+                      ReportMetricCard(label: 'Invited', value: report.totals.invited),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  Text('By role', style: Theme.of(context).textTheme.titleMedium),
-                  for (final row in report.byRole)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(row.name),
-                      trailing: Text('${row.count}'),
+                  ReportRankedSection(
+                    title: 'By role',
+                    icon: Icons.shield_outlined,
+                    items: rankedBy(
+                      report.byRole,
+                      label: (row) => row.name,
+                      count: (row) => row.count,
                     ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text('By team', style: Theme.of(context).textTheme.titleMedium),
-                  for (final row in report.byTeam)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(row.name),
-                      trailing: Text('${row.count}'),
+                  ),
+                  ReportRankedSection(
+                    title: 'By team',
+                    icon: Icons.groups_outlined,
+                    items: rankedBy(
+                      [...report.byTeam.map((row) => (name: row.name, count: row.count)), (name: 'No team', count: report.unassignedTeam)],
+                      label: (row) => row.name,
+                      count: (row) => row.count,
                     ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('No team'),
-                    trailing: Text('${report.unassignedTeam}'),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text('Roster', style: Theme.of(context).textTheme.titleMedium),
@@ -113,32 +113,6 @@ class _StaffReportPageState extends ConsumerState<StaffReportPage> {
                 ],
               ),
             ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, required this.value});
-
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 150,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('$value', style: Theme.of(context).textTheme.headlineSmall),
-              Text(label),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

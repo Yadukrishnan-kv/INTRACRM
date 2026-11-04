@@ -12,6 +12,7 @@ import '../domain/report_date_range.dart';
 import 'report_date_range_bar.dart';
 import 'report_export_button.dart';
 import 'report_metric_card.dart';
+import 'report_ranked_section.dart';
 
 class SalesReportPage extends ConsumerStatefulWidget {
   const SalesReportPage({super.key});
@@ -109,26 +110,28 @@ class _SalesReportPageState extends ConsumerState<SalesReportPage> {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        Text('By salesperson', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byAssignee)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.name ?? 'Unassigned'),
-                            subtitle: Text(
-                              'Won ${row.deals} · Lost ${row.lostDeals} · ${minorToRupeesLabel(row.revenueMinor)}',
-                            ),
-                            trailing: Text(minorToRupeesLabel(row.revenueMinor)),
+                        ReportRankedSection(
+                          title: 'By salesperson',
+                          icon: Icons.badge_outlined,
+                          items: rankedBy(
+                            report.byAssignee,
+                            label: (row) => row.name ?? 'Unassigned',
+                            count: (row) => row.deals,
+                            valueLabel: (row) => minorToRupeesLabel(row.revenueMinor),
+                            subtitle: (row) => 'Won ${row.deals} · Lost ${row.lostDeals}',
                           ),
-                        if (report.byMonth.isNotEmpty) ...[
-                          Text('By month', style: Theme.of(context).textTheme.titleMedium),
-                          for (final row in report.byMonth)
-                            ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(row.month),
-                              subtitle: Text('${row.deals} deals'),
-                              trailing: Text(minorToRupeesLabel(row.revenueMinor)),
+                        ),
+                        if (report.byMonth.isNotEmpty)
+                          ReportRankedSection(
+                            title: 'By month',
+                            icon: Icons.calendar_month_outlined,
+                            items: rankedBy(
+                              report.byMonth,
+                              label: (row) => row.month,
+                              count: (row) => row.deals,
+                              valueLabel: (row) => minorToRupeesLabel(row.revenueMinor),
                             ),
-                        ],
+                          ),
                       ],
                     ),
                   ),

@@ -12,6 +12,7 @@ import '../domain/report_date_range.dart';
 import 'report_date_range_bar.dart';
 import 'report_export_button.dart';
 import 'report_metric_card.dart';
+import 'report_ranked_section.dart';
 
 class FollowUpReportPage extends ConsumerStatefulWidget {
   const FollowUpReportPage({super.key});
@@ -61,7 +62,12 @@ class _FollowUpReportPageState extends ConsumerState<FollowUpReportPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              0,
+            ),
             child: ReportDateRangeBar(
               range: _range,
               onChanged: (range) {
@@ -86,45 +92,73 @@ class _FollowUpReportPageState extends ConsumerState<FollowUpReportPage> {
                           spacing: AppSpacing.sm,
                           runSpacing: AppSpacing.sm,
                           children: [
-                            ReportMetricCard(label: 'Total', value: report.totals.total),
-                            ReportMetricCard(label: AppStrings.pending, value: report.totals.pending),
-                            ReportMetricCard(label: AppStrings.completed, value: report.totals.completed),
-                            ReportMetricCard(label: AppStrings.overdue, value: report.totals.overdue),
-                            ReportMetricCard(label: AppStrings.today, value: report.totals.today),
-                            ReportMetricCard(label: AppStrings.upcoming, value: report.totals.upcoming),
-                            ReportMetricCard(label: 'Rescheduled', value: report.totals.rescheduled),
+                            ReportMetricCard(
+                              label: 'Total',
+                              value: report.totals.total,
+                            ),
+                            ReportMetricCard(
+                              label: AppStrings.pending,
+                              value: report.totals.pending,
+                            ),
+                            ReportMetricCard(
+                              label: AppStrings.completed,
+                              value: report.totals.completed,
+                            ),
+                            ReportMetricCard(
+                              label: AppStrings.overdue,
+                              value: report.totals.overdue,
+                            ),
+                            ReportMetricCard(
+                              label: AppStrings.today,
+                              value: report.totals.today,
+                            ),
+                            ReportMetricCard(
+                              label: AppStrings.upcoming,
+                              value: report.totals.upcoming,
+                            ),
+                            ReportMetricCard(
+                              label: 'Rescheduled',
+                              value: report.totals.rescheduled,
+                            ),
                             ReportMetricCard(
                               label: 'Completion',
-                              valueLabel: reportPercent(report.totals.completionRateBps),
+                              valueLabel: reportPercent(
+                                report.totals.completionRateBps,
+                              ),
                             ),
                           ],
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        Text('By status', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byStatus)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(_statusTitle(row.status)),
-                            trailing: Text('${row.count}'),
+                        ReportRankedSection(
+                          title: 'By status',
+                          icon: Icons.flag_outlined,
+                          items: rankedBy(
+                            report.byStatus,
+                            label: (row) => _statusTitle(row.status),
+                            count: (row) => row.count,
                           ),
-                        Text('By type', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byType)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(FollowUpTypes.title(row.type)),
-                            subtitle: Text('Completed ${row.completed}'),
-                            trailing: Text('${row.count}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By type',
+                          icon: Icons.category_outlined,
+                          items: rankedBy(
+                            report.byType,
+                            label: (row) => FollowUpTypes.title(row.type),
+                            count: (row) => row.count,
+                            subtitle: (row) => 'Completed ${row.completed}',
                           ),
-                        Text('By assignee', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byAssignee)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.name ?? row.membershipId),
-                            subtitle: Text(
-                              'Pending ${row.pending} · Done ${row.completed} · Overdue ${row.overdue}',
-                            ),
-                            trailing: Text('${row.total}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By assigned',
+                          icon: Icons.person_outline,
+                          items: rankedBy(
+                            report.byAssignee,
+                            label: (row) => row.name ?? row.membershipId,
+                            count: (row) => row.total,
+                            subtitle: (row) =>
+                                'Pending ${row.pending} · Done ${row.completed} · Overdue ${row.overdue}',
                           ),
+                        ),
                       ],
                     ),
                   ),

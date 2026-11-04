@@ -23,6 +23,12 @@
 .reports-bar { margin-top: 6px; height: 6px; max-width: 240px; }
 .reports-table tfoot td { font-weight: 700; border-top: 1px solid var(--border); }
 
+/* Ranked breakdown tables: numbered rows, top 3 highlighted. */
+.reports-rank-col { width: 28px; }
+.reports-rank { color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; width: 28px; }
+.reports-row-top .reports-rank { color: var(--teal-dark); }
+.reports-row-top { background: var(--teal-soft); }
+
 /* Hub */
 .reports-hub-group { margin: 6px 0 10px; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .reports-hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 12px; margin-bottom: 20px; }

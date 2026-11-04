@@ -119,7 +119,7 @@ export function followUpExportDocument(view: FollowUpReportView): ExportDocument
         rows: view.byType.map((row) => [titleCase(row.type), cell(row.count), cell(row.completed)]),
       },
       {
-        name: 'By assignee',
+        name: 'By assigned',
         headers: ['Assignee', 'Total', 'Pending', 'Completed', 'Overdue'],
         rows: view.byAssignee.map((row) => [
           row.name ?? row.membershipId,
@@ -161,7 +161,7 @@ export function quotationExportDocument(view: QuotationReportView): ExportDocume
         rows: view.byStatus.map((row) => [titleCase(row.status), cell(row.count), rupees(row.valueMinor)]),
       },
       {
-        name: 'By assignee',
+        name: 'By assigned',
         headers: ['Assignee', 'Total', 'Won', 'Lost', 'Won value'],
         rows: view.byAssignee.map((row) => [
           row.name ?? 'Unassigned',

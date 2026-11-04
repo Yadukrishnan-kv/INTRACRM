@@ -159,7 +159,7 @@ export function AssigneeFilter({ value, onChange }: { value: string; onChange: (
   const { canPick, staff } = useStaffOptions();
   if (!canPick) return null;
   return (
-    <select className="input" value={value} aria-label="Filter by assignee" onChange={(e) => onChange(e.target.value)}>
+    <select className="input" value={value} aria-label="Filter By assigned" onChange={(e) => onChange(e.target.value)}>
       <option value="">All users</option>
       {staff.map((s) => (
         <option key={s.id} value={s.id}>

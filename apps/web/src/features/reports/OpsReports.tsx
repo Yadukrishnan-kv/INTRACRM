@@ -93,7 +93,7 @@ export function SiteVisitReportPage() {
             ]}
           />
           <BreakdownTable
-            title="By assignee"
+            title="By assigned"
             rows={r.byAssignee}
             rowKey={(x) => x.membershipId}
             bar={(x) => x.total}

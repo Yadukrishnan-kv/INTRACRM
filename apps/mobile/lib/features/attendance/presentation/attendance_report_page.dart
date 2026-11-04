@@ -8,6 +8,7 @@ import '../../../l10n/app_strings.dart';
 import '../../reports/domain/report_date_range.dart';
 import '../../reports/presentation/report_date_range_bar.dart';
 import '../../reports/presentation/report_metric_card.dart';
+import '../../reports/presentation/report_ranked_section.dart';
 import '../application/attendance_providers.dart';
 import '../domain/attendance.dart';
 
@@ -93,23 +94,27 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        Text('By staff', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byStaff)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.name ?? row.membershipId),
-                            subtitle: Text(
-                              'Present ${row.presentDays} · Late ${row.lateDays} · Open ${row.openNow} · ${formatMinutes(row.minutesWorked)}',
-                            ),
+                        ReportRankedSection(
+                          title: 'By staff',
+                          icon: Icons.badge_outlined,
+                          items: rankedBy(
+                            report.byStaff,
+                            label: (row) => row.name ?? row.membershipId,
+                            count: (row) => row.presentDays,
+                            subtitle: (row) =>
+                                'Late ${row.lateDays} · Open ${row.openNow} · ${formatMinutes(row.minutesWorked)}',
                           ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text('By day', style: Theme.of(context).textTheme.titleMedium),
-                        for (final row in report.byDay)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(row.date),
-                            subtitle: Text('Present ${row.present} · Late ${row.late} · Open ${row.open}'),
+                        ),
+                        ReportRankedSection(
+                          title: 'By day',
+                          icon: Icons.calendar_today_outlined,
+                          items: rankedBy(
+                            report.byDay,
+                            label: (row) => row.date,
+                            count: (row) => row.present,
+                            subtitle: (row) => 'Late ${row.late} · Open ${row.open}',
                           ),
+                        ),
                       ],
                     ),
                   ),
