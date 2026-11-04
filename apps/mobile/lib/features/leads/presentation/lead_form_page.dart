@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
 import '../../../design_system/components/app_button.dart';
 import '../../../design_system/components/app_scaffold.dart';
@@ -368,17 +369,23 @@ class _LeadFormPageState extends ConsumerState<LeadFormPage> {
     );
   }
 
+  // Accepts any internationally valid number (with a leading `+`) plus bare
+  // national numbers, which are assumed Indian — matching the backend's
+  // parseLeadPhone normalization (apps/api .../lead-validation.ts).
   String? _phoneValidator(String? value) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
       return null;
     }
-    final e164 = RegExp(r'^\+[1-9][0-9]{7,14}$');
-    final digits = trimmed.replaceAll(RegExp(r'\D'), '');
-    if (e164.hasMatch(trimmed) || RegExp(r'^[6-9]\d{9}$').hasMatch(digits)) {
-      return null;
+    try {
+      final phone = PhoneNumber.parse(trimmed, callerCountry: IsoCode.IN);
+      if (phone.isValid()) {
+        return null;
+      }
+    } catch (_) {
+      // falls through to the error message below
     }
-    return 'Use E.164 or a 10-digit mobile number';
+    return 'Enter a valid phone number';
   }
 
   String? _emailValidator(String? value) {

@@ -23,6 +23,7 @@ final routePermissions = <RoutePermission>[
   RoutePermission(AppRoutes.staff, (u) => u.canManageUsers),
   RoutePermission(AppRoutes.teams, (u) => u.canManageUsers),
   RoutePermission(AppRoutes.roles, (u) => u.canManageRoles),
+  RoutePermission(AppRoutes.members, (u) => u.canManageRoles),
   RoutePermission('/rbac', (u) => u.canManageRoles),
   RoutePermission(AppRoutes.catalog, (u) => u.canManageSettings),
   RoutePermission(AppRoutes.messageTemplates, (u) => u.canManageSettings),

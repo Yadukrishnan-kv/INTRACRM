@@ -137,17 +137,59 @@ class OutboxStore {
   }
 
   Future<int> pendingCount({String? tenantId}) async {
+    return _countByStatus(OutboxStatus.pending, tenantId: tenantId);
+  }
+
+  Future<int> failedCount({String? tenantId}) async {
+    return _countByStatus(OutboxStatus.failed, tenantId: tenantId);
+  }
+
+  Future<int> _countByStatus(OutboxStatus status, {String? tenantId}) async {
     final db = await _database.instance;
     final rows = tenantId == null
         ? await db.rawQuery(
             "SELECT COUNT(*) AS c FROM outbox_commands WHERE status = ?",
-            [OutboxStatus.pending.name],
+            [status.name],
           )
         : await db.rawQuery(
             "SELECT COUNT(*) AS c FROM outbox_commands WHERE status = ? AND tenant_id = ?",
-            [OutboxStatus.pending.name, tenantId],
+            [status.name, tenantId],
           );
     return (rows.first['c'] as int?) ?? 0;
+  }
+
+  Future<List<OutboxCommand>> failed({String? tenantId, int limit = 50}) async {
+    final db = await _database.instance;
+    final rows = tenantId == null
+        ? await db.query(
+            'outbox_commands',
+            where: 'status = ?',
+            whereArgs: [OutboxStatus.failed.name],
+            orderBy: 'created_at ASC',
+            limit: limit,
+          )
+        : await db.query(
+            'outbox_commands',
+            where: 'status = ? AND tenant_id = ?',
+            whereArgs: [OutboxStatus.failed.name, tenantId],
+            orderBy: 'created_at ASC',
+            limit: limit,
+          );
+    return [
+      for (final row in rows)
+        await _decryptCommand(OutboxCommand.fromRow(row)),
+    ];
+  }
+
+  /// Resets a failed command back to pending so the next flush retries it.
+  Future<void> retry(String id) async {
+    final db = await _database.instance;
+    await db.update(
+      'outbox_commands',
+      {'status': OutboxStatus.pending.name, 'attempts': 0},
+      where: 'id = ? AND status = ?',
+      whereArgs: [id, OutboxStatus.failed.name],
+    );
   }
 
   Future<void> markDone(String id) async {

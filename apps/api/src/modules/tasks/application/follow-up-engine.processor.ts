@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { PinoLogger } from '../../../common/logging/pino-logger';
 import { QueueNames } from '../../../common/queue/queue.names';
@@ -19,5 +19,12 @@ export class FollowUpEngineProcessor extends WorkerHost {
       `Follow-up engine tick tenants=${result.tenants} notified=${result.notified}`,
     );
     return result;
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job, error: Error) {
+    this.logger.error(
+      `Follow-up engine job ${job.id} failed after ${job.attemptsMade} attempt(s): ${error.message}`,
+    );
   }
 }

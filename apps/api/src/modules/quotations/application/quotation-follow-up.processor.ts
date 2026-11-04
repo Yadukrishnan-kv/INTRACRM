@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { PinoLogger } from '../../../common/logging/pino-logger';
 import { QueueNames } from '../../../common/queue/queue.names';
@@ -19,5 +19,12 @@ export class QuotationFollowUpProcessor extends WorkerHost {
       `Quotation follow-up tick tenants=${result.tenants} notified=${result.notified}`,
     );
     return result;
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job, error: Error) {
+    this.logger.error(
+      `Quotation follow-up job ${job.id} failed after ${job.attemptsMade} attempt(s): ${error.message}`,
+    );
   }
 }

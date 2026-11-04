@@ -1,7 +1,7 @@
 name: intra_leads
 description: INTRA LEADS mobile CRM
 publish_to: none
-version: 1.0.2+4
+version: 1.0.2+6
 
 environment:
   sdk: ^3.9.0
@@ -33,6 +33,7 @@ dependencies:
   cryptography: ^2.7.0
   safe_device: ^1.1.8
   url_launcher: ^6.3.1
+  phone_numbers_parser: ^9.0.5
 
 dev_dependencies:
   flutter_test:

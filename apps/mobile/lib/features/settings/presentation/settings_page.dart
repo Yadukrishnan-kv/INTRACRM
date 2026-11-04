@@ -192,6 +192,12 @@ class SettingsPage extends ConsumerWidget {
                 ),
               if (user?.canManageRoles == true)
                 IconMenuTile(
+                  icon: Icons.people_outline,
+                  title: AppStrings.members,
+                  onTap: () => context.push(AppRoutes.members),
+                ),
+              if (user?.canManageRoles == true)
+                IconMenuTile(
                   icon: Icons.grid_view_outlined,
                   title: AppStrings.permissionMatrix,
                   onTap: () => context.push(AppRoutes.permissionMatrix),
@@ -253,6 +259,50 @@ class SettingsPage extends ConsumerWidget {
                             .read(syncControllerProvider.notifier)
                             .acknowledgeConflict(conflict.id),
                         child: const Text(AppStrings.acknowledgeConflict),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+          if (sync.failedCommands.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${AppStrings.syncFailures} (${sync.failedCommands.length})',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => ref
+                            .read(syncControllerProvider.notifier)
+                            .retryAllFailed(),
+                        child: const Text(AppStrings.retryAllSync),
+                      ),
+                    ],
+                  ),
+                  for (final command in sync.failedCommands)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(command.resourceType ?? command.path),
+                      subtitle: Text(
+                        command.lastError ?? 'This change could not be saved to the server.',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: TextButton(
+                        onPressed: () => ref
+                            .read(syncControllerProvider.notifier)
+                            .retryFailed(command.id),
+                        child: const Text(AppStrings.retrySync),
                       ),
                     ),
                 ],

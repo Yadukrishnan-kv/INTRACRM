@@ -28,6 +28,8 @@ class AppRoutes {
   static const roleCreate = '/roles/create';
   static const roleEdit = '/roles/:roleId/edit';
   static const permissionMatrix = '/rbac/matrix';
+  static const members = '/members';
+  static const memberRoles = '/members/:membershipId/roles';
   static const staff = '/staff';
   static const staffCreate = '/staff/create';
   static const staffDetail = '/staff/:staffId';
@@ -109,6 +111,7 @@ class AppRoutes {
   static String targetDetailPath(String targetId) => '/targets/$targetId';
   static String targetEditPath(String targetId) => '/targets/$targetId/edit';
   static String roleEditPath(String roleId) => '/roles/$roleId/edit';
+  static String memberRolesPath(String membershipId) => '/members/$membershipId/roles';
   static String siteVisitEditPath(String visitId) => '/visits/$visitId/edit';
   static String performanceDetailPath(String membershipId) => '/performance/$membershipId';
   static String dashboardWidgetPath(String widgetCode) => '/dashboard/$widgetCode';

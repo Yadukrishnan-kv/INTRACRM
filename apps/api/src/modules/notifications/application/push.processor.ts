@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { PinoLogger } from '../../../common/logging/pino-logger';
 import { QueueNames } from '../../../common/queue/queue.names';
@@ -52,5 +52,12 @@ export class PushNotificationProcessor extends WorkerHost {
       `FCM dispatch user=${payload.userId} event=${payload.eventType} sent=${result.successCount} failed=${result.failureCount}`,
     );
     return { sent: result.successCount, failed: result.failureCount };
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job, error: Error) {
+    this.logger.error(
+      `Push dispatch job ${job.id} failed after ${job.attemptsMade} attempt(s): ${error.message}`,
+    );
   }
 }
