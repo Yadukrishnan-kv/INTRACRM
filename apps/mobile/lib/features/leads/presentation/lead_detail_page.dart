@@ -470,6 +470,7 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
     final follow = lead.nextFollowUpAt?.toLocal();
     final quality = lead.quality ?? '—';
     final lost = lead.lifecycleStatus.toLowerCase().contains('lost');
+    final won = lead.lifecycleStatus.toLowerCase().contains('won');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -512,7 +513,7 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
               PipelineStepper(
                 stages: [
                   for (final stage in _stages)
-                    if (!(stage.isLost && stage.isWon)) stage.name,
+                    if (!(stage.isLost && won) && !(stage.isWon && lost)) stage.name,
                 ],
                 current: lead.stageName ?? lead.lifecycleStatus,
                 lost: lost,

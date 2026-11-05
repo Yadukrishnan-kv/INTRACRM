@@ -213,6 +213,8 @@ class AppStrings {
   static const clickToCall = 'Call';
   static const call = 'Call';
   static const whatsapp = 'WhatsApp';
+  static const whatsappCall = 'WA Call';
+  static const couldNotOpenWhatsapp = 'Could not open WhatsApp.';
   static const sms = 'SMS';
   static const sendSms = 'Send SMS';
   static const sendWhatsapp = 'Send WhatsApp';

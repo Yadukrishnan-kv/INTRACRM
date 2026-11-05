@@ -92,5 +92,10 @@
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="https"/>
         </intent>
+        <!-- CommsLauncher: whatsapp://call?phone=<digits> voice-call deep link. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="whatsapp"/>
+        </intent>
     </queries>
 </manifest>

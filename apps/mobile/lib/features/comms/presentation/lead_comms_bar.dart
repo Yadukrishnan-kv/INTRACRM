@@ -85,6 +85,12 @@ class LeadCommsBar extends ConsumerWidget {
             label: AppStrings.sms,
             onPressed: _hasPhone ? () => _compose(context, ref, 'sms') : null,
           ),
+          _action(
+            context,
+            icon: Icons.phone_in_talk_outlined,
+            label: AppStrings.whatsappCall,
+            onPressed: _hasPhone ? () => _whatsappCall(context, ref) : null,
+          ),
         ],
       ),
     );
@@ -130,6 +136,22 @@ class LeadCommsBar extends ConsumerWidget {
       return;
     }
     await _send(context, ref, result);
+  }
+
+  Future<void> _whatsappCall(BuildContext context, WidgetRef ref) async {
+    final phone = lead.primaryPhone;
+    if (phone == null || phone.trim().isEmpty) {
+      return;
+    }
+    final opened = await ref.read(commsLauncherProvider).open(whatsappCallUri(phone));
+    if (!context.mounted) {
+      return;
+    }
+    if (!opened) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(AppStrings.couldNotOpenWhatsapp)),
+      );
+    }
   }
 
   Future<void> _compose(BuildContext context, WidgetRef ref, String channel) async {

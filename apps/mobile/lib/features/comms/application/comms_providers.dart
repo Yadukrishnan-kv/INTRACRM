@@ -24,24 +24,27 @@ class CommsLauncher {
 
   final AppLogger _logger;
 
-  /// Schemes the comms API is expected to produce: `tel:` for click-to-call,
-  /// `sms:`/`smsto:` for device SMS, and `https:` for `wa.me` deep links.
+  /// Schemes this launcher is expected to open: `tel:` for click-to-call,
+  /// `sms:`/`smsto:` for device SMS, `https:` for `wa.me` chat deep links
+  /// (all built by the comms API), and `whatsapp:` for the client-built
+  /// `whatsapp://call?phone=` voice-call deep link.
   ///
   /// `http` is deliberately absent -- the flavor already refuses cleartext
   /// outside dev, and a launch URI is no place to reintroduce it.
-  static const _launchableSchemes = <String>{'tel', 'sms', 'smsto', 'https'};
+  static const _launchableSchemes = <String>{'tel', 'sms', 'smsto', 'https', 'whatsapp'};
 
-  /// Opens a `tel:`, `sms:` or `https://wa.me/` URI built by the API.
+  /// Opens a `tel:`, `sms:`, `https://wa.me/` or `whatsapp://call` URI.
   ///
   /// `launchUrl` returns false *or* throws a [PlatformException] depending on
   /// how it fails, so both are folded into a single false here and the caller
   /// shows one message instead of an unhandled async error reaching the UI.
   ///
-  /// The URI is chosen by the server and handed straight to `ACTION_VIEW`, so
-  /// its scheme is checked against [_launchableSchemes] rather than launched
-  /// on trust: a wrong or tampered `launchUri` must not be able to make the
-  /// app open an arbitrary `intent:`, `file:` or `market:` target. A URI with
-  /// no scheme fails the same check instead of reaching the platform.
+  /// Most of these URIs are chosen by the server; the `whatsapp://call` one
+  /// is built on-device. Either way the scheme is checked against
+  /// [_launchableSchemes] rather than launched on trust: a wrong or tampered
+  /// URI must not be able to make the app open an arbitrary `intent:`,
+  /// `file:` or `market:` target. A URI with no scheme fails the same check
+  /// instead of reaching the platform.
   Future<bool> open(String uri) async {
     final Uri parsed;
     try {

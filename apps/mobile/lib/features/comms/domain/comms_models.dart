@@ -60,6 +60,14 @@ class CommsResult {
   }
 }
 
+/// Builds the undocumented but widely-relied-on `whatsapp://call?phone=`
+/// deep link that opens WhatsApp directly on the voice-call screen for a
+/// number, instead of just the chat. WhatsApp does not publish an official
+/// scheme for this, so it is best-effort: on devices/app versions where it
+/// isn't registered, [CommsLauncher.open] reports failure like any other
+/// unhandled intent and the caller falls back to the chat (`wa.me`) link.
+String whatsappCallUri(String e164) => 'whatsapp://call?phone=${e164.replaceAll('+', '')}';
+
 String fillMessageTemplate(String body, Lead lead, {String staffName = 'INTRA LEADS'}) {
   final customer = (lead.customerName != null && lead.customerName!.trim().isNotEmpty)
       ? lead.customerName!.trim()

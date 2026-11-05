@@ -187,8 +187,9 @@ function StageChangeController({ lead, open, onClose }: { lead: LeadDetail; open
 function DetailsTab({ lead, onChangeStage }: { lead: LeadDetail; onChangeStage: () => void }) {
   const { can } = useAuth();
   const board = useBoard();
-  const stages = (board.data?.columns.map((c) => c.stage) ?? []).filter((s) => !(s.isLost && s.isWon));
   const lost = lead.lifecycleStatus === 'lost';
+  const won = lead.lifecycleStatus === 'won';
+  const stages = (board.data?.columns.map((c) => c.stage) ?? []).filter((s) => !(s.isLost && won) && !(s.isWon && lost));
 
   const facts: Array<[string, ReactNode]> = [
     ['Lead source', lead.sourceName ?? '—'],
