@@ -221,6 +221,9 @@ class AppStrings {
   static const whatsapp = 'WhatsApp';
   static const whatsappCall = 'WA Call';
   static const couldNotOpenWhatsapp = 'Could not open WhatsApp.';
+  static const couldNotOpenDialer = 'Could not open the phone dialer.';
+  static const noValidPhone = 'This lead has no valid phone number.';
+  static const whatsappNeedsCountryCode = 'Add the country code to this lead\'s phone number to open WhatsApp.';
   static const sms = 'SMS';
   static const sendSms = 'Send SMS';
   static const sendWhatsapp = 'Send WhatsApp';

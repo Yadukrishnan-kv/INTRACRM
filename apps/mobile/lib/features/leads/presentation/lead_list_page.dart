@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/error/result.dart';
 import '../../../design_system/components/app_async_body.dart';
 import '../../../design_system/components/premium_ui.dart';
 import '../../../design_system/tokens/app_colors.dart';
@@ -11,8 +10,7 @@ import '../../../design_system/tokens/app_spacing.dart';
 import '../../../features/auth/application/auth_controller.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
-import '../../comms/application/comms_providers.dart';
-import '../../comms/domain/comms_models.dart';
+import '../../comms/presentation/lead_contact_launch.dart';
 import '../../home/presentation/app_nav_drawer.dart';
 import '../application/lead_list_controller.dart';
 import '../domain/lead.dart';
@@ -251,48 +249,8 @@ class _LeadCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _call(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(AppStrings.clickToCall),
-          content: Text('Call ${lead.primaryPhone}?'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text(AppStrings.call)),
-          ],
-        );
-      },
-    );
-    if (confirmed != true) {
-      return;
-    }
-    final result = unwrapComms<CommsResult>(await ref.read(commsApiProvider).call(lead.id));
-    if (!context.mounted) {
-      return;
-    }
-    switch (result) {
-      case Err(:final failure):
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
-      case Success(:final value):
-        if (value.warning != null && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value.warning!)));
-        }
-        if (value.launchUri != null && !value.sentByGateway) {
-          final opened = await ref.read(commsLauncherProvider).open(value.launchUri!);
-          if (!opened && context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text(AppStrings.couldNotOpenApp)),
-            );
-          }
-        } else if (value.warning == null && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text(AppStrings.callConnecting)),
-          );
-        }
-    }
-  }
+  Future<void> _call(BuildContext context, WidgetRef ref) =>
+      openLeadDialer(context, ref, lead);
 
   Widget _meta(BuildContext context, IconData icon, String text) {
     return Row(

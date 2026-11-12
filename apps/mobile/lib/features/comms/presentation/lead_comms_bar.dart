@@ -9,6 +9,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../leads/domain/lead.dart';
 import '../application/comms_providers.dart';
 import '../domain/comms_models.dart';
+import 'lead_contact_launch.dart';
 
 class LeadCommsBar extends ConsumerWidget {
   const LeadCommsBar({
@@ -37,7 +38,9 @@ class LeadCommsBar extends ConsumerWidget {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: _hasPhone ? () => _call(context, ref) : null,
+                  onPressed: _hasPhone
+                      ? () => openLeadDialer(context, ref, lead, onLogged: onLogged)
+                      : null,
                   icon: const Icon(Icons.call),
                   label: const Text(AppStrings.call),
                 ),
@@ -45,7 +48,9 @@ class LeadCommsBar extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _hasPhone ? () => _compose(context, ref, 'whatsapp') : null,
+                  onPressed: _hasPhone
+                      ? () => openLeadWhatsappChat(context, ref, lead, onLogged: onLogged)
+                      : null,
                   icon: const Icon(Icons.chat),
                   label: const Text(AppStrings.whatsapp),
                 ),
@@ -71,7 +76,9 @@ class LeadCommsBar extends ConsumerWidget {
             context,
             icon: Icons.call,
             label: AppStrings.clickToCall,
-            onPressed: _hasPhone ? () => _call(context, ref) : null,
+            onPressed: _hasPhone
+                ? () => openLeadDialer(context, ref, lead, onLogged: onLogged)
+                : null,
           ),
           _action(
             context,
@@ -112,30 +119,6 @@ class LeadCommsBar extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _call(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(AppStrings.clickToCall),
-          content: Text('Call ${lead.primaryPhone}?'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text(AppStrings.call)),
-          ],
-        );
-      },
-    );
-    if (confirmed != true) {
-      return;
-    }
-    final result = unwrapComms<CommsResult>(await ref.read(commsApiProvider).call(lead.id));
-    if (!context.mounted) {
-      return;
-    }
-    await _send(context, ref, result);
   }
 
   Future<void> _whatsappCall(BuildContext context, WidgetRef ref) async {
