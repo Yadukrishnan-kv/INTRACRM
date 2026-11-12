@@ -1,5 +1,5 @@
 -- =============================================================================
--- INTRA LEADS — pipeline increment: stage-change analytics indexes
+-- INTRA LEADS — pipeline increment: stage-change analytics indexes, lost notes
 -- Apply after intra_leads_lead_management.sql
 -- Idempotent. Product stages are provisioned per tenant by the API catalog.
 -- =============================================================================
@@ -15,6 +15,19 @@ CREATE INDEX IF NOT EXISTS idx_lead_stage_changes_tenant_changed
 CREATE INDEX IF NOT EXISTS idx_leads_tenant_pipeline_stage
     ON leads (tenant_id, pipeline_id, stage_id)
     WHERE deleted_at IS NULL;
+
+ALTER TABLE leads
+    ADD COLUMN IF NOT EXISTS lost_notes text;
+
+ALTER TABLE leads
+    ADD COLUMN IF NOT EXISTS lost_at timestamptz;
+
+CREATE INDEX IF NOT EXISTS idx_leads_tenant_lost
+    ON leads (tenant_id, lost_at DESC)
+    WHERE deleted_at IS NULL AND lifecycle_status = 'lost';
+
+COMMENT ON COLUMN leads.lost_notes IS 'Free-text summary of why the lead/deal was lost.';
+COMMENT ON COLUMN leads.lost_at IS 'When the lead was last marked Lost; cleared when reopened.';
 
 COMMENT ON TABLE lead_stage_changes IS
     'Append-only stage/lifecycle history for kanban status tracking and conversion analytics.';

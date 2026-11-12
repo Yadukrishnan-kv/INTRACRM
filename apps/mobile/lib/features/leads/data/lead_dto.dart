@@ -46,6 +46,9 @@ class LeadDto {
     this.stageId,
     this.createdAt,
     this.lastActivityAt,
+    this.lostReasonName,
+    this.lostNotes,
+    this.lostAt,
     this.activities = const [],
     this.followUps = const [],
     this.syncStatus,
@@ -55,6 +58,9 @@ class LeadDto {
   final String leadNumber;
   final String title;
   final String lifecycleStatus;
+  final String? lostReasonName;
+  final String? lostNotes;
+  final DateTime? lostAt;
   final String? customerName;
   final String? primaryPhone;
   final String? primaryEmail;
@@ -103,6 +109,9 @@ class LeadDto {
       stageId: json['stageId'] as String?,
       createdAt: _parseDate(json['createdAt']),
       lastActivityAt: _parseDate(json['lastActivityAt']),
+      lostReasonName: json['lostReasonName'] as String?,
+      lostNotes: json['lostNotes'] as String?,
+      lostAt: _parseDate(json['lostAt']),
       activities: [
         for (final item in json['activities'] as List? ?? const [])
           if (item is Map<String, dynamic>) LeadActivityDto.fromJson(item).toDomain(),
@@ -141,6 +150,9 @@ class LeadDto {
       stageId: stageId,
       createdAt: createdAt,
       lastActivityAt: lastActivityAt,
+      lostReasonName: lostReasonName,
+      lostNotes: lostNotes,
+      lostAt: lostAt,
       activities: activities,
       followUps: followUps,
       version: version,
@@ -173,6 +185,9 @@ class LeadDto {
       'stageId': stageId,
       'createdAt': createdAt?.toIso8601String(),
       'lastActivityAt': lastActivityAt?.toIso8601String(),
+      'lostReasonName': lostReasonName,
+      'lostNotes': lostNotes,
+      'lostAt': lostAt?.toIso8601String(),
       'version': version,
       'updatedAt': updatedAt.toIso8601String(),
       if (syncStatus != null) 'syncStatus': syncStatus,

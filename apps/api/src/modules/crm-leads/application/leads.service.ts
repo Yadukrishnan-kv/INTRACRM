@@ -54,6 +54,7 @@ const leadInclude = {
 
 const detailInclude = {
   ...leadInclude,
+  lostReason: true,
   activities: {
     where: { deletedAt: null },
     orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
@@ -111,6 +112,10 @@ export type ActivityView = {
 export type LeadDetailView = LeadView & {
   pipelineId: string;
   stageId: string;
+  lostReasonId: string | null;
+  lostReasonName: string | null;
+  lostNotes: string | null;
+  lostAt: string | null;
   createdAt: string;
   lastActivityAt: string | null;
   activities: ActivityView[];
@@ -1032,6 +1037,10 @@ export class LeadsService {
       ...this.toListView(row),
       pipelineId: row.pipelineId,
       stageId: row.stageId,
+      lostReasonId: row.lostReasonId,
+      lostReasonName: row.lostReason?.name ?? null,
+      lostNotes: row.lostNotes,
+      lostAt: row.lostAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
       lastActivityAt: row.lastActivityAt?.toISOString() ?? null,
       activities: row.activities.map((item) => this.toActivityView(item)),

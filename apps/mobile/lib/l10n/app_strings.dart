@@ -28,6 +28,12 @@ class AppStrings {
   static const conversionAnalytics = 'Conversion analytics';
   static const funnel = 'Funnel';
   static const lossReason = 'Loss reason';
+  static const markAsLost = 'Mark as Lost';
+  static const markAsLostHint = 'Closes this lead as lost, whatever stage it is in now.';
+  static const lostNotes = 'Why was it lost?';
+  static const lostNotesHint = 'e.g. Went with a competitor quoting 10% lower after our quotation.';
+  static const addLossReasonFirst = 'Add a loss reason before marking Lost.';
+  static const markedAsLost = 'Marked as lost';
   static const stageHistory = 'Stage history';
   static const changeStage = 'Change stage';
   static const createLead = 'Create lead';

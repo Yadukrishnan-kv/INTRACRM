@@ -40,6 +40,7 @@ class PipelineApi {
     required String stageId,
     required int version,
     String? lostReasonId,
+    String? lostNotes,
     String? reason,
   }) {
     return _client.post(
@@ -48,6 +49,7 @@ class PipelineApi {
         'stageId': stageId,
         'version': version,
         'lostReasonId': ?lostReasonId,
+        if (lostNotes != null && lostNotes.isNotEmpty) 'lostNotes': lostNotes,
         if (reason != null && reason.isNotEmpty) 'reason': reason,
       },
       parse: (json) => PipelineCard.fromJson(json! as Map<String, dynamic>),

@@ -257,6 +257,8 @@ export class PipelineService {
         errors: [{ field: 'lostReasonId', code: 'required', message: 'Select why the lead was lost.' }],
       });
     }
+    const lossReasonId = target.isLost ? (dto.lostReasonId ?? lead.lostReasonId) : null;
+    let lossReasonName: string | null = null;
     if (dto.lostReasonId) {
       const reason = await this.prisma.lossReason.findFirst({
         where: { id: dto.lostReasonId, tenantId, deletedAt: null, isActive: true },
@@ -267,7 +269,16 @@ export class PipelineService {
           errors: [{ field: 'lostReasonId', code: 'invalid', message: 'Choose an active loss reason.' }],
         });
       }
+      lossReasonName = reason.name;
+    } else if (lossReasonId) {
+      const reason = await this.prisma.lossReason.findFirst({ where: { id: lossReasonId, tenantId } });
+      lossReasonName = reason?.name ?? null;
     }
+    const lostNotes = target.isLost ? dto.lostNotes?.trim() || null : null;
+    const historyReason = dto.reason?.trim() || lostNotes;
+    const lostSummary = target.isLost
+      ? [lossReasonName ? `Reason: ${lossReasonName}.` : null, lostNotes].filter(Boolean).join(' ')
+      : '';
 
     const updated = await this.prisma.$transaction(async (tx) => {
       await tx.leadStageChange.create({
@@ -279,7 +290,7 @@ export class PipelineService {
           fromLifecycleStatus: lead.lifecycleStatus,
           toLifecycleStatus: nextLifecycle,
           changedByMembershipId: actor.membershipId ?? null,
-          reason: dto.reason?.trim() || null,
+          reason: historyReason,
           createdBy: actor.userId,
         },
       });
@@ -288,7 +299,9 @@ export class PipelineService {
         data: {
           stageId: target.id,
           lifecycleStatus: nextLifecycle,
-          lostReasonId: target.isLost ? (dto.lostReasonId ?? lead.lostReasonId) : null,
+          lostReasonId: lossReasonId,
+          lostNotes,
+          lostAt: target.isLost ? new Date() : null,
           updatedBy: actor.userId,
           lastActivityAt: new Date(),
           version: { increment: 1 },
@@ -302,8 +315,14 @@ export class PipelineService {
           actor,
           eventCode: TIMELINE_EVENT.statusChanged,
           subject: 'Status Changed',
-          body: `${lead.stage.name} → ${target.name}.`,
-          metadata: { fromStageId: lead.stageId, toStageId: target.id },
+          body: lostSummary
+            ? `${lead.stage.name} → ${target.name}. ${lostSummary}`
+            : `${lead.stage.name} → ${target.name}.`,
+          metadata: {
+            fromStageId: lead.stageId,
+            toStageId: target.id,
+            ...(target.isLost ? { lostReasonId: lossReasonId, lostNotes } : {}),
+          },
         },
         tx,
       );

@@ -24,6 +24,9 @@ class Lead {
     this.stageId,
     this.createdAt,
     this.lastActivityAt,
+    this.lostReasonName,
+    this.lostNotes,
+    this.lostAt,
     this.activities = const [],
     this.followUps = const [],
     this.syncStatus,
@@ -33,6 +36,9 @@ class Lead {
   final String leadNumber;
   final String title;
   final String lifecycleStatus;
+  final String? lostReasonName;
+  final String? lostNotes;
+  final DateTime? lostAt;
   final String? customerName;
   final String? primaryPhone;
   final String? primaryEmail;

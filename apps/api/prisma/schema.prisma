@@ -572,6 +572,8 @@ model Lead {
   currency            String              @default("INR") @db.Char(3)
   expectedCloseOn     DateTime?           @map("expected_close_on") @db.Date
   lostReasonId        String?             @map("lost_reason_id") @db.Uuid
+  lostNotes           String?             @map("lost_notes")
+  lostAt              DateTime?           @map("lost_at") @db.Timestamptz(6)
   unqualifiedReason   String?             @map("unqualified_reason")
   addressLine1        String?             @map("address_line1")
   addressLine2        String?             @map("address_line2")
