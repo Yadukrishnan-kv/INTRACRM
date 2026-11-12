@@ -18,8 +18,10 @@ class MarkLostInput {
 /// loss reasons are configured (a snackbar explains why).
 Future<MarkLostInput?> showMarkLostDialog(
   BuildContext context,
-  List<LossReason> reasons,
-) async {
+  List<LossReason> reasons, {
+  String? initialNotes,
+  String? intro,
+}) async {
   if (reasons.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text(AppStrings.addLossReasonFirst)),
@@ -28,14 +30,20 @@ Future<MarkLostInput?> showMarkLostDialog(
   }
   return showDialog<MarkLostInput>(
     context: context,
-    builder: (context) => _MarkLostDialog(reasons: reasons),
+    builder: (context) => _MarkLostDialog(
+      reasons: reasons,
+      initialNotes: initialNotes,
+      intro: intro,
+    ),
   );
 }
 
 class _MarkLostDialog extends StatefulWidget {
-  const _MarkLostDialog({required this.reasons});
+  const _MarkLostDialog({required this.reasons, this.initialNotes, this.intro});
 
   final List<LossReason> reasons;
+  final String? initialNotes;
+  final String? intro;
 
   @override
   State<_MarkLostDialog> createState() => _MarkLostDialogState();
@@ -43,7 +51,7 @@ class _MarkLostDialog extends StatefulWidget {
 
 class _MarkLostDialogState extends State<_MarkLostDialog> {
   late String _reasonId = widget.reasons.first.id;
-  final _notes = TextEditingController();
+  late final _notes = TextEditingController(text: widget.initialNotes ?? '');
 
   @override
   void dispose() {
@@ -61,7 +69,7 @@ class _MarkLostDialogState extends State<_MarkLostDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(AppStrings.markAsLostHint, style: theme.textTheme.bodySmall),
+            Text(widget.intro ?? AppStrings.markAsLostHint, style: theme.textTheme.bodySmall),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _reasonId,

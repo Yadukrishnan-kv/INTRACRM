@@ -258,6 +258,7 @@ describe('lifecycle coverage for remaining service paths', () => {
       { dashboard: jest.fn(), tickForActor: jest.fn(), notifyPendingQuotation: jest.fn() } as never,
       audit as never,
       { syncWonQuotation: jest.fn() } as never,
+      { syncFromQuotation: jest.fn().mockResolvedValue(null) } as never,
     );
     (prisma.quotation.findFirst as jest.Mock).mockResolvedValue(quotationRow());
     await expect(

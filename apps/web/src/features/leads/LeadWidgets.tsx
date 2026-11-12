@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { errorMessage } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
@@ -50,6 +50,8 @@ export function StageChangeModal({
   lossReasons,
   currentStageId,
   fixedStageId,
+  initialNote,
+  intro,
   busy,
   onClose,
   onSubmit,
@@ -59,6 +61,10 @@ export function StageChangeModal({
   lossReasons: LossReason[];
   currentStageId: string;
   fixedStageId?: string;
+  /** Pre-fills the note / "why was it lost" box. */
+  initialNote?: string;
+  /** Replaces the default explanation shown above a fixed-stage move. */
+  intro?: ReactNode;
   busy?: boolean;
   onClose: () => void;
   onSubmit: (req: StageMoveRequest) => void;
@@ -74,10 +80,10 @@ export function StageChangeModal({
     if (open) {
       setStageId(fixedStageId ?? currentStageId);
       setLostReasonId(firstReason);
-      setReason('');
+      setReason(initialNote ?? '');
       setError(null);
     }
-  }, [open, fixedStageId, currentStageId, firstReason]);
+  }, [open, fixedStageId, currentStageId, firstReason, initialNote]);
 
   const target = stages.find((s) => s.id === stageId);
   const submit = () => {
@@ -120,7 +126,9 @@ export function StageChangeModal({
       }
     >
       <div className="stack">
-        {fixedStageId ? (
+        {intro ? (
+          <p>{intro}</p>
+        ) : fixedStageId ? (
           target?.isLost ? (
             <p className="muted">This closes the lead as lost, whatever stage it is in now.</p>
           ) : (

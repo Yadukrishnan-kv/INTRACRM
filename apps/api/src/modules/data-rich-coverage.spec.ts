@@ -256,6 +256,7 @@ describe('data-rich coverage for aggregating services', () => {
       { dashboard: jest.fn(), tickForActor: jest.fn(), notifyPendingQuotation: jest.fn() } as never,
       { record: jest.fn() } as never,
       { syncWonQuotation: jest.fn() } as never,
+      { syncFromQuotation: jest.fn().mockResolvedValue(null) } as never,
     );
     for (const bucket of ['pending', 'overdue', 'today', 'upcoming', 'no_follow_up', 'closing_soon', 'closing_overdue', 'other']) {
       await expect(quotations.list(user, { bucket } as never)).resolves.toMatchObject({ data: [] });

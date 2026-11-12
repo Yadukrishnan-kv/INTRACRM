@@ -15,6 +15,7 @@ import { TIMELINE_EVENT } from '../../activities/domain/timeline-events';
 import { TimelineWriter } from '../../activities/application/timeline.writer';
 import { AuditWriter, trackPayload } from '../../audit/application/audit.writer';
 import { TRACK_ACTION, TRACK_RESOURCE } from '../../audit/domain/track-events';
+import { PipelineService } from '../../pipeline/application/pipeline.service';
 import { BillingService } from '../../billing/application/billing.service';
 import { QuotationFollowUpService } from './quotation-follow-up.service';
 import { formatYmd, startOfNextZonedDay } from '../../tasks/domain/zoned-day';
@@ -57,7 +58,16 @@ import {
 
 const quotationInclude = {
   assignee: { include: { user: true } },
-  lead: { select: { id: true, leadNumber: true, title: true, customerName: true, deletedAt: true } },
+  lead: {
+    select: {
+      id: true,
+      leadNumber: true,
+      title: true,
+      customerName: true,
+      lifecycleStatus: true,
+      deletedAt: true,
+    },
+  },
   items: {
     where: { deletedAt: null },
     include: { product: { select: { name: true } } },
@@ -75,6 +85,7 @@ export class QuotationsService {
     private readonly quotationFollowUps: QuotationFollowUpService,
     private readonly audit: AuditWriter,
     private readonly billing: BillingService,
+    private readonly pipeline: PipelineService,
   ) {}
 
   async catalog(actor: AuthUser) {
@@ -420,6 +431,14 @@ export class QuotationsService {
         },
         tx,
       );
+      await this.pipeline.syncFromQuotation(tx, actor, {
+        tenantId,
+        leadId: quotation.leadId,
+        quotationId: quotation.id,
+        quotationNumber: quotation.quotationNumber,
+        quotationStatus: QuotationStatus.sent,
+        totalMinor: quotation.totalMinor,
+      });
     });
     await this.quotationFollowUps.notifyPendingQuotation(tenantId, quotation.id);
     return this.get(actor, quotation.id);
@@ -495,6 +514,14 @@ export class QuotationsService {
         },
         tx,
       );
+      await this.pipeline.syncFromQuotation(tx, actor, {
+        tenantId,
+        leadId: quotation.leadId,
+        quotationId: quotation.id,
+        quotationNumber: quotation.quotationNumber,
+        quotationStatus: dto.status,
+        totalMinor: quotation.totalMinor,
+      });
     });
     if (dto.status === 'won') {
       await this.billing.syncWonQuotation(actor, quotation.id);

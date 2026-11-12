@@ -13,6 +13,9 @@ import '../../../design_system/tokens/app_spacing.dart';
 import '../../../features/auth/application/auth_controller.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
+import '../../pipeline/application/pipeline_providers.dart';
+import '../../pipeline/domain/pipeline_models.dart';
+import '../../pipeline/presentation/mark_lost_dialog.dart';
 import '../application/quotation_providers.dart';
 import '../domain/quotation.dart';
 
@@ -264,6 +267,72 @@ class _QuotationDetailPageState extends ConsumerState<QuotationDetailPage> {
         status: status,
         version: item.version,
         reason: reason,
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    final updated = _item;
+    if (status == QuotationStatuses.won && updated?.leadLifecycleStatus == 'won') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Quotation won — lead moved to Won')),
+      );
+    }
+    // A rejected quotation may be re-quoted, so the lead isn't closed
+    // automatically; offer it instead.
+    if (status == QuotationStatuses.lost &&
+        updated?.status == QuotationStatuses.lost &&
+        updated?.leadLifecycleStatus == 'open' &&
+        ref.read(authControllerProvider).user?.canChangeStage == true) {
+      await _offerMarkLeadLost(updated!, reason);
+    }
+  }
+
+  Future<void> _offerMarkLeadLost(Quotation item, String? reason) async {
+    final boardResult = unwrapPipeline<PipelineBoard>(
+      await ref.read(pipelineApiProvider).board(),
+    );
+    if (!mounted || boardResult is! Success<PipelineBoard>) {
+      return;
+    }
+    final board = boardResult.value;
+    PipelineStage? lostStage;
+    for (final column in board.columns) {
+      if (column.stage.isLost) {
+        lostStage = column.stage;
+        break;
+      }
+    }
+    if (lostStage == null) {
+      return;
+    }
+    final input = await showMarkLostDialog(
+      context,
+      board.lossReasons,
+      initialNotes: reason,
+      intro:
+          '${item.quotationNumber} is marked lost. Close lead ${item.leadNumber ?? ''} '
+          'as lost too? Cancel to keep it open for a revised quotation.',
+    );
+    if (input == null || !mounted) {
+      return;
+    }
+    final result = unwrapPipeline<PipelineCard>(
+      await ref.read(pipelineApiProvider).changeStage(
+        leadId: item.leadId,
+        stageId: lostStage.id,
+        lostReasonId: input.lostReasonId,
+        lostNotes: input.notes,
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result is Err ? (result as Err).failure.message : AppStrings.markedAsLost,
+        ),
       ),
     );
   }
