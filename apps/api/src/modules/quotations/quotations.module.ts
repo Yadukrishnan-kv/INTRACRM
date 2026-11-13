@@ -6,6 +6,7 @@ import { ActivitiesModule } from '../activities/activities.module';
 import { AuditModule } from '../audit/audit.module';
 import { BillingModule } from '../billing/billing.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PipelineModule } from '../pipeline/pipeline.module';
 import { QuotationFollowUpProcessor } from './application/quotation-follow-up.processor';
 import { QuotationFollowUpScheduler } from './application/quotation-follow-up.scheduler';
 import { QuotationFollowUpService } from './application/quotation-follow-up.service';
@@ -19,6 +20,7 @@ import { QuotationsController } from './interface/http/quotations.controller';
     AuditModule,
     BillingModule,
     NotificationsModule,
+    PipelineModule,
     JobsModule,
     BullModule.registerQueue({ name: QueueNames.quotationFollowUpEngine }),
   ],

@@ -38,7 +38,7 @@ export function PipelinePage() {
     qc.setQueryData<PipelineBoard>(leadKeys.board, (old) => (old ? { ...old, columns: moveCard(old.columns, card.id, req.stageId) } : old));
     try {
       await leadsApi.changeStage(card.id, { ...req, version: card.version });
-      toast.success('Stage updated');
+      toast.success(req.lostReasonId ? 'Marked as lost' : 'Stage updated');
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
@@ -73,7 +73,7 @@ export function PipelinePage() {
     <>
       <PageHeader
         title={data?.pipeline.name ?? 'Pipeline'}
-        subtitle={canMove ? 'Drag a card to another stage, or use its “Move to” menu.' : 'Leads by stage.'}
+        subtitle={canMove ? 'Drag a card to another stage, use its “Move to” menu, or mark it lost from any stage.' : 'Leads by stage.'}
         actions={
           <>
             <Link className="btn btn-ghost" to="/reports/pipeline">
@@ -169,7 +169,7 @@ function BoardColumn({
   onMove,
 }: {
   column: PipelineColumn;
-  stages: Array<{ id: string; name: string }>;
+  stages: Array<{ id: string; name: string; isLost: boolean }>;
   canMove: boolean;
   hovering: boolean;
   movingId: string | null;
@@ -182,6 +182,7 @@ function BoardColumn({
 }) {
   const { stage } = column;
   const tone = stage.isWon ? 'won' : stage.isLost ? 'lost' : 'open';
+  const lostStage = stages.find((s) => s.isLost);
   return (
     <section
       className={`leads-col${hovering ? ' leads-col-hover' : ''}`}
@@ -219,22 +220,35 @@ function BoardColumn({
               <span className="small">{formatMoney(card.estimatedValueMinor, card.currency)}</span>
             </div>
             {canMove ? (
-              <select
-                className="input leads-kcard-move"
-                aria-label={`Move ${displayName(card)} to stage`}
-                value=""
-                disabled={!!movingId}
-                onChange={(e) => e.target.value && onMove(card, e.target.value)}
-              >
-                <option value="">Move to…</option>
-                {stages
-                  .filter((s) => s.id !== card.stageId)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-              </select>
+              <div className="leads-kcard-actions">
+                <select
+                  className="input leads-kcard-move"
+                  aria-label={`Move ${displayName(card)} to stage`}
+                  value=""
+                  disabled={!!movingId}
+                  onChange={(e) => e.target.value && onMove(card, e.target.value)}
+                >
+                  <option value="">Move to…</option>
+                  {stages
+                    .filter((s) => s.id !== card.stageId && !s.isLost)
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                </select>
+                {lostStage && card.lifecycleStatus !== 'lost' ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm leads-kcard-lost"
+                    disabled={!!movingId}
+                    aria-label={`Mark ${displayName(card)} as lost`}
+                    onClick={() => onMove(card, lostStage.id)}
+                  >
+                    Mark lost
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </article>
         ))}

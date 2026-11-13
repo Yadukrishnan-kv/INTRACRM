@@ -63,6 +63,10 @@ export type LeadFollowUp = {
 export type LeadDetail = Lead & {
   pipelineId: string;
   stageId: string;
+  lostReasonId?: string | null;
+  lostReasonName?: string | null;
+  lostNotes?: string | null;
+  lostAt?: string | null;
   createdAt: string;
   activities: LeadActivity[];
   followUps: LeadFollowUp[];

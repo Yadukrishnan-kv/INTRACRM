@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { errorMessage } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
@@ -36,11 +36,13 @@ export function useLeadInvalidation() {
 /* Stage change (detail page + pipeline board)                         */
 /* ------------------------------------------------------------------ */
 
-export type StageMoveRequest = { stageId: string; lostReasonId?: string; reason?: string };
+export type StageMoveRequest = { stageId: string; lostReasonId?: string; lostNotes?: string; reason?: string };
 
 /**
  * Picks the target stage (unless `fixedStageId` is given, as when dropping on
- * a board column) and, for Lost, a loss reason — same flow as mobile.
+ * a board column or using "Mark as lost") and, for Lost, a loss reason plus a
+ * short summary of why. Lost is not offered in the stage picker — it has its
+ * own "Mark as lost" action so it is reachable from any stage.
  */
 export function StageChangeModal({
   open,
@@ -48,6 +50,8 @@ export function StageChangeModal({
   lossReasons,
   currentStageId,
   fixedStageId,
+  initialNote,
+  intro,
   busy,
   onClose,
   onSubmit,
@@ -57,6 +61,10 @@ export function StageChangeModal({
   lossReasons: LossReason[];
   currentStageId: string;
   fixedStageId?: string;
+  /** Pre-fills the note / "why was it lost" box. */
+  initialNote?: string;
+  /** Replaces the default explanation shown above a fixed-stage move. */
+  intro?: ReactNode;
   busy?: boolean;
   onClose: () => void;
   onSubmit: (req: StageMoveRequest) => void;
@@ -72,10 +80,10 @@ export function StageChangeModal({
     if (open) {
       setStageId(fixedStageId ?? currentStageId);
       setLostReasonId(firstReason);
-      setReason('');
+      setReason(initialNote ?? '');
       setError(null);
     }
-  }, [open, fixedStageId, currentStageId, firstReason]);
+  }, [open, fixedStageId, currentStageId, firstReason, initialNote]);
 
   const target = stages.find((s) => s.id === stageId);
   const submit = () => {
@@ -94,17 +102,17 @@ export function StageChangeModal({
       setError('Pick a loss reason.');
       return;
     }
+    const note = reason.trim();
     onSubmit({
       stageId,
-      ...(check.needsLossReason ? { lostReasonId } : {}),
-      ...(reason.trim() ? { reason: reason.trim() } : {}),
+      ...(check.needsLossReason ? { lostReasonId, ...(note ? { lostNotes: note } : {}) } : note ? { reason: note } : {}),
     });
   };
 
   return (
     <Modal
       open={open}
-      title={target?.isLost ? 'Mark lost' : 'Change stage'}
+      title={target?.isLost ? 'Mark as lost' : 'Change stage'}
       onClose={onClose}
       footer={
         <>
@@ -112,16 +120,22 @@ export function StageChangeModal({
             Cancel
           </button>
           <button type="button" className={`btn ${target?.isLost ? 'btn-danger' : 'btn-primary'}`} onClick={submit} disabled={busy}>
-            {busy ? 'Moving…' : target?.isLost ? 'Mark lost' : 'Move'}
+            {busy ? 'Saving…' : target?.isLost ? 'Mark as lost' : 'Move'}
           </button>
         </>
       }
     >
       <div className="stack">
-        {fixedStageId ? (
-          <p>
-            Move to <strong>{target?.name ?? 'stage'}</strong>
-          </p>
+        {intro ? (
+          <p>{intro}</p>
+        ) : fixedStageId ? (
+          target?.isLost ? (
+            <p className="muted">This closes the lead as lost, whatever stage it is in now.</p>
+          ) : (
+            <p>
+              Move to <strong>{target?.name ?? 'stage'}</strong>
+            </p>
+          )
         ) : (
           <SelectField
             label="Stage"
@@ -130,7 +144,7 @@ export function StageChangeModal({
               setStageId(v);
               setError(null);
             }}
-            options={stages.map((s) => ({ value: s.id, label: s.name }))}
+            options={stages.filter((s) => !s.isLost || s.id === currentStageId).map((s) => ({ value: s.id, label: s.name }))}
           />
         )}
         {target?.isLost ? (
@@ -143,7 +157,19 @@ export function StageChangeModal({
             placeholder={lossReasons.length ? undefined : 'No loss reasons configured'}
           />
         ) : null}
-        <TextField label="Note (optional)" value={reason} maxLength={240} onValue={setReason} />
+        {target?.isLost ? (
+          <TextArea
+            label="Why was it lost?"
+            hint="A short summary helps when reviewing lost opportunities later."
+            placeholder="e.g. Customer went with a competitor quoting 10% lower after our quotation."
+            rows={3}
+            value={reason}
+            maxLength={1000}
+            onValue={setReason}
+          />
+        ) : (
+          <TextField label="Note (optional)" value={reason} maxLength={240} onValue={setReason} />
+        )}
         <FormError message={error} />
       </div>
     </Modal>

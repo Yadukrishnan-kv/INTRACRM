@@ -7,7 +7,11 @@ import { fromLocalInput, TextArea, TextField, toLocalInput } from '../../compone
 import { ConfirmModal, Modal } from '../../components/Modal';
 import { Badge, EmptyState, ErrorState, PageHeader, Spinner } from '../../components/ui';
 import { formatBps, formatDateTime, formatMoney } from '../../lib/format';
+import { errorMessage } from '../../api/client';
+import { useToast } from '../../components/toast';
 import { useApiMutation } from '../../lib/hooks';
+import { leadKeys, leadsApi } from '../leads/api';
+import { StageChangeModal, useLeadInvalidation, type StageMoveRequest } from '../leads/LeadWidgets';
 import { salesApi } from './api';
 import { salesKeys } from './keys';
 import {
@@ -32,6 +36,7 @@ type Dialog =
   | { kind: 'schedule' }
   | { kind: 'log' }
   | { kind: 'lost' }
+  | { kind: 'leadLost'; reason: string }
   | { kind: 'status'; status: string }
   | { kind: 'delete' }
   | { kind: 'deleteLine'; line: QuotationItem }
@@ -50,7 +55,9 @@ function QuotationDetail({ q }: { q: Quotation }) {
   const navigate = useNavigate();
   const [dialog, setDialog] = useState<Dialog>(null);
   const close = () => setDialog(null);
-  const invalidate = [salesKeys.quotationsAll];
+  // Quotation status changes can move the lead along the pipeline, so lead
+  // views (detail, list, board, timeline) are refreshed too.
+  const invalidate = [salesKeys.quotationsAll, leadKeys.all, leadKeys.detail(q.leadId), ['timeline']];
   const opts = (success: string) => ({ success, invalidate, onSuccess: close });
 
   const send = useApiMutation(
@@ -63,9 +70,20 @@ function QuotationDetail({ q }: { q: Quotation }) {
       salesApi.quotationFollowUp(q.id, { version: q.version, ...body }),
     opts('Follow-up saved'),
   );
+  const canMarkLeadLost = can(P.leadChangeStage) && q.leadLifecycleStatus === 'open';
   const status = useApiMutation(
     (body: { status: string; reason?: string }) => salesApi.changeQuotationStatus(q.id, { version: q.version, ...body }),
-    opts('Status updated'),
+    {
+      success: (r: Quotation) =>
+        r.status === 'won' && r.leadLifecycleStatus === 'won' ? 'Quotation won — lead moved to Won' : 'Status updated',
+      invalidate,
+      onSuccess: (_r: Quotation, vars: { status: string; reason?: string }) => {
+        // A rejected quotation may be re-quoted, so the lead is not closed
+        // automatically — offer it instead.
+        if (vars.status === 'lost' && canMarkLeadLost) setDialog({ kind: 'leadLost', reason: vars.reason ?? '' });
+        else close();
+      },
+    },
   );
   const remove = useApiMutation(() => salesApi.deleteQuotation(q.id), {
     success: 'Draft quotation deleted',
@@ -384,6 +402,9 @@ function QuotationDetail({ q }: { q: Quotation }) {
           onSubmit={(reason) => status.mutate({ status: 'lost', reason })}
         />
       ) : null}
+      {dialog?.kind === 'leadLost' ? (
+        <MarkLeadLostDialog q={q} reason={dialog.reason} onClose={close} />
+      ) : null}
       <ConfirmModal
         open={dialog?.kind === 'status'}
         title={dialog?.kind === 'status' ? statusActionLabel(dialog.status, QUOTATION_STATUS_LABELS) : ''}
@@ -417,6 +438,61 @@ function QuotationDetail({ q }: { q: Quotation }) {
         onConfirm={() => dialog?.kind === 'deleteLine' && deleteLine.mutate(dialog.line)}
       />
     </>
+  );
+}
+
+/** After a quotation is lost: optionally close its lead as Lost too. */
+function MarkLeadLostDialog({ q, reason, onClose }: { q: Quotation; reason: string; onClose: () => void }) {
+  const board = useQuery({ queryKey: leadKeys.board, queryFn: leadsApi.board, staleTime: 60_000 });
+  const lead = useQuery({ queryKey: leadKeys.detail(q.leadId), queryFn: () => leadsApi.get(q.leadId) });
+  const invalidate = useLeadInvalidation();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const stages = board.data?.columns.map((c) => c.stage) ?? [];
+  const lostStage = stages.find((s) => s.isLost);
+
+  if (!board.data || !lead.data) {
+    return (
+      <Modal open title="Mark lead as lost?" onClose={onClose}>
+        {board.isError || lead.isError ? <ErrorState error={board.error ?? lead.error} /> : <Spinner />}
+      </Modal>
+    );
+  }
+  if (!lostStage) {
+    onClose();
+    return null;
+  }
+  const submit = async (req: StageMoveRequest) => {
+    setBusy(true);
+    try {
+      await leadsApi.changeStage(q.leadId, { ...req, version: lead.data.version });
+      await invalidate(q.leadId);
+      toast.success('Lead marked as lost');
+      onClose();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <StageChangeModal
+      open
+      stages={stages}
+      lossReasons={board.data.lossReasons}
+      currentStageId={lead.data.stageId}
+      fixedStageId={lostStage.id}
+      initialNote={reason}
+      intro={
+        <>
+          {q.quotationNumber} is marked lost. Close lead <strong>{q.leadNumber ?? 'this lead'}</strong> as lost too? Choose
+          “Cancel” to keep the lead open for a revised quotation.
+        </>
+      }
+      busy={busy}
+      onClose={onClose}
+      onSubmit={submit}
+    />
   );
 }
 

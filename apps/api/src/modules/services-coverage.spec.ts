@@ -193,6 +193,7 @@ describe('application services coverage', () => {
       { dashboard: jest.fn(), tickForActor: jest.fn() } as never,
       { record: jest.fn() } as never,
       { syncWonQuotation: jest.fn() } as never,
+      { syncFromQuotation: jest.fn().mockResolvedValue(null) } as never,
     );
     await expect(quotations.catalog(user)).resolves.toMatchObject({ products: [] });
     await expect(quotations.list(user, {})).resolves.toMatchObject({ data: [] });

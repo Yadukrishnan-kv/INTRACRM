@@ -59,6 +59,7 @@ export type QuotationView = {
   leadNumber: string | null;
   leadTitle: string | null;
   customerName: string | null;
+  leadLifecycleStatus: string | null;
   nextStatuses: string[];
   items: QuotationItemView[];
   version: number;
@@ -100,6 +101,7 @@ type QuotationMappedRow = {
     leadNumber: string;
     title: string;
     customerName: string | null;
+    lifecycleStatus?: string;
   } | null;
   items?: Array<{
     id: string;
@@ -200,6 +202,7 @@ export function toQuotationView(
     leadNumber: row.lead?.leadNumber ?? null,
     leadTitle: row.lead?.title ?? null,
     customerName: row.lead?.customerName ?? null,
+    leadLifecycleStatus: row.lead?.lifecycleStatus ?? null,
     nextStatuses: allowedNextStatuses(row.status),
     items: items.map((item) => ({
       id: item.id,

@@ -90,3 +90,18 @@
 .leads-kcard-title { font-weight: 600; overflow-wrap: anywhere; }
 .leads-kcard-move { padding: 5px 8px; font-size: 0.85rem; }
 @media (max-width: 640px) { .leads-kcard-move { font-size: 16px; } }
+
+/* Lost summary on the lead detail Status pipeline card */
+.lead-lost-summary {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--danger-surface);
+  border-left: 3px solid var(--danger);
+}
+.lead-lost-summary h3 { margin: 0 0 8px; font-size: 0.9rem; color: var(--danger); }
+.lead-lost-summary p { margin: 10px 0 0; }
+
+.leads-kcard-actions { display: flex; gap: 6px; align-items: center; }
+.leads-kcard-actions .leads-kcard-move { flex: 1; min-width: 0; }
+.leads-kcard-lost { white-space: nowrap; color: var(--danger); }

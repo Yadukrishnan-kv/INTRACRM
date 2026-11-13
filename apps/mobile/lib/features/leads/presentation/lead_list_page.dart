@@ -10,6 +10,7 @@ import '../../../design_system/tokens/app_spacing.dart';
 import '../../../features/auth/application/auth_controller.dart';
 import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
+import '../../comms/presentation/lead_contact_launch.dart';
 import '../../home/presentation/app_nav_drawer.dart';
 import '../application/lead_list_controller.dart';
 import '../domain/lead.dart';
@@ -176,13 +177,15 @@ class _LeadListPageState extends ConsumerState<LeadListPage> {
   }
 }
 
-class _LeadCard extends StatelessWidget {
+class _LeadCard extends ConsumerWidget {
   const _LeadCard({required this.lead});
 
   final Lead lead;
 
+  bool get _hasPhone => lead.primaryPhone != null && lead.primaryPhone!.trim().isNotEmpty;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final follow = lead.nextFollowUpAt?.toLocal();
     return Card(
       child: InkWell(
@@ -233,7 +236,7 @@ class _LeadCard extends StatelessWidget {
                       padding: EdgeInsets.zero,
                       iconSize: 18,
                       color: AppColors.teal,
-                      onPressed: () => context.push(AppRoutes.leadDetailPath(lead.id)),
+                      onPressed: _hasPhone ? () => _call(context, ref) : null,
                       icon: const Icon(Icons.call),
                     ),
                   ),
@@ -245,6 +248,9 @@ class _LeadCard extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _call(BuildContext context, WidgetRef ref) =>
+      openLeadDialer(context, ref, lead);
 
   Widget _meta(BuildContext context, IconData icon, String text) {
     return Row(

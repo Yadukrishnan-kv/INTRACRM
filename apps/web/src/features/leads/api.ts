@@ -81,7 +81,7 @@ export const leadsApi = {
       }),
     ),
   stageChanges: (leadId: string) => data(request<StageChange[]>(`/leads/${id(leadId)}/stage-changes`)),
-  changeStage: (leadId: string, input: { stageId: string; version?: number; lostReasonId?: string; reason?: string }) =>
+  changeStage: (leadId: string, input: { stageId: string; version?: number; lostReasonId?: string; lostNotes?: string; reason?: string }) =>
     data(request<PipelineCard>(`/leads/${id(leadId)}/stage-changes`, { method: 'POST', body: input })),
   board: () => data(request<PipelineBoard>('/pipelines/board')),
   siteVisits: (leadId: string) => data(request<LeadSiteVisit[]>(`/leads/${id(leadId)}/site-visits`)),

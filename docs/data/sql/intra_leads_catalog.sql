@@ -1,5 +1,5 @@
 -- =============================================================================
--- INTRA LEADS — tenant catalog: categories, qualities, warranty periods
+-- INTRA LEADS — tenant catalog: categories, qualities, warranty periods, lead sources
 -- Apply after intra_leads_lead_management.sql
 -- Idempotent.
 -- =============================================================================
@@ -151,5 +151,20 @@ BEGIN
     END LOOP;
 END;
 $$;
+
+-- Lead source: Field Marketing (leads brought in by the field marketing team).
+-- Added for every tenant that does not already have it (by code or by name).
+-- Platform-admin scope so the insert also works where intra_leads_rls.sql is applied.
+SET LOCAL app.is_platform_admin = 'true';
+INSERT INTO lead_sources (tenant_id, code, name, sort_order)
+SELECT t.id, 'field_marketing', 'Field Marketing', 25
+FROM tenants t
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM lead_sources s
+    WHERE s.tenant_id = t.id
+      AND s.deleted_at IS NULL
+      AND (s.code = 'field_marketing' OR lower(s.name) = 'field marketing')
+);
 
 COMMIT;

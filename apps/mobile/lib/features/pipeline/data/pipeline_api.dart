@@ -38,16 +38,18 @@ class PipelineApi {
   Future<Result<ApiSuccess<PipelineCard>>> changeStage({
     required String leadId,
     required String stageId,
-    required int version,
+    int? version,
     String? lostReasonId,
+    String? lostNotes,
     String? reason,
   }) {
     return _client.post(
       '/leads/$leadId/stage-changes',
       data: {
         'stageId': stageId,
-        'version': version,
+        'version': ?version,
         'lostReasonId': ?lostReasonId,
+        if (lostNotes != null && lostNotes.isNotEmpty) 'lostNotes': lostNotes,
         if (reason != null && reason.isNotEmpty) 'reason': reason,
       },
       parse: (json) => PipelineCard.fromJson(json! as Map<String, dynamic>),

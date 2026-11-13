@@ -23,6 +23,7 @@ import '../../comms/presentation/lead_comms_bar.dart';
 import '../../follow_ups/presentation/follow_up_widgets.dart';
 import '../../pipeline/application/pipeline_providers.dart';
 import '../../pipeline/domain/pipeline_models.dart';
+import '../../pipeline/presentation/mark_lost_dialog.dart';
 import '../../settings/application/sync_controller.dart';
 import '../../timeline/application/timeline_providers.dart';
 import '../../timeline/domain/timeline_models.dart';
@@ -238,6 +239,15 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
     }
     final board = boardResult.value;
     String? selected = _lead!.stageId;
+    // Lost has its own "Mark as Lost" action, so it is not offered here
+    // (except as the current value when the lead is already lost).
+    final options = [
+      for (final column in board.columns)
+        if (!column.stage.isLost || column.stage.id == selected) column.stage,
+    ];
+    if (!options.any((stage) => stage.id == selected)) {
+      selected = options.isEmpty ? null : options.first.id;
+    }
     final picked = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -246,11 +256,8 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
           content: DropdownButtonFormField<String>(
             initialValue: selected,
             items: [
-              for (final column in board.columns)
-                DropdownMenuItem(
-                  value: column.stage.id,
-                  child: Text(column.stage.name),
-                ),
+              for (final stage in options)
+                DropdownMenuItem(value: stage.id, child: Text(stage.name)),
             ],
             onChanged: (value) => selected = value,
           ),
@@ -267,60 +274,63 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
     if (picked == null || picked == _lead!.stageId) {
       return;
     }
-    PipelineStage? stage;
+    await _submitStageChange(stageId: picked);
+  }
+
+  /// Closes the lead as lost from whatever stage it is in, with a reason and
+  /// a short summary of why.
+  Future<void> _markLost() async {
+    final boardResult = unwrapPipeline<PipelineBoard>(
+      await ref.read(pipelineApiProvider).board(),
+    );
+    if (!mounted || boardResult is! Success<PipelineBoard> || _lead == null) {
+      return;
+    }
+    final board = boardResult.value;
+    PipelineStage? lostStage;
     for (final column in board.columns) {
-      if (column.stage.id == picked) {
-        stage = column.stage;
+      if (column.stage.isLost) {
+        lostStage = column.stage;
         break;
       }
     }
-    String? lostReasonId;
-    if (stage?.isLost == true) {
-      if (board.lossReasons.isEmpty) {
-        return;
-      }
-      lostReasonId = board.lossReasons.first.id;
-      if (!mounted) {
-        return;
-      }
-      final chosen = await showDialog<String>(
-        context: context,
-        builder: (context) {
-          String current = lostReasonId!;
-          return AlertDialog(
-            title: const Text(AppStrings.lossReason),
-            content: DropdownButtonFormField<String>(
-              initialValue: current,
-              items: [
-                for (final reason in board.lossReasons)
-                  DropdownMenuItem(value: reason.id, child: Text(reason.name)),
-              ],
-              onChanged: (value) => current = value ?? current,
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, current),
-                child: const Text('Mark lost'),
-              ),
-            ],
-          );
-        },
+    if (lostStage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No Lost stage is configured for this pipeline.')),
       );
-      if (chosen == null) {
-        return;
-      }
-      lostReasonId = chosen;
+      return;
     }
+    final input = await showMarkLostDialog(context, board.lossReasons);
+    if (input == null || !mounted) {
+      return;
+    }
+    await _submitStageChange(
+      stageId: lostStage.id,
+      lostReasonId: input.lostReasonId,
+      lostNotes: input.notes,
+    );
+  }
+
+  Future<void> _submitStageChange({
+    required String stageId,
+    String? lostReasonId,
+    String? lostNotes,
+  }) async {
     final result = unwrapPipeline<PipelineCard>(
       await ref.read(pipelineApiProvider).changeStage(
         leadId: widget.leadId,
-        stageId: picked,
+        stageId: stageId,
         version: _lead!.version,
         lostReasonId: lostReasonId,
+        lostNotes: lostNotes,
       ),
     );
     if (result is Success) {
+      if (lostReasonId != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(AppStrings.markedAsLost)),
+        );
+      }
       await _reload();
     } else if (result is Err && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -470,6 +480,7 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
     final follow = lead.nextFollowUpAt?.toLocal();
     final quality = lead.quality ?? '—';
     final lost = lead.lifecycleStatus.toLowerCase().contains('lost');
+    final won = lead.lifecycleStatus.toLowerCase().contains('won');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -512,14 +523,36 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
               PipelineStepper(
                 stages: [
                   for (final stage in _stages)
-                    if (!(stage.isLost && stage.isWon)) stage.name,
+                    if (!(stage.isLost && won) && !(stage.isWon && lost)) stage.name,
                 ],
                 current: lead.stageName ?? lead.lifecycleStatus,
                 lost: lost,
               ),
+              if (lost) ...[
+                const SizedBox(height: 12),
+                _LostSummary(lead: lead),
+              ],
               if (user?.canChangeStage == true) ...[
                 const SizedBox(height: 12),
-                AppButton(label: AppStrings.changeStage, onPressed: _changeStage),
+                AppButton(
+                  label: lost ? 'Reopen' : AppStrings.changeStage,
+                  onPressed: _changeStage,
+                ),
+                if (!lost && !won && _stages.any((stage) => stage.isLost)) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.error,
+                        side: BorderSide(color: Theme.of(context).colorScheme.error),
+                      ),
+                      onPressed: _markLost,
+                      icon: const Icon(Icons.thumb_down_alt_outlined),
+                      label: const Text(AppStrings.markAsLost),
+                    ),
+                  ),
+                ],
               ],
             ],
           ),
@@ -734,6 +767,57 @@ class _ProfileHeader extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Loss reason + notes shown on the Status Pipeline card for lost leads.
+class _LostSummary extends StatelessWidget {
+  const _LostSummary({required this.lead});
+
+  final Lead lead;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final notes = lead.lostNotes;
+    final lostAt = lead.lostAt?.toLocal();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(10),
+        border: Border(left: BorderSide(color: scheme.error, width: 3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Why it was lost',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: scheme.error,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${AppStrings.lossReason}: ${lead.lostReasonName ?? '—'}',
+            style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          if (lostAt != null)
+            Text(
+              'Marked lost ${MaterialLocalizations.of(context).formatMediumDate(lostAt)}',
+              style: theme.textTheme.bodySmall,
+            ),
+          const SizedBox(height: 6),
+          Text(
+            notes == null || notes.isEmpty ? 'No notes recorded.' : notes,
+            style: theme.textTheme.bodyMedium,
+          ),
+        ],
+      ),
     );
   }
 }

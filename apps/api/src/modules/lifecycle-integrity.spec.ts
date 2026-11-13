@@ -75,6 +75,7 @@ describe('lead deletion and lifecycle integrity', () => {
       { dashboard: jest.fn(), tickForActor: jest.fn() } as never,
       { record: jest.fn() } as never,
       { syncWonQuotation: jest.fn() } as never,
+      { syncFromQuotation: jest.fn().mockResolvedValue(null) } as never,
     );
   }
 

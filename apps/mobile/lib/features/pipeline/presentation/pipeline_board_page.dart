@@ -10,6 +10,7 @@ import '../../../l10n/app_strings.dart';
 import '../../../router/app_routes.dart';
 import '../application/pipeline_providers.dart';
 import '../domain/pipeline_models.dart';
+import 'mark_lost_dialog.dart';
 
 class PipelineBoardPage extends ConsumerStatefulWidget {
   const PipelineBoardPage({super.key});
@@ -23,6 +24,15 @@ class _PipelineBoardPageState extends ConsumerState<PipelineBoardPage> {
   var _loading = true;
   String? _error;
   String? _movingId;
+
+  PipelineStage? get _lostStage {
+    for (final column in _board?.columns ?? const <PipelineColumn>[]) {
+      if (column.stage.isLost) {
+        return column.stage;
+      }
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -56,10 +66,13 @@ class _PipelineBoardPageState extends ConsumerState<PipelineBoardPage> {
     if (card.stageId == stage.id || _movingId != null) {
       return;
     }
-    String? lostReasonId;
+    MarkLostInput? lost;
     if (stage.isLost) {
-      lostReasonId = await _pickLossReason();
-      if (lostReasonId == null) {
+      lost = await showMarkLostDialog(
+        context,
+        _board?.lossReasons ?? const <LossReason>[],
+      );
+      if (lost == null || !mounted) {
         return;
       }
     }
@@ -69,7 +82,8 @@ class _PipelineBoardPageState extends ConsumerState<PipelineBoardPage> {
         leadId: card.id,
         stageId: stage.id,
         version: card.version,
-        lostReasonId: lostReasonId,
+        lostReasonId: lost?.lostReasonId,
+        lostNotes: lost?.notes,
       ),
     );
     if (!mounted) {
@@ -85,40 +99,6 @@ class _PipelineBoardPageState extends ConsumerState<PipelineBoardPage> {
         );
         await _load();
     }
-  }
-
-  Future<String?> _pickLossReason() async {
-    final reasons = _board?.lossReasons ?? const <LossReason>[];
-    if (reasons.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add a loss reason before marking Lost.')),
-      );
-      return null;
-    }
-    String selected = reasons.first.id;
-    return showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(AppStrings.lossReason),
-          content: DropdownButtonFormField<String>(
-            initialValue: selected,
-            items: [
-              for (final reason in reasons)
-                DropdownMenuItem(value: reason.id, child: Text(reason.name)),
-            ],
-            onChanged: (value) => selected = value ?? selected,
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, selected),
-              child: const Text('Mark lost'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -157,6 +137,9 @@ class _PipelineBoardPageState extends ConsumerState<PipelineBoardPage> {
                                 true,
                             movingId: _movingId,
                             onAccept: (card) => _move(card, column.stage),
+                            onMarkLost: _lostStage == null
+                                ? null
+                                : (card) => _move(card, _lostStage!),
                           ),
                       ],
                     ),
@@ -196,12 +179,14 @@ class _KanbanColumn extends StatelessWidget {
     required this.canDrag,
     required this.onAccept,
     this.movingId,
+    this.onMarkLost,
   });
 
   final PipelineColumn column;
   final bool canDrag;
   final String? movingId;
   final ValueChanged<PipelineCard> onAccept;
+  final ValueChanged<PipelineCard>? onMarkLost;
 
   @override
   Widget build(BuildContext context) {
@@ -264,6 +249,9 @@ class _KanbanColumn extends StatelessWidget {
                         card: card,
                         canDrag: canDrag,
                         moving: movingId == card.id,
+                        onMarkLost: canDrag && !stage.isLost && movingId == null
+                            ? onMarkLost
+                            : null,
                       ),
                   ],
                 ),
@@ -281,11 +269,13 @@ class _KanbanCard extends StatelessWidget {
     required this.card,
     required this.canDrag,
     required this.moving,
+    this.onMarkLost,
   });
 
   final PipelineCard card;
   final bool canDrag;
   final bool moving;
+  final ValueChanged<PipelineCard>? onMarkLost;
 
   @override
   Widget build(BuildContext context) {
@@ -304,6 +294,15 @@ class _KanbanCard extends StatelessWidget {
             ].join(' · '),
           ),
           onTap: () => context.push(AppRoutes.leadDetailPath(card.id)),
+          trailing: onMarkLost == null
+              ? null
+              : IconButton(
+                  tooltip: AppStrings.markAsLost,
+                  visualDensity: VisualDensity.compact,
+                  color: Theme.of(context).colorScheme.error,
+                  icon: const Icon(Icons.thumb_down_alt_outlined, size: 20),
+                  onPressed: () => onMarkLost!(card),
+                ),
         ),
       ),
     );

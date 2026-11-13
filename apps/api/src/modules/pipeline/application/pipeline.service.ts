@@ -1,5 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { LeadLifecycleStatus, Prisma } from '@prisma/client';
+import { LeadLifecycleStatus, Prisma, QuotationStatus } from '@prisma/client';
 import { AuthUser } from '../../../common/auth/current-user.decorator';
 import { AppException } from '../../../common/exceptions/app.exception';
 import { ErrorCodes } from '../../../common/exceptions/error-codes';
@@ -12,6 +12,7 @@ import { toMinorNumber } from '../../crm-leads/domain/lead-validation';
 import { LeadCatalogService } from '../../crm-leads/application/lead-catalog.service';
 import { summarizeConversion, type StageSnapshot } from '../domain/conversion-analytics';
 import { lifecycleForStage } from '../domain/default-pipeline';
+import { findTargetStage, quotationStageTarget, shouldAdvanceLead } from '../domain/quotation-sync';
 import { ChangeStageRequest, PipelineBoardQuery } from '../interface/http/dto/pipeline.dto';
 
 const boardLeadInclude = {
@@ -250,13 +251,14 @@ export class PipelineService {
       });
     }
 
-    const nextLifecycle = lifecycleForStage(target) as LeadLifecycleStatus;
     if (target.isLost && !dto.lostReasonId && !lead.lostReasonId) {
       throw new AppException(HttpStatus.UNPROCESSABLE_ENTITY, 'A loss reason is required', {
         code: ErrorCodes.VALIDATION_ERROR,
         errors: [{ field: 'lostReasonId', code: 'required', message: 'Select why the lead was lost.' }],
       });
     }
+    const lossReasonId = target.isLost ? (dto.lostReasonId ?? lead.lostReasonId) : null;
+    let lossReasonName: string | null = null;
     if (dto.lostReasonId) {
       const reason = await this.prisma.lossReason.findFirst({
         where: { id: dto.lostReasonId, tenantId, deletedAt: null, isActive: true },
@@ -267,64 +269,242 @@ export class PipelineService {
           errors: [{ field: 'lostReasonId', code: 'invalid', message: 'Choose an active loss reason.' }],
         });
       }
+      lossReasonName = reason.name;
+    } else if (lossReasonId) {
+      const reason = await this.prisma.lossReason.findFirst({ where: { id: lossReasonId, tenantId } });
+      lossReasonName = reason?.name ?? null;
     }
+    const lostNotes = target.isLost ? dto.lostNotes?.trim() || null : null;
+    const historyReason = dto.reason?.trim() || lostNotes;
+    const lostSummary = target.isLost
+      ? [lossReasonName ? `Reason: ${lossReasonName}.` : null, lostNotes].filter(Boolean).join(' ')
+      : '';
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      await tx.leadStageChange.create({
-        data: {
-          tenantId,
-          leadId: lead.id,
+      const next = await this.applyMove(tx, actor, lead, target, {
+        historyReason,
+        lossReasonId,
+        lostNotes,
+        timelineNote: lostSummary,
+      });
+      if (target.isLost) {
+        await this.closeOpenQuotations(
+          tx,
+          actor,
+          lead,
+          [lossReasonName, lostNotes].filter(Boolean).join(' — ') || 'Lead marked as lost',
+        );
+      }
+      return next;
+    });
+    return this.toCard(updated);
+  }
+
+  /**
+   * Moves the quotation's lead along the pipeline when a quotation changes
+   * status (sent → Quotation, negotiation → Negotiation, accepted → Won).
+   * Forward-only; runs inside the quotation's transaction. Returns the stage
+   * name the lead moved to, or null when nothing changed.
+   */
+  async syncFromQuotation(
+    tx: Prisma.TransactionClient,
+    actor: AuthUser,
+    input: {
+      tenantId: string;
+      leadId: string;
+      quotationId: string;
+      quotationNumber: string;
+      quotationStatus: string;
+      totalMinor: bigint;
+    },
+  ): Promise<string | null> {
+    const targetCode = quotationStageTarget(input.quotationStatus);
+    if (!targetCode) {
+      return null;
+    }
+    const lead = await tx.lead.findFirst({
+      where: { id: input.leadId, tenantId: input.tenantId, deletedAt: null },
+      include: boardLeadInclude,
+    });
+    if (!lead) {
+      return null;
+    }
+    const stages = await tx.pipelineStage.findMany({
+      where: { tenantId: input.tenantId, pipelineId: lead.pipelineId, deletedAt: null },
+      orderBy: { sortOrder: 'asc' },
+    });
+    const target = findTargetStage(stages, targetCode);
+    if (
+      !target ||
+      target.id === lead.stageId ||
+      !shouldAdvanceLead(
+        { lifecycleStatus: lead.lifecycleStatus, stageSortOrder: lead.stage.sortOrder },
+        target,
+      )
+    ) {
+      return null;
+    }
+    const verb =
+      targetCode === 'won' ? 'accepted' : targetCode === 'negotiation' ? 'in negotiation' : 'sent';
+    const note = `Quotation ${input.quotationNumber} ${verb}.`;
+    await this.applyMove(tx, actor, lead, target, {
+      historyReason: note,
+      lossReasonId: null,
+      lostNotes: null,
+      timelineNote: note,
+      metadata: { quotationId: input.quotationId },
+      ...(target.isWon && input.totalMinor > 0n ? { estimatedValueMinor: input.totalMinor } : {}),
+    });
+    return target.name;
+  }
+
+  /** One stage move: history row, lead update, timeline entry and audit. */
+  private async applyMove(
+    tx: Prisma.TransactionClient,
+    actor: AuthUser,
+    lead: BoardLeadRow,
+    target: { id: string; name: string; isWon: boolean; isLost: boolean },
+    opts: {
+      historyReason: string | null;
+      lossReasonId: string | null;
+      lostNotes: string | null;
+      timelineNote: string;
+      metadata?: Record<string, string | null>;
+      estimatedValueMinor?: bigint;
+    },
+  ): Promise<BoardLeadRow> {
+    const tenantId = lead.tenantId;
+    const nextLifecycle = lifecycleForStage(target) as LeadLifecycleStatus;
+    const now = new Date();
+    await tx.leadStageChange.create({
+      data: {
+        tenantId,
+        leadId: lead.id,
+        fromStageId: lead.stageId,
+        toStageId: target.id,
+        fromLifecycleStatus: lead.lifecycleStatus,
+        toLifecycleStatus: nextLifecycle,
+        changedByMembershipId: actor.membershipId ?? null,
+        reason: opts.historyReason,
+        createdBy: actor.userId,
+      },
+    });
+    const next = await tx.lead.update({
+      where: { id: lead.id },
+      data: {
+        stageId: target.id,
+        lifecycleStatus: nextLifecycle,
+        lostReasonId: target.isLost ? opts.lossReasonId : null,
+        lostNotes: target.isLost ? opts.lostNotes : null,
+        lostAt: target.isLost ? now : null,
+        ...(opts.estimatedValueMinor !== undefined
+          ? { estimatedValueMinor: opts.estimatedValueMinor }
+          : {}),
+        updatedBy: actor.userId,
+        lastActivityAt: now,
+        version: { increment: 1 },
+      },
+      include: boardLeadInclude,
+    });
+    await this.timeline.record(
+      {
+        tenantId,
+        leadId: lead.id,
+        actor,
+        eventCode: TIMELINE_EVENT.statusChanged,
+        subject: 'Status Changed',
+        body: opts.timelineNote
+          ? `${lead.stage.name} → ${target.name}. ${opts.timelineNote}`
+          : `${lead.stage.name} → ${target.name}.`,
+        metadata: {
           fromStageId: lead.stageId,
           toStageId: target.id,
-          fromLifecycleStatus: lead.lifecycleStatus,
-          toLifecycleStatus: nextLifecycle,
-          changedByMembershipId: actor.membershipId ?? null,
-          reason: dto.reason?.trim() || null,
-          createdBy: actor.userId,
+          ...(target.isLost ? { lostReasonId: opts.lossReasonId, lostNotes: opts.lostNotes } : {}),
+          ...(opts.metadata ?? {}),
         },
-      });
-      const next = await tx.lead.update({
-        where: { id: lead.id },
-        data: {
-          stageId: target.id,
-          lifecycleStatus: nextLifecycle,
-          lostReasonId: target.isLost ? (dto.lostReasonId ?? lead.lostReasonId) : null,
-          updatedBy: actor.userId,
-          lastActivityAt: new Date(),
-          version: { increment: 1 },
-        },
-        include: boardLeadInclude,
-      });
-      await this.timeline.record(
-        {
-          tenantId,
-          leadId: lead.id,
-          actor,
-          eventCode: TIMELINE_EVENT.statusChanged,
-          subject: 'Status Changed',
-          body: `${lead.stage.name} → ${target.name}.`,
-          metadata: { fromStageId: lead.stageId, toStageId: target.id },
-        },
-        tx,
-      );
+      },
+      tx,
+    );
+    await this.audit.record(
+      {
+        tenantId,
+        actor,
+        action: TRACK_ACTION.statusChange,
+        resourceType: TRACK_RESOURCE.lead,
+        resourceId: lead.id,
+        after: trackPayload(`${lead.stage.name} → ${target.name}`, {
+          number: lead.leadNumber,
+          from: lead.stage.name,
+          to: target.name,
+        }),
+      },
+      tx,
+    );
+    return next;
+  }
+
+  /** When a lead is lost, its open quotations close as lost with the same reason. */
+  private async closeOpenQuotations(
+    tx: Prisma.TransactionClient,
+    actor: AuthUser,
+    lead: BoardLeadRow,
+    reason: string,
+  ): Promise<void> {
+    const open = await tx.quotation.findMany({
+      where: {
+        tenantId: lead.tenantId,
+        leadId: lead.id,
+        deletedAt: null,
+        status: { notIn: [QuotationStatus.won, QuotationStatus.lost] },
+      },
+      select: { id: true, quotationNumber: true, status: true },
+    });
+    if (open.length === 0) {
+      return;
+    }
+    const now = new Date();
+    await tx.quotation.updateMany({
+      where: { id: { in: open.map((row) => row.id) } },
+      data: {
+        status: QuotationStatus.lost,
+        lostAt: now,
+        rejectedAt: now,
+        lostReason: reason,
+        nextFollowUpAt: null,
+        remindAt: null,
+        updatedBy: actor.userId,
+        version: { increment: 1 },
+      },
+    });
+    await this.timeline.record(
+      {
+        tenantId: lead.tenantId,
+        leadId: lead.id,
+        actor,
+        eventCode: 'system',
+        subject: open.length === 1 ? 'Quotation Lost' : 'Quotations Lost',
+        body: `${open.map((row) => row.quotationNumber).join(', ')} closed because the lead was lost.`,
+        metadata: { quotationIds: open.map((row) => row.id).join(',') },
+      },
+      tx,
+    );
+    for (const row of open) {
       await this.audit.record(
         {
-          tenantId,
+          tenantId: lead.tenantId,
           actor,
           action: TRACK_ACTION.statusChange,
-          resourceType: TRACK_RESOURCE.lead,
-          resourceId: lead.id,
-          after: trackPayload(`${lead.stage.name} → ${target.name}`, {
-            number: lead.leadNumber,
-            from: lead.stage.name,
-            to: target.name,
+          resourceType: TRACK_RESOURCE.quotation,
+          resourceId: row.id,
+          after: trackPayload(`Quotation ${row.quotationNumber} lost (lead lost)`, {
+            number: row.quotationNumber,
+            from: row.status,
+            to: QuotationStatus.lost,
           }),
         },
         tx,
       );
-      return next;
-    });
-    return this.toCard(updated);
+    }
   }
 
   private async requirePipeline(tenantId: string, pipelineId: string) {

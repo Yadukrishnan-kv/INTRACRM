@@ -33,6 +33,12 @@ export class ChangeStageRequest {
   @IsUUID()
   lostReasonId?: string;
 
+  @ApiPropertyOptional({ description: 'Short summary of why the lead was lost (Lost only)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  lostNotes?: string;
+
   @ApiPropertyOptional({ description: 'Lead version for optimistic concurrency' })
   @IsOptional()
   @Type(() => Number)

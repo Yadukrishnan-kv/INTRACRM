@@ -35,7 +35,7 @@ export function LeadDetailPage() {
   const [params, setParams] = useSearchParams();
   const tabParam = params.get('tab') as TabId | null;
   const tab: TabId = tabParam && TAB_IDS.includes(tabParam) ? tabParam : 'details';
-  const [modal, setModal] = useState<null | 'stage' | 'assign' | 'activity'>(null);
+  const [modal, setModal] = useState<null | 'stage' | 'lost' | 'assign' | 'activity'>(null);
 
   const query = useQuery({ queryKey: leadKeys.detail(leadId), queryFn: () => leadsApi.get(leadId) });
 
@@ -126,12 +126,14 @@ export function LeadDetailPage() {
         }
       />
 
-      {tab === 'details' ? <DetailsTab lead={lead} onChangeStage={() => setModal('stage')} /> : null}
+      {tab === 'details' ? <DetailsTab lead={lead} onChangeStage={() => setModal('stage')} onMarkLost={() => setModal('lost')} /> : null}
       {tab === 'activity' ? <ActivityTab lead={lead} /> : null}
       {tab === 'related' && showRelated ? <RelatedTab leadId={lead.id} /> : null}
       {tab === 'history' ? <HistoryTab leadId={lead.id} /> : null}
 
-      {can(P.leadChangeStage) ? <StageChangeController lead={lead} open={modal === 'stage'} onClose={() => setModal(null)} /> : null}
+      {can(P.leadChangeStage) ? (
+        <StageChangeController lead={lead} open={modal === 'stage' || modal === 'lost'} markLost={modal === 'lost'} onClose={() => setModal(null)} />
+      ) : null}
       {can(P.leadAssign) ? <AssignModal open={modal === 'assign'} lead={lead} onClose={() => setModal(null)} /> : null}
       {can(P.activityCreate) ? <ActivityModal open={modal === 'activity'} leadId={lead.id} onClose={() => setModal(null)} /> : null}
     </>
@@ -142,19 +144,30 @@ function useBoard(enabled = true) {
   return useQuery({ queryKey: leadKeys.board, queryFn: leadsApi.board, staleTime: 60_000, enabled });
 }
 
-function StageChangeController({ lead, open, onClose }: { lead: LeadDetail; open: boolean; onClose: () => void }) {
+function StageChangeController({
+  lead,
+  open,
+  markLost,
+  onClose,
+}: {
+  lead: LeadDetail;
+  open: boolean;
+  markLost: boolean;
+  onClose: () => void;
+}) {
   const board = useBoard(open);
   const toast = useToast();
   const invalidate = useLeadInvalidation();
   const [busy, setBusy] = useState(false);
   const stages = board.data?.columns.map((c) => c.stage) ?? [];
+  const lostStageId = markLost ? stages.find((s) => s.isLost)?.id : undefined;
 
   const submit = async (req: StageMoveRequest) => {
     setBusy(true);
     try {
       await leadsApi.changeStage(lead.id, { ...req, version: lead.version });
       await invalidate(lead.id);
-      toast.success('Stage updated');
+      toast.success(req.lostReasonId ? 'Marked as lost' : 'Stage updated');
       onClose();
     } catch (e) {
       toast.error(errorMessage(e));
@@ -166,7 +179,7 @@ function StageChangeController({ lead, open, onClose }: { lead: LeadDetail; open
 
   if (open && !board.data) {
     return (
-      <Modal open title="Change stage" onClose={onClose}>
+      <Modal open title={markLost ? 'Mark as lost' : 'Change stage'} onClose={onClose}>
         {board.isError ? <ErrorState error={board.error} onRetry={() => board.refetch()} /> : <Spinner />}
       </Modal>
     );
@@ -177,6 +190,7 @@ function StageChangeController({ lead, open, onClose }: { lead: LeadDetail; open
       stages={stages}
       lossReasons={board.data?.lossReasons ?? NO_REASONS}
       currentStageId={lead.stageId}
+      {...(lostStageId ? { fixedStageId: lostStageId } : {})}
       busy={busy}
       onClose={onClose}
       onSubmit={submit}
@@ -184,11 +198,12 @@ function StageChangeController({ lead, open, onClose }: { lead: LeadDetail; open
   );
 }
 
-function DetailsTab({ lead, onChangeStage }: { lead: LeadDetail; onChangeStage: () => void }) {
+function DetailsTab({ lead, onChangeStage, onMarkLost }: { lead: LeadDetail; onChangeStage: () => void; onMarkLost: () => void }) {
   const { can } = useAuth();
   const board = useBoard();
-  const stages = (board.data?.columns.map((c) => c.stage) ?? []).filter((s) => !(s.isLost && s.isWon));
   const lost = lead.lifecycleStatus === 'lost';
+  const won = lead.lifecycleStatus === 'won';
+  const stages = (board.data?.columns.map((c) => c.stage) ?? []).filter((s) => !(s.isLost && won) && !(s.isWon && lost));
 
   const facts: Array<[string, ReactNode]> = [
     ['Lead source', lead.sourceName ?? '—'],
@@ -229,9 +244,16 @@ function DetailsTab({ lead, onChangeStage }: { lead: LeadDetail; onChangeStage: 
           <div className="list-row">
             <h2>Status pipeline</h2>
             {can(P.leadChangeStage) ? (
-              <button type="button" className="btn btn-primary btn-sm" onClick={onChangeStage}>
-                Change stage
-              </button>
+              <div className="btn-row">
+                {!lost && stages.some((s) => s.isLost) ? (
+                  <button type="button" className="btn btn-danger btn-sm" onClick={onMarkLost}>
+                    Mark as lost
+                  </button>
+                ) : null}
+                <button type="button" className="btn btn-primary btn-sm" onClick={onChangeStage}>
+                  {lost ? 'Reopen' : 'Change stage'}
+                </button>
+              </div>
             ) : null}
           </div>
           {board.isLoading ? (
@@ -243,6 +265,24 @@ function DetailsTab({ lead, onChangeStage }: { lead: LeadDetail; onChangeStage: 
               Current stage: <strong>{lead.stageName}</strong>
             </p>
           )}
+          {lost ? (
+            <div className="lead-lost-summary">
+              <h3>Why it was lost</h3>
+              <dl className="facts">
+                <div>
+                  <dt>Loss reason</dt>
+                  <dd>{lead.lostReasonName ?? '—'}</dd>
+                </div>
+                {lead.lostAt ? (
+                  <div>
+                    <dt>Marked lost</dt>
+                    <dd>{formatDateTime(lead.lostAt)}</dd>
+                  </div>
+                ) : null}
+              </dl>
+              {lead.lostNotes ? <p className="prewrap">{lead.lostNotes}</p> : <p className="muted small">No notes recorded.</p>}
+            </div>
+          ) : null}
         </section>
 
         <FollowUpsCard lead={lead} />

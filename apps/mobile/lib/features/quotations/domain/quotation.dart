@@ -121,6 +121,7 @@ class Quotation {
     this.leadNumber,
     this.leadTitle,
     this.customerName,
+    this.leadLifecycleStatus,
     this.nextStatuses = const [],
     this.items = const [],
   });
@@ -160,6 +161,9 @@ class Quotation {
   final String? leadNumber;
   final String? leadTitle;
   final String? customerName;
+
+  /// The linked lead's lifecycle (open / won / lost).
+  final String? leadLifecycleStatus;
   final List<String> nextStatuses;
   final List<QuotationItem> items;
   final int version;
@@ -221,6 +225,7 @@ class Quotation {
       leadNumber: json['leadNumber'] as String?,
       leadTitle: json['leadTitle'] as String?,
       customerName: json['customerName'] as String?,
+      leadLifecycleStatus: json['leadLifecycleStatus'] as String?,
       nextStatuses: [for (final item in next) if (item is String) item],
       items: [
         for (final item in items)

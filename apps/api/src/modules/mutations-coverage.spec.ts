@@ -218,6 +218,7 @@ describe('mutation coverage for large services', () => {
       { dashboard: jest.fn(), tickForActor: jest.fn() } as never,
       audit as never,
       { syncWonQuotation: jest.fn() } as never,
+      { syncFromQuotation: jest.fn().mockResolvedValue(null) } as never,
     );
     await expect(
       quotations.create(user, {

@@ -92,6 +92,8 @@ export type Quotation = {
   leadNumber: string | null;
   leadTitle: string | null;
   customerName: string | null;
+  /** The linked lead's lifecycle (open / won / lost) — drives the "mark lead lost too?" prompt. */
+  leadLifecycleStatus?: string | null;
   nextStatuses: string[];
   items: QuotationItem[];
   version: number;

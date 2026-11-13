@@ -195,6 +195,7 @@ async function seedLeadCatalog(tenantId: string, actorUserId: string): Promise<v
     [
       { code: 'website', name: 'Website', sortOrder: 10 },
       { code: 'walk_in', name: 'Walk-in', sortOrder: 20 },
+      { code: 'field_marketing', name: 'Field Marketing', sortOrder: 25 },
       { code: 'referral', name: 'Referral', sortOrder: 30 },
       { code: 'campaign', name: 'Campaign', sortOrder: 40 },
       { code: 'exhibition', name: 'Exhibition', sortOrder: 50 },
