@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/di/providers.dart';
+import 'core/update/app_update_gate.dart';
 import 'design_system/theme/app_theme.dart';
 import 'features/notifications/application/notification_providers.dart';
 import 'router/app_router.dart';
@@ -28,6 +29,7 @@ class IntraLeadsApp extends ConsumerWidget {
       themeMode: ThemeMode.system,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) => AppUpdateGate(child: child!),
     );
   }
 }

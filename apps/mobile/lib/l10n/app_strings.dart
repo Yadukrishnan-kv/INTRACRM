@@ -1,5 +1,7 @@
 class AppStrings {
   static const appTitle = 'INTRA LEADS';
+  static const updateDownloaded = 'A new version has been downloaded.';
+  static const restartToUpdate = 'Restart';
   static const login = 'Sign in';
   static const email = 'Email';
   static const password = 'Password';
