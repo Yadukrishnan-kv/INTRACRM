@@ -36,6 +36,11 @@ export class TargetListQuery extends CursorPageQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
+  categoryId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
   teamId?: string;
 
   @ApiPropertyOptional()
@@ -75,6 +80,20 @@ export class TargetListQuery extends CursorPageQueryDto {
     return undefined;
   })
   @IsBoolean()
+  hasCategory?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === true || value === 'true' || value === 1 || value === '1') {
+      return true;
+    }
+    if (value === false || value === 'false' || value === 0 || value === '0') {
+      return false;
+    }
+    return undefined;
+  })
+  @IsBoolean()
   current?: boolean;
 }
 
@@ -96,6 +115,11 @@ export class CreateTargetRequest {
   @IsOptional()
   @IsUUID()
   productId?: string;
+
+  @ApiPropertyOptional({ description: 'Product category. Mutually exclusive with productId.' })
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
 
   @ApiProperty()
   @IsString()
@@ -145,6 +169,11 @@ export class UpdateTargetRequest {
   @IsOptional()
   @IsUUID()
   productId?: string;
+
+  @ApiPropertyOptional({ description: 'Product category. Mutually exclusive with productId.' })
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

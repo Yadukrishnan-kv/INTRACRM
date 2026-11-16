@@ -23,6 +23,7 @@ export function TargetFormPage() {
     teamId: '',
     staffId: '',
     productId: '',
+    categoryId: '',
     notes: '',
   });
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +45,11 @@ export function TargetFormPage() {
       ...v,
       kind,
       scopeType: kind === 'team' ? 'team' : v.scopeType,
-      // Product targets usually count units.
-      metricCode: kind === 'product' && cat.metrics.some((m) => m.code === 'units_sold') ? 'units_sold' : v.metricCode,
+      // Product and category targets usually count units.
+      metricCode:
+        (kind === 'product' || kind === 'category') && cat.metrics.some((m) => m.code === 'units_sold')
+          ? 'units_sold'
+          : v.metricCode,
     }));
 
   const submit = (e: FormEvent) => {
@@ -140,7 +144,17 @@ export function TargetFormPage() {
             value={values.productId}
             placeholder="None"
             options={cat.products.map((p) => ({ value: p.id, label: p.sku ? `${p.name} (${p.sku})` : p.name }))}
-            onValue={(v) => set('productId', v)}
+            onValue={(v) => setValues((prev) => ({ ...prev, productId: v, categoryId: v ? '' : prev.categoryId }))}
+            hint={values.categoryId ? 'Picking a product clears the category.' : undefined}
+          />
+          <SelectField
+            label={values.kind === 'category' ? 'Category' : 'Category (optional)'}
+            required={values.kind === 'category'}
+            value={values.categoryId}
+            placeholder="None"
+            options={cat.categories.map((c) => ({ value: c.id, label: c.name }))}
+            onValue={(v) => setValues((prev) => ({ ...prev, categoryId: v, productId: v ? '' : prev.productId }))}
+            hint={values.productId ? 'Picking a category clears the product.' : undefined}
           />
           <div className="span-2">
             <TextArea label="Notes" rows={3} value={values.notes} onValue={(v) => set('notes', v)} />

@@ -66,6 +66,7 @@ import {
 const targetInclude = {
   kpi: { select: { name: true, unit: true } },
   product: { select: { name: true, sku: true } },
+  category: { select: { name: true, code: true } },
 } satisfies Prisma.TargetInclude;
 
 type TargetRow = Prisma.TargetGetPayload<{ include: typeof targetInclude }>;
@@ -156,7 +157,7 @@ export class TargetsService {
 
   async catalog(actor: AuthUser) {
     const tenantId = this.requireTenant(actor);
-    const [metrics, teams, products, staff] = await Promise.all([
+    const [metrics, teams, products, categories, staff] = await Promise.all([
       this.prisma.kpiDefinition.findMany({
         orderBy: { name: 'asc' },
         select: { code: true, name: true, description: true, unit: true },
@@ -172,6 +173,12 @@ export class TargetsService {
         orderBy: { name: 'asc' },
         take: 200,
         select: { id: true, sku: true, name: true },
+      }),
+      this.prisma.productCategory.findMany({
+        where: { tenantId, deletedAt: null, isActive: true },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        take: 200,
+        select: { id: true, code: true, name: true },
       }),
       this.prisma.membership.findMany({
         where: { tenantId, deletedAt: null, status: MembershipStatus.active },
@@ -190,6 +197,7 @@ export class TargetsService {
       metrics,
       teams,
       products,
+      categories,
       staff: staff.map((member) => ({
         membershipId: member.id,
         name: member.user.fullName,
@@ -334,6 +342,12 @@ export class TargetsService {
     if (query.hasProduct) {
       where.productId = { not: null };
     }
+    if (query.categoryId) {
+      where.categoryId = query.categoryId;
+    }
+    if (query.hasCategory) {
+      where.categoryId = { not: null };
+    }
     if (query.metricCode) {
       where.metricCode = query.metricCode;
     }
@@ -413,7 +427,9 @@ export class TargetsService {
     const now = new Date();
     await this.assertMetric(dto.metricCode);
     await this.assertScope(tenantId, dto.scopeType, dto.scopeId);
+    this.assertProductXorCategory(dto.productId, dto.categoryId);
     await this.assertProduct(tenantId, dto.productId);
+    await this.assertCategory(tenantId, dto.categoryId);
     let period: { start: string; end: string };
     try {
       period = resolvePeriod({
@@ -435,6 +451,7 @@ export class TargetsService {
           scopeType: dto.scopeType,
           scopeId: dto.scopeType === 'tenant' ? null : (dto.scopeId ?? null),
           productId: dto.productId ?? null,
+          categoryId: dto.categoryId ?? null,
           metricCode: dto.metricCode,
           periodType: dto.periodType,
           periodStart: ymdToUtcDate(period.start),
@@ -472,14 +489,19 @@ export class TargetsService {
     const periodType = (dto.periodType ?? existing.periodType) as PeriodTypeCode;
     const scopeType = (dto.scopeType ?? existing.scopeType) as ScopeTypeCode;
     const scopeId = dto.scopeId ?? existing.scopeId ?? undefined;
-    const productId = dto.productId ?? existing.productId ?? undefined;
+    // Product and category are mutually exclusive, so picking one drops the
+    // other instead of keeping a stale value from the existing row.
+    const productId = dto.productId ?? (dto.categoryId ? undefined : (existing.productId ?? undefined));
+    const categoryId = dto.categoryId ?? (dto.productId ? undefined : (existing.categoryId ?? undefined));
     const metricCode = dto.metricCode ?? existing.metricCode;
     await this.assertMetric(metricCode);
     // Only a newly chosen staff scope must be active; editing an existing
     // target of a since-suspended member stays possible.
     const scopeChanged = scopeType !== existing.scopeType || (scopeId ?? null) !== existing.scopeId;
     await this.assertScope(tenantId, scopeType, scopeId, scopeChanged);
+    this.assertProductXorCategory(productId, categoryId);
     await this.assertProduct(tenantId, productId);
+    await this.assertCategory(tenantId, categoryId);
     const nextStart = (dto.periodStart ?? dateToYmd(existing.periodStart))?.slice(0, 10);
     const nextEnd = (dto.periodEnd ?? dateToYmd(existing.periodEnd))?.slice(0, 10);
     let period: { start: string; end: string };
@@ -506,6 +528,7 @@ export class TargetsService {
       periodEnd: ymdToUtcDate(period.end),
       scopeId: scopeType === 'tenant' ? null : (scopeId ?? null),
       product: productId ? { connect: { id: productId } } : { disconnect: true },
+      category: categoryId ? { connect: { id: categoryId } } : { disconnect: true },
     };
     if (dto.targetValue !== undefined) {
       data.targetValue = dto.targetValue;
@@ -976,6 +999,7 @@ export class TargetsService {
               tenantId: params.tenantId,
               metricCode: params.metricCode,
               productId: null,
+              categoryId: null,
               from: params.from,
               toExclusive: params.toExclusive,
               membershipIds: [membershipId],
@@ -1160,6 +1184,7 @@ export class TargetsService {
         tenantId: session.tenantId,
         metricCode: row.metricCode,
         productId: row.productId,
+        categoryId: row.categoryId,
         from: range.from,
         toExclusive: range.toExclusive,
         membershipIds,
@@ -1256,6 +1281,7 @@ export class TargetsService {
     tenantId: string;
     metricCode: string;
     productId: string | null;
+    categoryId: string | null;
     from: Date;
     toExclusive: Date;
     membershipIds: string[] | null;
@@ -1324,6 +1350,16 @@ export class TargetsService {
             ...(params.productId
               ? { items: { some: { deletedAt: null, productId: params.productId } } }
               : {}),
+            ...(params.categoryId
+              ? {
+                  items: {
+                    some: {
+                      deletedAt: null,
+                      product: { categoryId: params.categoryId, deletedAt: null },
+                    },
+                  },
+                }
+              : {}),
             OR: [
               { status: QuotationStatus.won, wonAt: { gte: params.from, lt: params.toExclusive } },
               {
@@ -1342,18 +1378,22 @@ export class TargetsService {
     params: {
       tenantId: string;
       productId: string | null;
+      categoryId: string | null;
       from: Date;
       toExclusive: Date;
     },
     memberFilter: { in: string[] } | undefined,
   ): Promise<number> {
-    if (params.productId) {
+    if (params.productId || params.categoryId) {
       const agg = await this.prisma.quotationItem.aggregate({
         _sum: { lineTotalMinor: true },
         where: {
           tenantId: params.tenantId,
           deletedAt: null,
-          productId: params.productId,
+          ...(params.productId ? { productId: params.productId } : {}),
+          ...(params.categoryId
+            ? { product: { categoryId: params.categoryId, deletedAt: null } }
+            : {}),
           quotation: {
             deletedAt: null,
             status: QuotationStatus.won,
@@ -1381,6 +1421,7 @@ export class TargetsService {
     params: {
       tenantId: string;
       productId: string | null;
+      categoryId: string | null;
       from: Date;
       toExclusive: Date;
     },
@@ -1392,6 +1433,9 @@ export class TargetsService {
         tenantId: params.tenantId,
         deletedAt: null,
         ...(params.productId ? { productId: params.productId } : {}),
+        ...(params.categoryId
+          ? { product: { categoryId: params.categoryId, deletedAt: null } }
+          : {}),
         quotation: {
           deletedAt: null,
           status: QuotationStatus.won,
@@ -1410,6 +1454,31 @@ export class TargetsService {
     });
     if (!kpi) {
       throw new AppException(HttpStatus.BAD_REQUEST, 'Unknown metric', {
+        code: ErrorCodes.BAD_REQUEST,
+      });
+    }
+  }
+
+  private assertProductXorCategory(productId?: string, categoryId?: string) {
+    if (productId && categoryId) {
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        'Set a product or a category, not both — a product target is already category-specific',
+        { code: ErrorCodes.BAD_REQUEST },
+      );
+    }
+  }
+
+  private async assertCategory(tenantId: string, categoryId?: string) {
+    if (!categoryId) {
+      return;
+    }
+    const category = await this.prisma.productCategory.findFirst({
+      where: { id: categoryId, tenantId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!category) {
+      throw new AppException(HttpStatus.BAD_REQUEST, 'Category not found', {
         code: ErrorCodes.BAD_REQUEST,
       });
     }
@@ -1483,7 +1552,7 @@ export class TargetsService {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw new AppException(
         HttpStatus.CONFLICT,
-        'A target already exists for this scope, product, metric, and period',
+        'A target already exists for this scope, product/category, metric, and period',
         { code: ErrorCodes.CONFLICT },
       );
     }

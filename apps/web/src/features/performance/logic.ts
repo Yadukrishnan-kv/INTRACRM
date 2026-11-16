@@ -238,8 +238,8 @@ export function analyticsRelated(code: string): { to: string; label: string } {
 // ---------------------------------------------------------------------------
 // Targets
 
-export type TargetKind = 'monthly' | 'daily' | 'team' | 'product';
-export const TARGET_KINDS: TargetKind[] = ['monthly', 'daily', 'team', 'product'];
+export type TargetKind = 'monthly' | 'daily' | 'team' | 'product' | 'category';
+export const TARGET_KINDS: TargetKind[] = ['monthly', 'daily', 'team', 'product', 'category'];
 
 export function kindTitle(code: string): string {
   const titles: Record<string, string> = {
@@ -247,6 +247,7 @@ export function kindTitle(code: string): string {
     daily: 'Daily',
     team: 'Team',
     product: 'Product',
+    category: 'Category',
     tenant: 'Company',
     membership: 'Staff',
     quarterly: 'Quarterly',
@@ -304,8 +305,11 @@ export function targetRate(t: Pick<Target, 'metricUnit'>, value: number): string
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
-export function targetTitle(t: Pick<Target, 'productName' | 'metricName' | 'scopeName' | 'scopeType'>): string {
+export function targetTitle(
+  t: Pick<Target, 'productName' | 'categoryName' | 'metricName' | 'scopeName' | 'scopeType'>,
+): string {
   if (t.productName) return `${t.productName} · ${t.metricName}`;
+  if (t.categoryName) return `${t.categoryName} · ${t.metricName}`;
   return `${t.metricName} · ${t.scopeName ?? kindTitle(t.scopeType)}`;
 }
 
@@ -315,7 +319,9 @@ export function signedBalance(t: Pick<Target, 'balance' | 'remaining'>): number 
 }
 
 /** List filter chip → API query, as on mobile's target list. */
-export function targetFilterQuery(filter: string): { periodType?: string; scopeType?: string; hasProduct?: boolean } {
+export function targetFilterQuery(
+  filter: string,
+): { periodType?: string; scopeType?: string; hasProduct?: boolean; hasCategory?: boolean } {
   switch (filter) {
     case 'monthly':
     case 'daily':
@@ -324,6 +330,8 @@ export function targetFilterQuery(filter: string): { periodType?: string; scopeT
       return { scopeType: 'team' };
     case 'product':
       return { hasProduct: true };
+    case 'category':
+      return { hasCategory: true };
     default:
       return {};
   }
@@ -338,6 +346,7 @@ export type TargetFormValues = {
   teamId: string;
   staffId: string;
   productId: string;
+  categoryId: string;
   notes: string;
 };
 
@@ -350,6 +359,8 @@ export function buildTargetBody(
   if (!metric || v.value.trim() === '' || Number.isNaN(raw) || raw < 0) return { error: 'Metric and a target value are required.' };
   if (v.kind === 'team' && !v.teamId) return { error: 'Select a team.' };
   if (v.kind === 'product' && !v.productId) return { error: 'Select a product.' };
+  if (v.kind === 'category' && !v.categoryId) return { error: 'Select a category.' };
+  if (v.productId && v.categoryId) return { error: 'Choose a product or a category, not both.' };
   if (v.scopeType === 'team' && !v.teamId) return { error: 'Select a team.' };
   if (v.scopeType === 'membership' && !v.staffId) return { error: 'Select a staff member.' };
   const scopeType = v.kind === 'team' ? 'team' : v.scopeType;
@@ -363,6 +374,7 @@ export function buildTargetBody(
   };
   if (scopeId) body.scopeId = scopeId;
   if (v.productId) body.productId = v.productId;
+  if (v.categoryId) body.categoryId = v.categoryId;
   if (v.notes.trim()) body.notes = v.notes.trim();
   return { body };
 }

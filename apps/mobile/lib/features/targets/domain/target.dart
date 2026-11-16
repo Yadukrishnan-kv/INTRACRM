@@ -48,6 +48,7 @@ class TargetCatalog {
     this.metrics = const [],
     this.teams = const [],
     this.products = const [],
+    this.categories = const [],
     this.staff = const [],
   });
 
@@ -56,6 +57,7 @@ class TargetCatalog {
   final List<TargetMetric> metrics;
   final List<TargetOption> teams;
   final List<TargetOption> products;
+  final List<TargetOption> categories;
   final List<TargetOption> staff;
 
   factory TargetCatalog.fromJson(Map<String, dynamic> json) {
@@ -87,6 +89,10 @@ class TargetCatalog {
         for (final item in json['products'] as List<dynamic>? ?? const [])
           if (item is Map<String, dynamic>) TargetOption.fromJson(item),
       ],
+      categories: [
+        for (final item in json['categories'] as List<dynamic>? ?? const [])
+          if (item is Map<String, dynamic>) TargetOption.fromJson(item),
+      ],
       staff: [
         for (final item in json['staff'] as List<dynamic>? ?? const [])
           if (item is Map<String, dynamic>)
@@ -116,6 +122,8 @@ class Target {
     this.productId,
     this.productName,
     this.productSku,
+    this.categoryId,
+    this.categoryName,
     this.kinds = const [],
     this.balance,
     this.achievementBps,
@@ -142,6 +150,8 @@ class Target {
   final String? productId;
   final String? productName;
   final String? productSku;
+  final String? categoryId;
+  final String? categoryName;
   final String metricCode;
   final String metricName;
   final String metricUnit;
@@ -188,6 +198,10 @@ class Target {
     if (product != null && product.isNotEmpty) {
       return '$product · $metricName';
     }
+    final category = categoryName;
+    if (category != null && category.isNotEmpty) {
+      return '$category · $metricName';
+    }
     return '$metricName · ${scopeName ?? scopeType}';
   }
 
@@ -227,6 +241,8 @@ class Target {
       productId: json['productId'] as String?,
       productName: json['productName'] as String?,
       productSku: json['productSku'] as String?,
+      categoryId: json['categoryId'] as String?,
+      categoryName: json['categoryName'] as String?,
       metricCode: json['metricCode'] as String? ?? '',
       metricName: json['metricName'] as String? ?? '',
       metricUnit: json['metricUnit'] as String? ?? 'count',
@@ -418,6 +434,7 @@ class TargetKinds {
   static const daily = 'daily';
   static const team = 'team';
   static const product = 'product';
+  static const category = 'category';
 
   static String title(String code) {
     return switch (code) {
@@ -425,6 +442,7 @@ class TargetKinds {
       daily => 'Daily',
       team => 'Team',
       product => 'Product',
+      category => 'Category',
       'tenant' => 'Company',
       'membership' => 'Staff',
       'quarterly' => 'Quarterly',

@@ -31,6 +31,7 @@ class TargetApi {
     String? productId,
     String? teamId,
     bool? hasProduct,
+    bool? hasCategory,
     bool? current,
   }) {
     return _client.get(
@@ -43,6 +44,7 @@ class TargetApi {
         'productId': ?productId,
         'teamId': ?teamId,
         if (hasProduct == true) 'hasProduct': true,
+        if (hasCategory == true) 'hasCategory': true,
         if (current == true) 'current': true,
       },
       parse: (json) {

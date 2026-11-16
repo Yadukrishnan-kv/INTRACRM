@@ -168,6 +168,12 @@ class _TargetDetailPageState extends ConsumerState<TargetDetailPage> {
                       title: const Text(AppStrings.product),
                       subtitle: Text(item.productName!),
                     ),
+                  if (item.categoryName != null)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(AppStrings.category),
+                      subtitle: Text(item.categoryName!),
+                    ),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text(AppStrings.remaining),

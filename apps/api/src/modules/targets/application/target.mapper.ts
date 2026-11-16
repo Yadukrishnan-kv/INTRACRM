@@ -9,6 +9,8 @@ export type TargetView = {
   productId: string | null;
   productName: string | null;
   productSku: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
   metricCode: string;
   metricName: string;
   metricUnit: string;
@@ -44,6 +46,7 @@ export type TargetMappedRow = {
   scopeType: string;
   scopeId: string | null;
   productId: string | null;
+  categoryId: string | null;
   metricCode: string;
   periodType: string;
   periodStart: Date;
@@ -53,6 +56,7 @@ export type TargetMappedRow = {
   version: number;
   kpi?: { name: string; unit: string } | null;
   product?: { name: string; sku: string } | null;
+  category?: { name: string; code: string } | null;
 };
 
 export function toTargetView(input: {
@@ -79,6 +83,8 @@ export function toTargetView(input: {
     productId: input.row.productId,
     productName: input.row.product?.name ?? null,
     productSku: input.row.product?.sku ?? null,
+    categoryId: input.row.categoryId,
+    categoryName: input.row.category?.name ?? null,
     metricCode: input.row.metricCode,
     metricName: input.row.kpi?.name ?? input.row.metricCode,
     metricUnit: input.row.kpi?.unit ?? 'count',
@@ -90,6 +96,7 @@ export function toTargetView(input: {
       periodType: input.row.periodType,
       scopeType: input.row.scopeType,
       productId: input.row.productId,
+      categoryId: input.row.categoryId,
     }),
     targetValue,
     achievedValue: input.achievedValue,

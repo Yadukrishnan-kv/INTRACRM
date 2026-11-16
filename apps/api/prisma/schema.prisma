@@ -1041,6 +1041,7 @@ model ProductCategory {
   parent   ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
   children ProductCategory[] @relation("CategoryTree")
   products Product[]
+  targets  Target[]
 
   @@index([tenantId, code])
   @@map("product_categories")
@@ -1413,6 +1414,7 @@ model Target {
   scopeType   TargetScopeType @map("scope_type")
   scopeId     String?         @map("scope_id") @db.Uuid
   productId   String?         @map("product_id") @db.Uuid
+  categoryId  String?         @map("category_id") @db.Uuid
   metricCode  String          @map("metric_code")
   periodType  PeriodType      @map("period_type")
   periodStart DateTime        @map("period_start") @db.Date
@@ -1427,15 +1429,17 @@ model Target {
   deletedBy   String?         @map("deleted_by") @db.Uuid
   version     Int             @default(1)
 
-  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  product      Product?       @relation(fields: [productId], references: [id], onDelete: Restrict)
-  kpi          KpiDefinition  @relation(fields: [metricCode], references: [code], onDelete: Restrict)
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  product      Product?         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  category     ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  kpi          KpiDefinition    @relation(fields: [metricCode], references: [code], onDelete: Restrict)
   achievements     Achievement[]
   incentivePayouts IncentivePayout[]
 
   @@index([tenantId, periodStart, periodEnd])
   @@index([tenantId, scopeType, scopeId])
   @@index([tenantId, productId, periodStart])
+  @@index([tenantId, categoryId, periodStart])
   @@index([tenantId, periodType, periodStart, periodEnd])
   @@map("targets")
 }

@@ -177,6 +177,7 @@ export function targetKinds(input: {
   periodType: string;
   scopeType: string;
   productId: string | null;
+  categoryId?: string | null;
 }): string[] {
   const kinds = [input.periodType];
   if (input.scopeType === 'team') {
@@ -184,6 +185,9 @@ export function targetKinds(input: {
   }
   if (input.productId) {
     kinds.push('product');
+  }
+  if (input.categoryId) {
+    kinds.push('category');
   }
   return kinds;
 }

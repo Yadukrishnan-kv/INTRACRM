@@ -45,12 +45,15 @@ class TargetListPage extends ConsumerWidget {
                 dashboard: board,
                 selected: filter.hasProduct
                     ? TargetKinds.product
+                    : filter.hasCategory
+                    ? TargetKinds.category
                     : filter.scopeType == TargetKinds.team
                     ? TargetKinds.team
                     : filter.periodType,
                 onSelect: (code) {
                   ref.read(targetListProvider.notifier).apply(switch (code) {
                     TargetKinds.product => const TargetListFilter(hasProduct: true),
+                    TargetKinds.category => const TargetListFilter(hasCategory: true),
                     TargetKinds.team => const TargetListFilter(scopeType: TargetKinds.team),
                     TargetKinds.monthly => const TargetListFilter(periodType: TargetKinds.monthly),
                     TargetKinds.daily => const TargetListFilter(periodType: TargetKinds.daily),
@@ -66,7 +69,10 @@ class TargetListPage extends ConsumerWidget {
               children: [
                 FilterChip(
                   label: const Text('All'),
-                  selected: filter.periodType == null && filter.scopeType == null && !filter.hasProduct,
+                  selected: filter.periodType == null &&
+                      filter.scopeType == null &&
+                      !filter.hasProduct &&
+                      !filter.hasCategory,
                   onSelected: (_) => ref.read(targetListProvider.notifier).apply(const TargetListFilter()),
                 ),
                 FilterChip(
@@ -97,6 +103,13 @@ class TargetListPage extends ConsumerWidget {
                     const TargetListFilter(hasProduct: true),
                   ),
                 ),
+                FilterChip(
+                  label: const Text('Category'),
+                  selected: filter.hasCategory,
+                  onSelected: (_) => ref.read(targetListProvider.notifier).apply(
+                    const TargetListFilter(hasCategory: true),
+                  ),
+                ),
               ],
             ),
           ),
@@ -107,7 +120,7 @@ class TargetListPage extends ConsumerWidget {
                 asyncValue: asyncPage,
                 isEmpty: (page) => page.items.isEmpty,
                 emptyTitle: 'No targets',
-                emptyMessage: 'Set a monthly, daily, team, or product target to track live progress.',
+                emptyMessage: 'Set a monthly, daily, team, product, or category target to track live progress.',
                 builder: (page) {
                   final extra = page.page.hasMore ? 1 : 0;
                   return NotificationListener<ScrollNotification>(

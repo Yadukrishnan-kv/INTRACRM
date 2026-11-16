@@ -100,6 +100,7 @@ describe('targets', () => {
     teamId: '',
     staffId: '',
     productId: '',
+    categoryId: '',
     notes: '',
   };
   const money = { code: 'revenue', unit: 'minor_currency' };
@@ -119,6 +120,12 @@ describe('targets', () => {
   it('staff scope and product kind are checked', () => {
     expect(buildTargetBody({ ...base, scopeType: 'membership' }, money)).toEqual({ error: 'Select a staff member.' });
     expect(buildTargetBody({ ...base, kind: 'product' }, { code: 'units_sold', unit: 'count' })).toEqual({ error: 'Select a product.' });
+    expect(buildTargetBody({ ...base, kind: 'category' }, { code: 'units_sold', unit: 'count' })).toEqual({ error: 'Select a category.' });
+    expect(buildTargetBody({ ...base, productId: 'p1', categoryId: 'c1' }, money)).toEqual({
+      error: 'Choose a product or a category, not both.',
+    });
+    const catBody = buildTargetBody({ ...base, kind: 'category', categoryId: 'c1', value: '25' }, { code: 'units_sold', unit: 'count' });
+    expect('body' in catBody && catBody.body).toMatchObject({ categoryId: 'c1', targetValue: 25 });
     expect(buildTargetBody({ ...base, value: '' }, money)).toEqual({ error: 'Metric and a target value are required.' });
     const daily = buildTargetBody({ ...base, kind: 'daily', value: '3', notes: ' hi ' }, { code: 'units_sold', unit: 'count' });
     expect('body' in daily && daily.body).toMatchObject({ periodType: 'daily', targetValue: 3, notes: 'hi' });
@@ -126,14 +133,16 @@ describe('targets', () => {
 
   it('filters map onto list queries', () => {
     expect(targetFilterQuery('product')).toEqual({ hasProduct: true });
+    expect(targetFilterQuery('category')).toEqual({ hasCategory: true });
     expect(targetFilterQuery('team')).toEqual({ scopeType: 'team' });
     expect(targetFilterQuery('daily')).toEqual({ periodType: 'daily' });
     expect(targetFilterQuery('')).toEqual({});
   });
 
   it('title and balance', () => {
-    expect(targetTitle({ productName: 'Panel', metricName: 'Units', scopeName: null, scopeType: 'tenant' })).toBe('Panel · Units');
-    expect(targetTitle({ productName: null, metricName: 'Revenue', scopeName: null, scopeType: 'tenant' })).toBe('Revenue · Company');
+    expect(targetTitle({ productName: 'Panel', categoryName: null, metricName: 'Units', scopeName: null, scopeType: 'tenant' })).toBe('Panel · Units');
+    expect(targetTitle({ productName: null, categoryName: null, metricName: 'Revenue', scopeName: null, scopeType: 'tenant' })).toBe('Revenue · Company');
+    expect(targetTitle({ productName: null, categoryName: 'Doors', metricName: 'Units', scopeName: null, scopeType: 'tenant' })).toBe('Doors · Units');
     expect(signedBalance({ balance: null, remaining: 5 })).toBe(5);
     expect(signedBalance({ balance: -2, remaining: 0 })).toBe(-2);
   });

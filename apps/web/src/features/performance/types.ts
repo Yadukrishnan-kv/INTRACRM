@@ -106,6 +106,7 @@ export type TargetCatalog = {
   metrics: TargetMetric[];
   teams: Array<{ id: string; code: string; name: string }>;
   products: Array<{ id: string; sku: string | null; name: string }>;
+  categories: Array<{ id: string; code: string; name: string }>;
   staff: Array<{ membershipId: string; name: string; teamId: string | null }>;
 };
 
@@ -117,6 +118,8 @@ export type Target = {
   productId: string | null;
   productName: string | null;
   productSku: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
   metricCode: string;
   metricName: string;
   metricUnit: string;

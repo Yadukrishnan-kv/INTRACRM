@@ -113,6 +113,12 @@ export function TargetDetailPage() {
                 </dd>
               </div>
             ) : null}
+            {t.categoryName ? (
+              <div>
+                <dt>Category</dt>
+                <dd>{t.categoryName}</dd>
+              </div>
+            ) : null}
             <div>
               <dt>Remaining</dt>
               <dd>{bal < 0 ? `Surplus ${targetValue(t, -bal)}` : targetValue(t, t.remaining)}</dd>

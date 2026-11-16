@@ -31,6 +31,7 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
   String? _teamId;
   String? _staffId;
   String? _productId;
+  String? _categoryId;
   DateTime _anchor = DateTime.now();
   TargetCatalog? _catalog;
   var _loading = true;
@@ -83,6 +84,7 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
     _metricCode = target.metricCode;
     _scopeType = target.scopeType;
     _productId = target.productId;
+    _categoryId = target.categoryId;
     _anchor = DateTime.tryParse(target.periodStart) ?? _anchor;
     _notes.text = target.notes ?? '';
     switch (target.scopeType) {
@@ -97,6 +99,8 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
         ? TargetKinds.team
         : target.productId != null
         ? TargetKinds.product
+        : target.categoryId != null
+        ? TargetKinds.category
         : TargetKinds.monthly;
     final isMoney = _metric?.isMoney == true;
     final display = isMoney ? target.targetValue / 100 : target.targetValue;
@@ -150,6 +154,16 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a product.')));
       return;
     }
+    if (_kind == TargetKinds.category && _categoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a category.')));
+      return;
+    }
+    if (_productId != null && _categoryId != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose a product or a category, not both.')),
+      );
+      return;
+    }
     if (_scopeType == 'team' && _teamId == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a team.')));
       return;
@@ -174,6 +188,7 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
       'periodStart': _anchor.toIso8601String().substring(0, 10),
       'scopeId': ?scopeId,
       if (_productId != null) 'productId': _productId,
+      if (_categoryId != null) 'categoryId': _categoryId,
       if (_notes.text.trim().isNotEmpty) 'notes': _notes.text.trim(),
     };
     final existing = _existing;
@@ -210,7 +225,13 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
           Wrap(
             spacing: 8,
             children: [
-              for (final kind in [TargetKinds.monthly, TargetKinds.daily, TargetKinds.team, TargetKinds.product])
+              for (final kind in [
+                TargetKinds.monthly,
+                TargetKinds.daily,
+                TargetKinds.team,
+                TargetKinds.product,
+                TargetKinds.category,
+              ])
                 ChoiceChip(
                   label: Text(TargetKinds.title(kind)),
                   selected: _kind == kind,
@@ -219,7 +240,7 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
                     if (kind == TargetKinds.team) {
                       _scopeType = 'team';
                     }
-                    if (kind == TargetKinds.product) {
+                    if (kind == TargetKinds.product || kind == TargetKinds.category) {
                       _metricCode = catalog?.metrics.any((m) => m.code == 'units_sold') == true
                           ? 'units_sold'
                           : _metricCode;
@@ -291,6 +312,7 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
           ],
           const SizedBox(height: AppSpacing.md),
           DropdownButtonFormField<String>(
+            key: ValueKey('product-${_productId ?? ''}'),
             initialValue: _productId ?? '',
             decoration: InputDecoration(
               labelText: _kind == TargetKinds.product ? AppStrings.product : '${AppStrings.product} (optional)',
@@ -300,7 +322,31 @@ class _TargetFormPageState extends ConsumerState<TargetFormPage> {
               for (final product in catalog?.products ?? const <TargetOption>[])
                 DropdownMenuItem(value: product.id, child: Text(product.name)),
             ],
-            onChanged: (value) => setState(() => _productId = (value == null || value.isEmpty) ? null : value),
+            onChanged: (value) => setState(() {
+              _productId = (value == null || value.isEmpty) ? null : value;
+              if (_productId != null) {
+                _categoryId = null;
+              }
+            }),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          DropdownButtonFormField<String>(
+            key: ValueKey('category-${_categoryId ?? ''}'),
+            initialValue: _categoryId ?? '',
+            decoration: InputDecoration(
+              labelText: _kind == TargetKinds.category ? AppStrings.category : '${AppStrings.category} (optional)',
+            ),
+            items: [
+              const DropdownMenuItem(value: '', child: Text('None')),
+              for (final category in catalog?.categories ?? const <TargetOption>[])
+                DropdownMenuItem(value: category.id, child: Text(category.name)),
+            ],
+            onChanged: (value) => setState(() {
+              _categoryId = (value == null || value.isEmpty) ? null : value;
+              if (_categoryId != null) {
+                _productId = null;
+              }
+            }),
           ),
           const SizedBox(height: AppSpacing.md),
           AppTextField(

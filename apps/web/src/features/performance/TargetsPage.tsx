@@ -26,6 +26,7 @@ const FILTERS = [
   { id: 'daily', label: 'Daily' },
   { id: 'team', label: 'Team' },
   { id: 'product', label: 'Product' },
+  { id: 'category', label: 'Category' },
 ];
 
 export function TargetsPage() {
@@ -93,7 +94,7 @@ export function TargetsPage() {
       ) : list.isError ? (
         <ErrorState error={list.error} onRetry={() => list.refetch()} />
       ) : list.items.length === 0 ? (
-        <EmptyState>No targets. Set a monthly, daily, team, or product target to track live progress.</EmptyState>
+        <EmptyState>No targets. Set a monthly, daily, team, product, or category target to track live progress.</EmptyState>
       ) : (
         <div className="card table-wrap">
           <table className="table">

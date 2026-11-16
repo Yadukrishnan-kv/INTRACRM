@@ -23,11 +23,13 @@ class TargetListFilter {
     this.periodType,
     this.scopeType,
     this.hasProduct = false,
+    this.hasCategory = false,
   });
 
   final String? periodType;
   final String? scopeType;
   final bool hasProduct;
+  final bool hasCategory;
 }
 
 final targetListProvider = AsyncNotifierProvider<TargetListController, Result<TargetPage>>(
@@ -86,6 +88,7 @@ class TargetListController extends AsyncNotifier<Result<TargetPage>> {
       periodType: _filter.periodType,
       scopeType: _filter.scopeType,
       hasProduct: _filter.hasProduct ? true : null,
+      hasCategory: _filter.hasCategory ? true : null,
     );
     return switch (result) {
       Success(:final value) => Success(
