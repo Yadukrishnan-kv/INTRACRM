@@ -9,7 +9,9 @@ services:
       POSTGRES_PASSWORD: intra
       POSTGRES_DB: intra_leads
     ports:
-      - "5432:5432"
+      # Host port 5433 to avoid clashing with a natively installed PostgreSQL on 5432.
+      # Containers still reach it at postgres:5432 internally.
+      - "5433:5432"
     volumes:
       - intra_pg_data:/var/lib/postgresql/data
       - ./docs/data/sql:/sql:ro
