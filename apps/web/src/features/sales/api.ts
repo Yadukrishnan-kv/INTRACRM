@@ -1,4 +1,4 @@
-import { API_BASE_URL, request, type ApiResult } from '../../api/client';
+import { API_BASE_URL, downloadFile, request, type ApiResult } from '../../api/client';
 import type {
   LeadOption,
   PublicWarranty,
@@ -6,6 +6,7 @@ import type {
   QuotationCatalog,
   QuotationEngineDashboard,
   QuotationInput,
+  QuotationSettings,
   Warranty,
   WarrantyCatalog,
   WarrantyFile,
@@ -42,6 +43,10 @@ export const salesApi = {
         bucket: query.bucket,
       },
     }),
+  quotationPdf: (id: string, quotationNumber: string) => downloadFile(`/quotations/${id}/pdf`, `${quotationNumber}.pdf`),
+  quotationSettings: () => request<QuotationSettings>('/quotations/settings').then((r) => r.data),
+  updateQuotationSettings: (body: Partial<QuotationSettings>) =>
+    request<QuotationSettings>('/quotations/settings', { method: 'PATCH', body }).then((r) => r.data),
   quotation: (id: string) => request<Quotation>(`/quotations/${id}`).then((r) => r.data),
   createQuotation: (body: QuotationInput) =>
     request<Quotation>('/quotations', { method: 'POST', body }).then((r) => r.data),

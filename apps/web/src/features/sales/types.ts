@@ -45,8 +45,36 @@ export type QuotationItem = {
   discountMinor: number;
   taxBps: number;
   taxRateIds: string[];
+  itemCode: string | null;
+  width: number | null;
+  height: number | null;
+  unit: string;
+  /** Purchase (vendor) price per unit — internal. */
+  vendorPriceMinor: number | null;
+  marginType: MarginType | null;
+  marginValue: number;
   lineTotalMinor: number;
   sortOrder: number;
+};
+
+export type MarginType = 'percent' | 'fixed';
+
+export type QuotationSpec = { label: string; value: string };
+
+export type QuotationCharge = {
+  description: string;
+  amountMinor: number;
+  taxBps: number;
+};
+
+export type QuotationRevision = {
+  revision: number;
+  savedAt: string;
+  status: string;
+  subtotalMinor: number;
+  discountMinor: number;
+  taxMinor: number;
+  totalMinor: number;
 };
 
 export type ClosingPrediction = {
@@ -92,10 +120,19 @@ export type Quotation = {
   leadNumber: string | null;
   leadTitle: string | null;
   customerName: string | null;
+  customerPhone: string | null;
   /** The linked lead's lifecycle (open / won / lost) — drives the "mark lead lost too?" prompt. */
   leadLifecycleStatus?: string | null;
   nextStatuses: string[];
   items: QuotationItem[];
+  charges: QuotationCharge[];
+  /** Entered prices already include GST. */
+  gstInclusive: boolean;
+  specs: QuotationSpec[];
+  /** Internal: margin on purchase-priced lines less the total discount. */
+  profitMinor: number;
+  revision: number;
+  revisions: QuotationRevision[];
   version: number;
 };
 
@@ -118,16 +155,37 @@ export type QuotationTax = {
 export type QuotationCatalog = {
   products: QuotationProduct[];
   taxes: QuotationTax[];
+  defaultGstBps: number;
+  roundingStepMinor: number;
+  companyName: string;
+  address: string;
+  bankDetails: string;
+  defaultTerms: string;
+  defaultSpecs: QuotationSpec[];
 };
+
+export type QuotationSettings = Omit<QuotationCatalog, 'products' | 'taxes'> & { logoDataUrl: string };
 
 export type QuotationItemInput = {
   productId?: string;
   description: string;
   quantity: number;
-  unitPriceMinor: number;
-  discountMinor: number;
+  /** Exactly one price source is sent: vendor+margin, GST-inclusive, or pre-GST. */
+  itemCode?: string;
+  width?: number;
+  height?: number;
+  unit?: string;
+  unitPriceMinor?: number;
+  vendorPriceMinor?: number;
+  marginType?: MarginType;
+  marginValue?: number;
   taxBps?: number;
-  taxRateIds?: string[];
+};
+
+export type QuotationChargeInput = {
+  description: string;
+  amountMinor: number;
+  taxBps?: number;
 };
 
 export type QuotationInput = {
@@ -138,6 +196,11 @@ export type QuotationInput = {
   validUntilOn?: string;
   expectedCloseOn?: string;
   items: QuotationItemInput[];
+  charges?: QuotationChargeInput[];
+  gstInclusive?: boolean;
+  specs?: QuotationSpec[];
+  /** Total discount before GST, in paise. */
+  discountMinor?: number;
   version?: number;
 };
 
@@ -247,4 +310,6 @@ export type LeadOption = {
   leadNumber: string;
   title: string;
   customerName: string | null;
+  primaryPhone?: string | null;
+  city?: string | null;
 };

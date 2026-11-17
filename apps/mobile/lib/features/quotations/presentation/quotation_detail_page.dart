@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
@@ -161,6 +165,34 @@ class _QuotationDetailPageState extends ConsumerState<QuotationDetailPage> {
     );
   }
 
+  Future<void> _sharePdf() async {
+    final item = _item;
+    if (item == null) {
+      return;
+    }
+    setState(() => _busy = true);
+    final result = await ref.read(quotationApiProvider).pdf(item.id);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _busy = false);
+    if (result is Err) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.failure.message)));
+      return;
+    }
+    if (result is Success<List<int>>) {
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/${item.quotationNumber}-R${item.revision}.pdf');
+      await file.writeAsBytes(result.value, flush: true);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/pdf')],
+          text: 'Quotation ${item.quotationNumber}: ${item.totalLabel}',
+        ),
+      );
+    }
+  }
+
   Future<void> _deleteLine(QuotationItem line) async {
     final item = _item;
     if (item == null) {
@@ -168,16 +200,7 @@ class _QuotationDetailPageState extends ConsumerState<QuotationDetailPage> {
     }
     final remaining = [
       for (final row in item.items)
-        if (row.id != line.id)
-          {
-            if (row.productId != null) 'productId': row.productId,
-            'description': row.description,
-            'quantity': row.quantity,
-            'unitPriceMinor': row.unitPriceMinor,
-            'discountMinor': row.discountMinor,
-            if (row.taxRateIds.isNotEmpty) 'taxRateIds': row.taxRateIds,
-            if (row.taxRateIds.isEmpty) 'taxBps': row.taxBps,
-          },
+        if (row.id != line.id) row.toPayload(),
     ];
     if (remaining.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -413,11 +436,15 @@ class _QuotationDetailPageState extends ConsumerState<QuotationDetailPage> {
                   children: [
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text(line.description),
+                      title: Text(
+                        '${line.itemCode == null || line.itemCode!.isEmpty ? '' : '${line.itemCode} · '}${line.description}',
+                      ),
                       subtitle: Text(
                         [
                           if (line.productName != null) line.productName!,
-                          'Qty ${line.quantity}',
+                          if (line.width != null || line.height != null)
+                            '${line.width ?? '—'} × ${line.height ?? '—'}',
+                          'Qty ${line.quantity} ${line.unit}',
                           minorToRupeesLabel(line.unitPriceMinor),
                           if (line.taxBps > 0) '${(line.taxBps / 100).toStringAsFixed(0)}% tax',
                         ].join(' · '),
@@ -448,8 +475,13 @@ class _QuotationDetailPageState extends ConsumerState<QuotationDetailPage> {
             ),
           const SizedBox(height: AppSpacing.md),
           Text('Subtotal ${minorToRupeesLabel(item.subtotalMinor)}'),
-          Text('Discount ${minorToRupeesLabel(item.discountMinor)}'),
-          Text('Tax ${minorToRupeesLabel(item.taxMinor)}'),
+          for (final charge in item.charges)
+            Text('${charge.description} ${minorToRupeesLabel(charge.amountMinor)}'),
+          Text('Total discount ${minorToRupeesLabel(item.discountMinor)}'),
+          Text('${item.gstInclusive ? 'GST (included)' : 'GST'} ${minorToRupeesLabel(item.taxMinor)}'),
+          if (item.items.any((i) => i.vendorPriceMinor != null))
+            Text('Profit after discount ${minorToRupeesLabel(item.profitMinor)}'),
+          if (item.revision > 1) Text('Revision ${item.revision}'),
           Text('Total ${item.totalLabel}', style: Theme.of(context).textTheme.titleMedium),
           if (item.notes?.trim().isNotEmpty == true) ...[
             const SizedBox(height: AppSpacing.md),
@@ -463,9 +495,13 @@ class _QuotationDetailPageState extends ConsumerState<QuotationDetailPage> {
           ],
           const SizedBox(height: AppSpacing.lg),
           if (_busy) const AppLoading(),
-          if (!_busy && item.isDraft && user?.canCreateQuotation == true) ...[
+          if (!_busy) ...[
+            AppButton(label: 'Share PDF (WhatsApp, email…)', onPressed: _sharePdf),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          if (!_busy && item.isOpen && user?.canCreateQuotation == true) ...[
             AppButton(
-              label: AppStrings.editQuotation,
+              label: item.isDraft ? AppStrings.editQuotation : 'Revise quotation',
               onPressed: () async {
                 await context.push(AppRoutes.quotationEditPath(item.id));
                 await _reload();

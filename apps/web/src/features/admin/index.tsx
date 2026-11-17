@@ -5,6 +5,7 @@ import './admin.css';
 import { CatalogFormPage, CatalogHubPage, CatalogListPage } from './CatalogPages';
 import { GeneralSettingsPage } from './GeneralSettingsPage';
 import { MemberRolesPage, PermissionMatrixPage, RoleFormPage, RolesPage } from './RbacPages';
+import { QuotationSettingsPage } from './QuotationSettingsPage';
 import { SettingsPage } from './SettingsPage';
 import { StaffDetailPage } from './StaffDetailPage';
 import { StaffFormPage } from './StaffFormPage';
@@ -22,6 +23,7 @@ export const adminModule: FeatureModule = {
     { path: 'settings', element: <SettingsPage /> },
     { path: 'settings/general', element: guarded(settings, <GeneralSettingsPage />) },
     { path: 'settings/general/taxes', element: guarded(settings, <TaxesPage />) },
+    { path: 'settings/general/quotations', element: guarded(settings, <QuotationSettingsPage />) },
 
     { path: 'catalog', element: guarded(settings, <CatalogHubPage />) },
     { path: 'catalog/:kind', element: guarded(settings, <CatalogListPage />) },

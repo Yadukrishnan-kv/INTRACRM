@@ -1157,6 +1157,11 @@ model Quotation {
   expectedCloseOn        DateTime?       @map("expected_close_on") @db.Date
   lastFollowedUpAt       DateTime?       @map("last_followed_up_at") @db.Timestamptz(6)
   followUpNote           String?         @map("follow_up_note")
+  gstInclusive           Boolean         @default(false) @map("gst_inclusive")
+  charges                Json            @default("[]")
+  specs                  Json            @default("[]")
+  revision               Int             @default(1)
+  revisions              Json            @default("[]")
   createdAt              DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy              String?         @map("created_by") @db.Uuid
@@ -1210,6 +1215,13 @@ model QuotationItem {
   discountMinor  BigInt    @default(0) @map("discount_minor")
   taxBps         Int       @default(0) @map("tax_bps")
   taxRateIds     Json      @default("[]") @map("tax_rate_ids")
+  itemCode       String?   @map("item_code")
+  width          Float?
+  height         Float?
+  unit           String    @default("Nos")
+  vendorPriceMinor BigInt? @map("vendor_price_minor")
+  marginType     String?   @map("margin_type")
+  marginValue    BigInt    @default(0) @map("margin_value")
   lineTotalMinor BigInt    @default(0) @map("line_total_minor")
   sortOrder      Int       @default(0) @map("sort_order")
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)

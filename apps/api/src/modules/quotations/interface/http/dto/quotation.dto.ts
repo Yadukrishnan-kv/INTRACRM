@@ -8,6 +8,7 @@ import {
   IsDateString,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -22,6 +23,9 @@ import { wholeQuantity } from '../../../../../common/whole-quantity';
 import { QUOTATION_FOLLOW_UP_BUCKETS } from '../../../domain/quotation-follow-up';
 import { QUOTATION_STATUSES } from '../../../domain/quotation-types';
 
+export const MARGIN_TYPES = ['percent', 'fixed'] as const;
+export type MarginType = (typeof MARGIN_TYPES)[number];
+
 export class QuotationItemInput {
   @ApiPropertyOptional()
   @IsOptional()
@@ -31,7 +35,7 @@ export class QuotationItemInput {
   @ApiProperty()
   @IsString()
   @MinLength(2)
-  @MaxLength(240)
+  @MaxLength(1000)
   description!: string;
 
   @ApiProperty({ default: 1, description: 'Whole units only' })
@@ -41,13 +45,59 @@ export class QuotationItemInput {
   @Min(1)
   quantity!: number;
 
-  @ApiProperty({ description: 'Unit price in paise' })
+  @ApiPropertyOptional({ description: 'Selling unit price before GST, in paise' })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  unitPriceMinor!: number;
+  unitPriceMinor?: number;
 
-  @ApiPropertyOptional({ default: 0 })
+  @ApiPropertyOptional({ description: 'Item code shown on the quotation, e.g. KW2' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  itemCode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  width?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  height?: number;
+
+  @ApiPropertyOptional({ default: 'Nos' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  unit?: string;
+
+  @ApiPropertyOptional({ description: 'Vendor quoted unit price in paise (internal cost).' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  vendorPriceMinor?: number;
+
+  @ApiPropertyOptional({ enum: MARGIN_TYPES })
+  @IsOptional()
+  @IsIn([...MARGIN_TYPES])
+  marginType?: MarginType;
+
+  @ApiPropertyOptional({ description: 'Margin: basis points when percent (2000 = 20%), paise per unit when fixed.' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  marginValue?: number;
+
+  @ApiPropertyOptional({ deprecated: true, description: 'Ignored. Discounts are applied to the quotation total.' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -68,6 +118,96 @@ export class QuotationItemInput {
   @ArrayMaxSize(8)
   @IsUUID('all', { each: true })
   taxRateIds?: string[];
+}
+
+export class QuotationChargeInput {
+  @ApiProperty()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(160)
+  description!: string;
+
+  @ApiProperty({ description: 'Charge before GST, in paise' })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  amountMinor!: number;
+
+  @ApiPropertyOptional({ description: 'GST in basis points; defaults to the tenant default GST.' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(10000)
+  taxBps?: number;
+}
+
+export class QuotationSpecRow {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(80)
+  label!: string;
+
+  @ApiProperty()
+  @IsString()
+  @MaxLength(160)
+  value!: string;
+}
+
+export class UpdateQuotationSettingsRequest {
+  @ApiPropertyOptional({ description: 'Default GST for quotations in basis points, 1800 = 18%' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(10000)
+  defaultGstBps?: number;
+
+  @ApiPropertyOptional({ description: 'Unit prices round up to a multiple of this many paise (0 = off)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(10_000_000)
+  roundingStepMinor?: number;
+
+  @ApiPropertyOptional({ description: 'Logo as a data URL (PNG/JPEG), empty string removes it' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(700_000)
+  logoDataUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  companyName?: string;
+
+  @ApiPropertyOptional({ description: 'Footer address / contact line' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  address?: string;
+
+  @ApiPropertyOptional({ description: 'Bank and UPI details, one per line' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  bankDetails?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  defaultTerms?: string;
+
+  @ApiPropertyOptional({ type: [QuotationSpecRow] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => QuotationSpecRow)
+  defaultSpecs?: QuotationSpecRow[];
 }
 
 export class QuotationListQuery extends CursorPageQueryDto {
@@ -157,6 +297,34 @@ export class CreateQuotationRequest {
   @ValidateNested({ each: true })
   @Type(() => QuotationItemInput)
   items!: QuotationItemInput[];
+
+  @ApiPropertyOptional({ description: 'Total discount before GST, in paise' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  discountMinor?: number;
+
+  @ApiPropertyOptional({ type: [QuotationChargeInput], description: 'Additional billing charges' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => QuotationChargeInput)
+  charges?: QuotationChargeInput[];
+
+  @ApiPropertyOptional({ description: 'Prices already include GST (default true for new quotations)' })
+  @IsOptional()
+  @IsBoolean()
+  gstInclusive?: boolean;
+
+  @ApiPropertyOptional({ type: [QuotationSpecRow], description: 'Product specification rows' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => QuotationSpecRow)
+  specs?: QuotationSpecRow[];
 }
 
 export class UpdateQuotationRequest {
@@ -201,6 +369,34 @@ export class UpdateQuotationRequest {
   @ValidateNested({ each: true })
   @Type(() => QuotationItemInput)
   items?: QuotationItemInput[];
+
+  @ApiPropertyOptional({ description: 'Total discount before GST, in paise' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  discountMinor?: number;
+
+  @ApiPropertyOptional({ type: [QuotationChargeInput], description: 'Additional billing charges' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => QuotationChargeInput)
+  charges?: QuotationChargeInput[];
+
+  @ApiPropertyOptional({ description: 'Prices already include GST (default true for new quotations)' })
+  @IsOptional()
+  @IsBoolean()
+  gstInclusive?: boolean;
+
+  @ApiPropertyOptional({ type: [QuotationSpecRow], description: 'Product specification rows' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => QuotationSpecRow)
+  specs?: QuotationSpecRow[];
 
   @ApiPropertyOptional()
   @IsOptional()

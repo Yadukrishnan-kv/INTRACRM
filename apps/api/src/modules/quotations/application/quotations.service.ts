@@ -21,7 +21,13 @@ import { QuotationFollowUpService } from './quotation-follow-up.service';
 import { formatYmd, startOfNextZonedDay } from '../../tasks/domain/zoned-day';
 import { summarizeQuotations } from '../domain/quotation-report';
 import { summarizeSales } from '../domain/sales-report';
-import { computeQuotationTotals } from '../domain/quotation-totals';
+import {
+  computeQuotationTotals,
+  DEFAULT_GST_BPS,
+  resolveUnitPrice,
+  profitAfterDiscount,
+  type QuotationChargeInput as ChargeAmountInput,
+} from '../domain/quotation-totals';
 import {
   addDaysYmd,
   dateToYmd,
@@ -43,10 +49,13 @@ import {
   QuotationStatusCode,
   timestampFieldForStatus,
 } from '../domain/quotation-types';
-import { toQuotationView } from './quotation.mapper';
+import { parseCharges, toQuotationView } from './quotation.mapper';
+import { buildQuotationPdf } from './quotation-pdf';
+import { parseQuotationSettings, parseSpecs, type QuotationSettings } from '../domain/quotation-settings';
 import {
   ChangeQuotationStatusRequest,
   CreateQuotationRequest,
+  QuotationChargeInput,
   QuotationItemInput,
   QuotationListQuery,
   QuotationReportQuery,
@@ -54,6 +63,7 @@ import {
   ScheduleQuotationFollowUpRequest,
   SendQuotationBody,
   UpdateQuotationRequest,
+  UpdateQuotationSettingsRequest,
 } from '../interface/http/dto/quotation.dto';
 
 const quotationInclude = {
@@ -64,6 +74,7 @@ const quotationInclude = {
       leadNumber: true,
       title: true,
       customerName: true,
+      primaryPhone: true,
       lifecycleStatus: true,
       deletedAt: true,
     },
@@ -112,7 +123,39 @@ export class QuotationsService {
         currency: product.currency,
       })),
       taxes: await this.listTaxes(tenantId),
+      ...(await this.catalogSettings(tenantId)),
     };
+  }
+
+  private async catalogSettings(tenantId: string) {
+    const { logoDataUrl: _logo, ...rest } = await this.settings(tenantId);
+    return rest;
+  }
+
+  async settings(tenantId: string): Promise<QuotationSettings> {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } });
+    return parseQuotationSettings(tenant?.settings);
+  }
+
+  async getSettings(actor: AuthUser) {
+    return this.settings(this.requireTenant(actor));
+  }
+
+  async updateSettings(actor: AuthUser, dto: UpdateQuotationSettingsRequest) {
+    const tenantId = this.requireTenant(actor);
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } });
+    const all = ((tenant?.settings as Record<string, unknown> | null) ?? {}) as Record<string, unknown>;
+    const current = parseQuotationSettings(all);
+    const next: QuotationSettings = {
+      ...current,
+      ...Object.fromEntries(Object.entries(dto).filter(([, v]) => v !== undefined)),
+    } as QuotationSettings;
+    next.defaultSpecs = parseSpecs(next.defaultSpecs);
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { settings: { ...all, quotation: next } as unknown as Prisma.InputJsonValue, updatedBy: actor.userId },
+    });
+    return next;
   }
 
   private async listTaxes(tenantId: string) {
@@ -226,8 +269,15 @@ export class QuotationsService {
     if (assignee) {
       await this.requireActiveStaff(tenantId, assignee);
     }
-    const items = await this.hydrateTaxes(tenantId, dto.items);
-    const totals = computeQuotationTotals(this.lineInputs(items));
+    const settings = await this.settings(tenantId);
+    const gstInclusive = dto.gstInclusive ?? true;
+    const items = await this.hydrateItems(tenantId, dto.items, settings);
+    const charges = this.resolveCharges(dto.charges, settings.defaultGstBps);
+    const totals = computeQuotationTotals(this.lineInputs(items), {
+      charges,
+      discountMinor: dto.discountMinor ?? 0,
+      gstInclusive,
+    });
     const created = await this.prisma.$transaction(async (tx) => {
       const quotationNumber = await this.nextNumber(tx, tenantId);
       const quotation = await tx.quotation.create({
@@ -237,6 +287,9 @@ export class QuotationsService {
           quotationNumber,
           title: emptyToNull(dto.title) ?? lead.title,
           currency: (dto.currency ?? 'INR').toUpperCase(),
+          gstInclusive,
+          charges: charges as unknown as Prisma.InputJsonValue,
+          specs: parseSpecs(dto.specs) as unknown as Prisma.InputJsonValue,
           subtotalMinor: BigInt(totals.subtotalMinor),
           discountMinor: BigInt(totals.discountMinor),
           taxMinor: BigInt(totals.taxMinor),
@@ -291,21 +344,46 @@ export class QuotationsService {
     const tenantId = this.requireTenant(actor);
     const quotation = await this.requireQuotation(tenantId, quotationId);
     this.assertLeadNotDeleted(quotation);
-    if (!isDraftQuotation(quotation.status)) {
-      throw new AppException(HttpStatus.CONFLICT, 'Only a draft quotation can be edited', {
+    if (isTerminalQuotation(quotation.status)) {
+      throw new AppException(HttpStatus.CONFLICT, 'A won or lost quotation can no longer be edited', {
         code: ErrorCodes.CONFLICT,
       });
     }
+    // Editing after the quotation went out keeps the previous figures as a revision.
+    const isRevision = !isDraftQuotation(quotation.status);
     this.assertVersion(quotation.version, dto.version);
     if (dto.assignedToMembershipId) {
       await this.requireActiveStaff(tenantId, dto.assignedToMembershipId);
     }
-    const items = dto.items ? await this.hydrateTaxes(tenantId, dto.items) : null;
-    const totals = items ? computeQuotationTotals(this.lineInputs(items)) : null;
+    const settings = await this.settings(tenantId);
+    const items = dto.items ? await this.hydrateItems(tenantId, dto.items, settings) : null;
+    const charges = dto.charges
+      ? this.resolveCharges(dto.charges, settings.defaultGstBps)
+      : parseCharges(quotation.charges);
+    const discountMinor = dto.discountMinor ?? Number(quotation.discountMinor);
+    const gstInclusive = dto.gstInclusive ?? quotation.gstInclusive;
+    const totals =
+      items || dto.charges || dto.discountMinor !== undefined || dto.gstInclusive !== undefined
+        ? computeQuotationTotals(
+            this.lineInputs(items ?? this.itemsFromRows(quotation.items)),
+            { charges, discountMinor, gstInclusive },
+          )
+        : null;
+    const revisions = isRevision
+      ? [...this.revisionList(quotation.revisions), this.revisionSnapshot(quotation)]
+      : null;
     await this.prisma.$transaction(async (tx) => {
       await tx.quotation.update({
         where: { id: quotation.id },
         data: {
+          ...(isRevision
+            ? {
+                revision: { increment: 1 },
+                revisions: revisions as unknown as Prisma.InputJsonValue,
+              }
+            : {}),
+          ...(totals ? { charges: charges as unknown as Prisma.InputJsonValue, gstInclusive } : {}),
+          ...(dto.specs ? { specs: parseSpecs(dto.specs) as unknown as Prisma.InputJsonValue } : {}),
           title: dto.title !== undefined ? emptyToNull(dto.title) : quotation.title,
           notes: dto.notes !== undefined ? emptyToNull(dto.notes) : quotation.notes,
           terms: dto.terms !== undefined ? emptyToNull(dto.terms) : quotation.terms,
@@ -331,6 +409,21 @@ export class QuotationsService {
           version: { increment: 1 },
         },
       });
+      if (totals && !items) {
+        // Discount or charges changed without new lines: refresh each line's share.
+        for (const [index, row] of quotation.items.entries()) {
+          const line = totals.lines[index];
+          if (!line) continue;
+          await tx.quotationItem.update({
+            where: { id: row.id },
+            data: {
+              discountMinor: BigInt(line.discountMinor),
+              lineTotalMinor: BigInt(line.lineTotalMinor),
+              updatedBy: actor.userId,
+            },
+          });
+        }
+      }
       if (items && totals) {
         await tx.quotationItem.updateMany({
           where: { quotationId: quotation.id, deletedAt: null },
@@ -360,14 +453,39 @@ export class QuotationsService {
                 from: quotation.assignedToMembershipId,
                 to: dto.assignedToMembershipId,
               })
-            : trackPayload(`Quotation ${quotation.quotationNumber} updated`, {
-                number: quotation.quotationNumber,
-              }),
+            : trackPayload(
+                isRevision
+                  ? `Quotation ${quotation.quotationNumber} revised (revision ${quotation.revision + 1})`
+                  : `Quotation ${quotation.quotationNumber} updated`,
+                { number: quotation.quotationNumber },
+              ),
         },
         tx,
       );
     });
     return this.get(actor, quotation.id);
+  }
+
+  async pdf(actor: AuthUser, quotationId: string) {
+    const tenantId = this.requireTenant(actor);
+    const row = await this.requireQuotation(tenantId, quotationId);
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true, settings: true },
+    });
+    const lead = await this.prisma.lead.findFirst({
+      where: { id: row.leadId, tenantId },
+      select: { primaryPhone: true, city: true },
+    });
+    const view = toQuotationView(row);
+    const buffer = await buildQuotationPdf({
+      tenantName: tenant?.name ?? '',
+      settings: parseQuotationSettings(tenant?.settings),
+      quotation: view,
+      customerPhone: lead?.primaryPhone ?? null,
+      location: lead?.city ?? null,
+    });
+    return { buffer, filename: `${row.quotationNumber}-R${row.revision}.pdf` };
   }
 
   async send(actor: AuthUser, quotationId: string, dto: SendQuotationBody) {
@@ -756,7 +874,11 @@ export class QuotationsService {
     );
   }
 
-  private async hydrateTaxes(tenantId: string, items: QuotationItemInput[]): Promise<QuotationItemInput[]> {
+  private async hydrateItems(
+    tenantId: string,
+    items: QuotationItemInput[],
+    settings: QuotationSettings,
+  ): Promise<QuotationItemInput[]> {
     const requested = [...new Set(items.flatMap((item) => item.taxRateIds ?? []))];
     const rows = requested.length
       ? await this.prisma.taxRate.findMany({
@@ -767,32 +889,99 @@ export class QuotationsService {
     if (requested.some((id) => !byId.has(id))) {
       throw new AppException(HttpStatus.UNPROCESSABLE_ENTITY, 'Unknown or inactive tax', {
         code: ErrorCodes.VALIDATION_ERROR,
-        errors: [
-          {
-            field: 'taxRateIds',
-            code: 'invalid',
-            message: 'Choose taxes from General settings.',
-          },
-        ],
+        errors: [{ field: 'taxRateIds', code: 'invalid', message: 'Choose taxes from General settings.' }],
       });
     }
-    return items.map((item) => {
+    return items.map((item, index) => {
       const selected = item.taxRateIds ?? [];
       const taxBps = selected.length
-        ? Math.min(
-            10000,
-            selected.reduce((sum, id) => sum + (byId.get(id) ?? 0), 0),
-          )
-        : (item.taxBps ?? 0);
-      return { ...item, taxBps, taxRateIds: selected };
+        ? Math.min(10000, selected.reduce((sum, id) => sum + (byId.get(id) ?? 0), 0))
+        : (item.taxBps ?? settings.defaultGstBps);
+      const hasVendor = item.vendorPriceMinor != null && item.marginType != null;
+      if (!hasVendor && item.unitPriceMinor == null) {
+        throw new AppException(HttpStatus.UNPROCESSABLE_ENTITY, 'Line is missing a price', {
+          code: ErrorCodes.VALIDATION_ERROR,
+          errors: [
+            {
+              field: `items.${index}.unitPriceMinor`,
+              code: 'required',
+              message: 'Enter a unit price, or a purchase price with a margin.',
+            },
+          ],
+        });
+      }
+      const price = resolveUnitPrice({
+        unitPriceMinor: item.unitPriceMinor ?? null,
+        vendorPriceMinor: item.vendorPriceMinor ?? null,
+        marginType: item.marginType ?? null,
+        marginValue: item.marginValue ?? null,
+        roundStepMinor: settings.roundingStepMinor,
+      });
+      return {
+        ...item,
+        taxBps,
+        taxRateIds: selected,
+        unitPriceMinor: price.unitPriceMinor,
+        ...(price.vendorPriceMinor != null ? { vendorPriceMinor: price.vendorPriceMinor } : {}),
+        ...(price.marginType ? { marginType: price.marginType } : {}),
+        marginValue: price.marginValue,
+      };
     });
+  }
+
+  private resolveCharges(
+    charges: QuotationChargeInput[] | undefined,
+    defaultBps: number,
+  ): ChargeAmountInput[] {
+    return (charges ?? []).map((charge) => ({
+      description: charge.description.trim(),
+      amountMinor: charge.amountMinor,
+      taxBps: charge.taxBps ?? defaultBps,
+    }));
+  }
+
+  private itemsFromRows(rows: QuotationRow['items']): QuotationItemInput[] {
+    return rows.map((row) => ({
+      description: row.description,
+      quantity: row.quantity,
+      unitPriceMinor: Number(row.unitPriceMinor),
+      taxBps: row.taxBps,
+    }));
+  }
+
+  private revisionList(value: unknown): Array<Record<string, unknown>> {
+    return Array.isArray(value) ? (value as Array<Record<string, unknown>>) : [];
+  }
+
+  private revisionSnapshot(quotation: QuotationRow): Record<string, unknown> {
+    return {
+      revision: quotation.revision,
+      savedAt: new Date().toISOString(),
+      status: quotation.status,
+      subtotalMinor: Number(quotation.subtotalMinor),
+      discountMinor: Number(quotation.discountMinor),
+      taxMinor: Number(quotation.taxMinor),
+      totalMinor: Number(quotation.totalMinor),
+      charges: parseCharges(quotation.charges),
+      gstInclusive: quotation.gstInclusive,
+      items: quotation.items.map((row) => ({
+        itemCode: row.itemCode,
+        description: row.description,
+        quantity: row.quantity,
+        unitPriceMinor: Number(row.unitPriceMinor),
+        taxBps: row.taxBps,
+        vendorPriceMinor: row.vendorPriceMinor == null ? null : Number(row.vendorPriceMinor),
+        marginType: row.marginType,
+        marginValue: Number(row.marginValue),
+        lineTotalMinor: Number(row.lineTotalMinor),
+      })),
+    };
   }
 
   private lineInputs(items: QuotationItemInput[]) {
     return items.map((item) => ({
       quantity: wholeQuantity(item.quantity),
-      unitPriceMinor: item.unitPriceMinor,
-      discountMinor: item.discountMinor ?? 0,
+      unitPriceMinor: item.unitPriceMinor ?? 0,
       taxBps: item.taxBps ?? 0,
     }));
   }
@@ -819,10 +1008,17 @@ export class QuotationsService {
           quotationId: params.quotationId,
           description: item.description.trim(),
           quantity: wholeQuantity(item.quantity),
-          unitPriceMinor: BigInt(item.unitPriceMinor),
-          discountMinor: BigInt(item.discountMinor ?? 0),
+          unitPriceMinor: BigInt(item.unitPriceMinor ?? 0),
+          discountMinor: BigInt(line.discountMinor),
           taxBps: item.taxBps ?? 0,
           taxRateIds: item.taxRateIds ?? [],
+          vendorPriceMinor: item.vendorPriceMinor == null ? null : BigInt(item.vendorPriceMinor),
+          marginType: item.marginType ?? null,
+          marginValue: BigInt(item.marginValue ?? 0),
+          itemCode: emptyToNull(item.itemCode),
+          width: item.width ?? null,
+          height: item.height ?? null,
+          unit: emptyToNull(item.unit) ?? 'Nos',
           lineTotalMinor: BigInt(line.lineTotalMinor),
           sortOrder: index,
           createdBy: params.actorUserId,

@@ -1,4 +1,6 @@
 import { wholeQuantity } from '../../../common/whole-quantity';
+import { parseSpecs, type SpecRow } from '../domain/quotation-settings';
+import { profitAfterDiscount } from '../domain/quotation-totals';
 import { allowedNextStatuses } from '../domain/quotation-types';
 import {
   ClosingPrediction,
@@ -19,8 +21,31 @@ export type QuotationItemView = {
   discountMinor: number;
   taxBps: number;
   taxRateIds: string[];
+  itemCode: string | null;
+  width: number | null;
+  height: number | null;
+  unit: string;
+  vendorPriceMinor: number | null;
+  marginType: string | null;
+  marginValue: number;
   lineTotalMinor: number;
   sortOrder: number;
+};
+
+export type QuotationChargeView = {
+  description: string;
+  amountMinor: number;
+  taxBps: number;
+};
+
+export type QuotationRevisionView = {
+  revision: number;
+  savedAt: string;
+  status: string;
+  subtotalMinor: number;
+  discountMinor: number;
+  taxMinor: number;
+  totalMinor: number;
 };
 
 export type QuotationView = {
@@ -59,9 +84,17 @@ export type QuotationView = {
   leadNumber: string | null;
   leadTitle: string | null;
   customerName: string | null;
+  customerPhone: string | null;
   leadLifecycleStatus: string | null;
   nextStatuses: string[];
   items: QuotationItemView[];
+  charges: QuotationChargeView[];
+  gstInclusive: boolean;
+  specs: SpecRow[];
+  /** Internal: margin on purchase-priced lines less the total discount. */
+  profitMinor: number;
+  revision: number;
+  revisions: QuotationRevisionView[];
   version: number;
 };
 
@@ -92,6 +125,11 @@ type QuotationMappedRow = {
   lastFollowedUpAt?: Date | null;
   followUpNote?: string | null;
   assignedToMembershipId: string | null;
+  charges?: unknown;
+  gstInclusive?: boolean;
+  specs?: unknown;
+  revision?: number;
+  revisions?: unknown;
   version: number;
   createdAt?: Date;
   leadId?: string;
@@ -101,6 +139,7 @@ type QuotationMappedRow = {
     leadNumber: string;
     title: string;
     customerName: string | null;
+    primaryPhone?: string | null;
     lifecycleStatus?: string;
   } | null;
   items?: Array<{
@@ -112,6 +151,13 @@ type QuotationMappedRow = {
     discountMinor: bigint;
     taxBps: number;
     taxRateIds?: unknown;
+    itemCode?: string | null;
+    width?: number | null;
+    height?: number | null;
+    unit?: string;
+    vendorPriceMinor?: bigint | null;
+    marginType?: string | null;
+    marginValue?: bigint;
     lineTotalMinor: bigint;
     sortOrder: number;
     deletedAt: Date | null;
@@ -133,6 +179,48 @@ function asIdList(value: unknown): string[] {
     return [];
   }
   return value.filter((item): item is string => typeof item === 'string' && item.length > 0);
+}
+
+export function parseCharges(value: unknown): QuotationChargeView[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((raw) => {
+    const row = raw as Partial<QuotationChargeView> | null;
+    if (!row || typeof row.description !== 'string') {
+      return [];
+    }
+    return [
+      {
+        description: row.description,
+        amountMinor: Math.max(0, Math.trunc(Number(row.amountMinor ?? 0))),
+        taxBps: Math.max(0, Math.trunc(Number(row.taxBps ?? 0))),
+      },
+    ];
+  });
+}
+
+function parseRevisions(value: unknown): QuotationRevisionView[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((raw) => {
+    const row = raw as Partial<QuotationRevisionView> | null;
+    if (!row || typeof row.revision !== 'number') {
+      return [];
+    }
+    return [
+      {
+        revision: row.revision,
+        savedAt: String(row.savedAt ?? ''),
+        status: String(row.status ?? ''),
+        subtotalMinor: Number(row.subtotalMinor ?? 0),
+        discountMinor: Number(row.discountMinor ?? 0),
+        taxMinor: Number(row.taxMinor ?? 0),
+        totalMinor: Number(row.totalMinor ?? 0),
+      },
+    ];
+  });
 }
 
 export function toQuotationView(
@@ -202,6 +290,7 @@ export function toQuotationView(
     leadNumber: row.lead?.leadNumber ?? null,
     leadTitle: row.lead?.title ?? null,
     customerName: row.lead?.customerName ?? null,
+    customerPhone: row.lead?.primaryPhone ?? null,
     leadLifecycleStatus: row.lead?.lifecycleStatus ?? null,
     nextStatuses: allowedNextStatuses(row.status),
     items: items.map((item) => ({
@@ -214,9 +303,29 @@ export function toQuotationView(
       discountMinor: money(item.discountMinor),
       taxBps: item.taxBps,
       taxRateIds: asIdList(item.taxRateIds),
+      itemCode: item.itemCode ?? null,
+      width: item.width ?? null,
+      height: item.height ?? null,
+      unit: item.unit ?? 'Nos',
+      vendorPriceMinor: item.vendorPriceMinor == null ? null : money(item.vendorPriceMinor),
+      marginType: item.marginType ?? null,
+      marginValue: money(item.marginValue ?? 0),
       lineTotalMinor: money(item.lineTotalMinor),
       sortOrder: item.sortOrder,
     })),
+    charges: parseCharges(row.charges),
+    gstInclusive: row.gstInclusive ?? false,
+    specs: parseSpecs(row.specs),
+    profitMinor: profitAfterDiscount(
+      items.map((item) => ({
+        quantity: item.quantity,
+        unitPriceMinor: money(item.unitPriceMinor),
+        vendorPriceMinor: item.vendorPriceMinor == null ? null : money(item.vendorPriceMinor),
+      })),
+      money(row.discountMinor),
+    ),
+    revision: row.revision ?? 1,
+    revisions: parseRevisions(row.revisions),
     version: row.version,
   };
 }

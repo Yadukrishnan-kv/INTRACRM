@@ -59,10 +59,18 @@ class QuotationApi {
     String? terms,
     String? validUntilOn,
     String? expectedCloseOn,
+    List<Map<String, dynamic>>? charges,
+    List<Map<String, String>>? specs,
+    int? discountMinor,
+    bool? gstInclusive,
   }) {
     return _client.post(
       '/quotations',
       data: {
+        'charges': ?charges,
+        'specs': ?specs,
+        'discountMinor': ?discountMinor,
+        'gstInclusive': ?gstInclusive,
         'leadId': leadId,
         'items': items,
         if (title != null && title.isNotEmpty) 'title': title,
@@ -84,10 +92,18 @@ class QuotationApi {
     String? terms,
     String? validUntilOn,
     String? expectedCloseOn,
+    List<Map<String, dynamic>>? charges,
+    List<Map<String, String>>? specs,
+    int? discountMinor,
+    bool? gstInclusive,
   }) {
     return _client.patch(
       '/quotations/$id',
       data: {
+        'charges': ?charges,
+        'specs': ?specs,
+        'discountMinor': ?discountMinor,
+        'gstInclusive': ?gstInclusive,
         'version': version,
         'items': items,
         'title': ?title,
@@ -99,6 +115,8 @@ class QuotationApi {
       parse: (json) => Quotation.fromJson(json! as Map<String, dynamic>),
     );
   }
+
+  Future<Result<List<int>>> pdf(String id) => _client.getBytes('/quotations/$id/pdf');
 
   Future<Result<ApiSuccess<bool>>> remove(String id) {
     return _client.delete(

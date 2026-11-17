@@ -11,6 +11,13 @@ class QuotationItem {
     this.productName,
     this.sortOrder = 0,
     this.taxRateIds = const [],
+    this.itemCode,
+    this.width,
+    this.height,
+    this.unit = 'Nos',
+    this.vendorPriceMinor,
+    this.marginType,
+    this.marginValue = 0,
   });
 
   final String id;
@@ -24,6 +31,36 @@ class QuotationItem {
   final List<String> taxRateIds;
   final int lineTotalMinor;
   final int sortOrder;
+  final String? itemCode;
+  final double? width;
+  final double? height;
+  final String unit;
+
+  /// Purchase (vendor) price per unit — internal.
+  final int? vendorPriceMinor;
+  final String? marginType;
+  final int marginValue;
+
+  /// Request body that re-saves this line unchanged (used when deleting another line).
+  Map<String, dynamic> toPayload() {
+    final vendor = vendorPriceMinor != null && marginType != null;
+    return {
+      if (productId != null) 'productId': productId,
+      if (itemCode != null && itemCode!.isNotEmpty) 'itemCode': itemCode,
+      'description': description,
+      'quantity': quantity,
+      'width': ?width,
+      'height': ?height,
+      'unit': unit,
+      'taxBps': taxBps,
+      if (vendor) ...{
+        'vendorPriceMinor': vendorPriceMinor,
+        'marginType': marginType,
+        'marginValue': marginValue,
+      } else
+        'unitPriceMinor': unitPriceMinor,
+    };
+  }
 
   factory QuotationItem.fromJson(Map<String, dynamic> json) {
     return QuotationItem(
@@ -41,8 +78,41 @@ class QuotationItem {
       ],
       lineTotalMinor: json['lineTotalMinor'] as int? ?? 0,
       sortOrder: json['sortOrder'] as int? ?? 0,
+      itemCode: json['itemCode'] as String?,
+      width: (json['width'] as num?)?.toDouble(),
+      height: (json['height'] as num?)?.toDouble(),
+      unit: json['unit'] as String? ?? 'Nos',
+      vendorPriceMinor: json['vendorPriceMinor'] as int?,
+      marginType: json['marginType'] as String?,
+      marginValue: json['marginValue'] as int? ?? 0,
     );
   }
+}
+
+class QuotationCharge {
+  const QuotationCharge({required this.description, required this.amountMinor, this.taxBps = 0});
+
+  final String description;
+  final int amountMinor;
+  final int taxBps;
+
+  factory QuotationCharge.fromJson(Map<String, dynamic> json) => QuotationCharge(
+        description: json['description'] as String? ?? '',
+        amountMinor: json['amountMinor'] as int? ?? 0,
+        taxBps: json['taxBps'] as int? ?? 0,
+      );
+}
+
+class QuotationSpec {
+  const QuotationSpec({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  factory QuotationSpec.fromJson(Map<String, dynamic> json) => QuotationSpec(
+        label: json['label'] as String? ?? '',
+        value: json['value'] as String? ?? '',
+      );
 }
 
 class ClosingPrediction {
@@ -124,6 +194,12 @@ class Quotation {
     this.leadLifecycleStatus,
     this.nextStatuses = const [],
     this.items = const [],
+    this.charges = const [],
+    this.specs = const [],
+    this.gstInclusive = false,
+    this.profitMinor = 0,
+    this.revision = 1,
+    this.customerPhone,
   });
 
   final String id;
@@ -166,6 +242,16 @@ class Quotation {
   final String? leadLifecycleStatus;
   final List<String> nextStatuses;
   final List<QuotationItem> items;
+  final List<QuotationCharge> charges;
+  final List<QuotationSpec> specs;
+
+  /// Entered prices already include GST.
+  final bool gstInclusive;
+
+  /// Internal: margin on purchase-priced lines less the total discount.
+  final int profitMinor;
+  final int revision;
+  final String? customerPhone;
   final int version;
 
   bool get isDraft => status == QuotationStatuses.draft;
@@ -231,6 +317,18 @@ class Quotation {
         for (final item in items)
           if (item is Map<String, dynamic>) QuotationItem.fromJson(item),
       ],
+      charges: [
+        for (final item in json['charges'] as List<dynamic>? ?? const [])
+          if (item is Map<String, dynamic>) QuotationCharge.fromJson(item),
+      ],
+      specs: [
+        for (final item in json['specs'] as List<dynamic>? ?? const [])
+          if (item is Map<String, dynamic>) QuotationSpec.fromJson(item),
+      ],
+      gstInclusive: json['gstInclusive'] as bool? ?? false,
+      profitMinor: json['profitMinor'] as int? ?? 0,
+      revision: json['revision'] as int? ?? 1,
+      customerPhone: json['customerPhone'] as String?,
       version: json['version'] as int? ?? 1,
     );
   }
@@ -453,10 +551,23 @@ class QuotationTax {
 }
 
 class QuotationCatalog {
-  const QuotationCatalog({this.products = const [], this.taxes = const []});
+  const QuotationCatalog({
+    this.products = const [],
+    this.taxes = const [],
+    this.defaultGstBps = 1800,
+    this.roundingStepMinor = 10000,
+    this.defaultTerms = '',
+    this.defaultSpecs = const [],
+  });
 
   final List<QuotationProduct> products;
   final List<QuotationTax> taxes;
+  final int defaultGstBps;
+
+  /// Purchase price + margin rounds up to a multiple of this many paise (0 = off).
+  final int roundingStepMinor;
+  final String defaultTerms;
+  final List<QuotationSpec> defaultSpecs;
 
   factory QuotationCatalog.fromJson(Map<String, dynamic> json) {
     final products = json['products'] as List<dynamic>? ?? const [];
@@ -469,6 +580,13 @@ class QuotationCatalog {
       taxes: [
         for (final item in taxes)
           if (item is Map<String, dynamic>) QuotationTax.fromJson(item),
+      ],
+      defaultGstBps: json['defaultGstBps'] as int? ?? 1800,
+      roundingStepMinor: json['roundingStepMinor'] as int? ?? 10000,
+      defaultTerms: json['defaultTerms'] as String? ?? '',
+      defaultSpecs: [
+        for (final item in json['defaultSpecs'] as List<dynamic>? ?? const [])
+          if (item is Map<String, dynamic>) QuotationSpec.fromJson(item),
       ],
     );
   }
