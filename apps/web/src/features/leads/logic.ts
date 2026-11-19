@@ -7,6 +7,7 @@ export type LeadFormState = {
   primaryPhone: string;
   primaryEmail: string;
   city: string;
+  district: string;
   requirement: string;
   sourceId: string;
   categoryId: string;
@@ -24,6 +25,7 @@ export const EMPTY_LEAD_FORM: LeadFormState = {
   primaryPhone: '',
   primaryEmail: '',
   city: '',
+  district: '',
   requirement: '',
   sourceId: '',
   categoryId: '',
@@ -43,6 +45,7 @@ export function formFromLead(lead: LeadDetail): LeadFormState {
     primaryPhone: lead.primaryPhone ?? '',
     primaryEmail: lead.primaryEmail ?? '',
     city: lead.city ?? '',
+    district: lead.district ?? '',
     requirement: lead.requirement ?? '',
     sourceId: lead.sourceId ?? '',
     categoryId: lead.categoryId ?? '',
@@ -90,6 +93,7 @@ export function validateLeadForm(form: LeadFormState, isEdit: boolean, now = new
   const email = emailError(form.primaryEmail);
   if (email) errors.primaryEmail = email;
   if (form.city.trim().length > 80) errors.city = 'City is too long';
+  if (form.district.trim().length > 80) errors.district = 'District is too long';
   if (form.requirement.length > 2000) errors.requirement = 'Requirement is too long';
   if (parseRupees(form.estimatedValue) === undefined) errors.estimatedValueMinor = 'Estimated value must be 0 or more';
   if (!isEdit && !form.ownerMembershipId) errors.ownerMembershipId = 'Assigned staff is required';
@@ -115,6 +119,7 @@ export function createLeadBody(form: LeadFormState): Record<string, unknown> {
     ['primaryPhone', blank(form.primaryPhone)],
     ['primaryEmail', blank(form.primaryEmail)],
     ['city', blank(form.city)],
+    ['district', blank(form.district)],
     ['requirement', blank(form.requirement)],
     ['sourceId', blank(form.sourceId)],
     ['categoryId', blank(form.categoryId)],
@@ -149,6 +154,7 @@ export function updateLeadBody(form: LeadFormState, version: number): Record<str
     primaryPhone: blank(form.primaryPhone),
     primaryEmail: blank(form.primaryEmail),
     city: blank(form.city),
+    district: blank(form.district),
     requirement: blank(form.requirement),
     sourceId: blank(form.sourceId),
     categoryId: blank(form.categoryId),

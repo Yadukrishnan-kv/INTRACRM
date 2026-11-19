@@ -195,6 +195,7 @@ export type QuotationInput = {
   terms?: string;
   validUntilOn?: string;
   expectedCloseOn?: string;
+  assignedToMembershipId?: string;
   items: QuotationItemInput[];
   charges?: QuotationChargeInput[];
   gstInclusive?: boolean;
@@ -319,4 +320,7 @@ export type LeadOption = {
   customerName: string | null;
   primaryPhone?: string | null;
   city?: string | null;
+  district?: string | null;
 };
+
+export type StaffLookup = { id: string; fullName: string; designation: string | null };

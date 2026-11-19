@@ -9,6 +9,7 @@ Production-grade PostgreSQL 17 schema for INTRA LEADS.
 2. intra_leads_partitions.sql
 3. intra_leads_auth_login_history.sql
 4. intra_leads_lead_management.sql
+    - 4a. intra_leads_lead_district.sql
 5. intra_leads_lead_pipeline.sql
 6. intra_leads_activity_timeline.sql
 7. intra_leads_follow_ups.sql

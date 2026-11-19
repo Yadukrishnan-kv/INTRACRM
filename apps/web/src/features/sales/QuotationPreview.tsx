@@ -44,7 +44,7 @@ export function QuotationPreview(p: QuotationPreviewProps) {
   const money = (minor: number) => formatMoney(minor).replace('₹', '');
   return (
     <aside className="qp" aria-label="Quotation preview">
-      <h2 className="qp-heading">Quotation preview</h2>
+      <h2 className="qp-heading">Quotation Preview</h2>
       <div className="qp-sheet">
         <div className="qp-head">
           <img className="qp-logo" src="/logo.png" alt={company} />

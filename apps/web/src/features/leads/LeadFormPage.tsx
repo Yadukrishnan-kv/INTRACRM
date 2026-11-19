@@ -128,6 +128,7 @@ export function LeadFormPage() {
           />
           <TextField label="Email" type="email" value={form.primaryEmail} maxLength={160} error={errors.primaryEmail} onValue={set('primaryEmail')} />
           <TextField label="City" value={form.city} maxLength={80} error={errors.city} onValue={set('city')} />
+          <TextField label="District" value={form.district} maxLength={80} error={errors.district} onValue={set('district')} />
         </FormGrid>
 
         <h2>Requirement information</h2>

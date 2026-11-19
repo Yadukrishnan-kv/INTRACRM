@@ -86,6 +86,7 @@ export type LeadView = {
   primaryPhone: string | null;
   primaryEmail: string | null;
   city: string | null;
+  district: string | null;
   requirement: string | null;
   sourceId: string | null;
   sourceName: string | null;
@@ -309,6 +310,7 @@ export class LeadsService {
           primaryPhone: phone,
           primaryEmail: emptyToNull(dto.primaryEmail)?.toLowerCase() ?? null,
           city: emptyToNull(dto.city),
+          district: emptyToNull(dto.district),
           sourceId: dto.sourceId ?? null,
           categoryId: dto.categoryId ?? null,
           pipelineId: pipeline.id,
@@ -444,6 +446,7 @@ export class LeadsService {
           ? current.primaryEmail
           : emptyToNull(dto.primaryEmail)?.toLowerCase() ?? null,
       city: dto.city === undefined ? current.city : emptyToNull(dto.city),
+      district: dto.district === undefined ? current.district : emptyToNull(dto.district),
       sourceId: dto.sourceId === undefined ? current.sourceId : dto.sourceId,
       quality: dto.quality === undefined ? current.quality : dto.quality,
       estimatedValueMinor:
@@ -459,6 +462,7 @@ export class LeadsService {
         primaryPhone: current.primaryPhone,
         primaryEmail: current.primaryEmail,
         city: current.city,
+        district: current.district,
         sourceId: current.sourceId,
         quality: current.quality,
         estimatedValueMinor: toMinorNumber(current.estimatedValueMinor),
@@ -476,6 +480,7 @@ export class LeadsService {
           primaryPhone: next.primaryPhone,
           primaryEmail: next.primaryEmail,
           city: next.city,
+          district: next.district,
           sourceId: next.sourceId,
           categoryId: dto.categoryId === undefined ? current.categoryId : dto.categoryId,
           quality: next.quality ?? null,
@@ -1048,6 +1053,7 @@ export class LeadsService {
       primaryPhone: row.primaryPhone,
       primaryEmail: row.primaryEmail,
       city: row.city,
+      district: row.district,
       requirement: row.requirement,
       sourceId: row.sourceId,
       sourceName: row.source?.name ?? null,

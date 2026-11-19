@@ -11,6 +11,7 @@ export type Lead = {
   primaryPhone: string | null;
   primaryEmail: string | null;
   city: string | null;
+  district: string | null;
   requirement: string | null;
   sourceId: string | null;
   sourceName: string | null;

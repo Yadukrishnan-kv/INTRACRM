@@ -136,6 +136,12 @@ export class CreateLeadRequest {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(80)
+  district?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   @MaxLength(2000)
   requirement?: string;
 
@@ -212,6 +218,12 @@ export class UpdateLeadRequest {
   @IsString()
   @MaxLength(80)
   city?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  district?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

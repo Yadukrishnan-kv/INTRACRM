@@ -123,14 +123,24 @@
 /* Quotation form redesign: header toggle, details grid, item table, rail, sticky action bar. */
 .quote-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .quote-top h1 { margin: 0; }
+.quote-top-title { display: flex; align-items: center; gap: 12px; }
+.quote-top-icon { width: 40px; height: 40px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; background: var(--teal-dark, #0b5d52); color: #fff; font-size: 1.15rem; flex: none; }
 .quote-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 3px; background: var(--card); }
-.quote-toggle button { border: 0; background: transparent; font: inherit; font-weight: 600; font-size: 0.85rem; color: var(--muted); padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+.quote-toggle button { border: 0; background: transparent; font: inherit; font-weight: 600; font-size: 0.85rem; color: var(--muted); padding: 7px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
 .quote-toggle button.on { background: var(--teal); color: #fff; }
-.quote-h { font-size: 1.05rem; margin: 0; }
+.quote-h { font-size: 1.05rem; margin: 0; display: flex; align-items: center; }
+.quote-icon { display: inline-flex; width: 26px; height: 26px; align-items: center; justify-content: center; border-radius: 7px; background: var(--teal-soft); color: var(--teal-dark); font-size: 0.85rem; }
 .quote-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.quote-details { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 900px) { .quote-details { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.quote-read { min-height: 38px; display: flex; align-items: center; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg, #f6f8f8); font-weight: 600; overflow-wrap: anywhere; }
+.quote-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+
+/* Read-only / icon-prefixed fields in the Quotation Details card. */
+.quote-icon-input { min-height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card); }
+.quote-icon-input:focus-within { border-color: var(--teal); box-shadow: var(--focus); }
+.quote-icon-input > span:first-child { flex: none; opacity: 0.8; font-size: 0.95rem; }
+.quote-icon-input input, .quote-icon-input select { border: 0; background: transparent; padding: 0; min-height: 0; flex: 1 1 auto; min-width: 0; color: inherit; font: inherit; }
+.quote-icon-input input:focus, .quote-icon-input select:focus { outline: none; box-shadow: none; }
+.quote-icon-input-static { background: var(--bg, #f6f8f8); font-weight: 600; overflow-wrap: anywhere; }
+.quote-icon-input-static span:last-child { overflow-wrap: anywhere; }
 .quote-pill { display: inline-flex; align-self: flex-start; align-items: center; min-height: 38px; padding: 0 14px; border-radius: var(--radius-sm); background: var(--teal-soft); color: var(--teal-dark); font-weight: 700; }
 
 .quote-items th { font-size: 0.78rem; white-space: nowrap; }
@@ -142,6 +152,27 @@
 .quote-size input { width: 56px; display: inline-block; }
 .quote-size span { margin: 0 4px; color: var(--muted); }
 .quote-formula { margin: 0; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--teal-soft); color: var(--teal-dark); font-size: 0.82rem; }
+.quote-formula br + * { font-size: 0.78rem; opacity: 0.9; }
+
+/* Additional Charges: the four standard rows (Transportation/Installation/Unloading/Other) get an icon and a plain amount input; extra custom charges keep the full editable row below them. */
+.charge-row { display: flex; align-items: center; gap: 10px; }
+.charge-icon { flex: none; width: 34px; height: 34px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: var(--canvas); font-size: 1rem; }
+.charge-label { flex: 1 1 auto; font-weight: 600; }
+.charge-amount { flex: 0 0 160px; }
+.charge-amount input { text-align: right; }
+@media (max-width: 520px) { .charge-amount { flex-basis: 120px; } }
+
+/* GST treatment: real radio circles instead of chips, to match the reference layout. */
+.quote-radio-group { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.quote-radio { display: inline-flex; align-items: center; gap: 10px; border: 0; background: none; font: inherit; font-size: 0.92rem; color: var(--text); cursor: pointer; padding: 2px 0; text-align: left; }
+.quote-radio-dot { flex: none; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); position: relative; }
+.quote-radio-on .quote-radio-dot { border-color: var(--teal); }
+.quote-radio-on .quote-radio-dot::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--teal); }
+.quote-radio-on { font-weight: 600; }
+.quote-info { display: inline-flex; width: 15px; height: 15px; align-items: center; justify-content: center; border-radius: 50%; background: var(--canvas); color: var(--muted); font-size: 0.68rem; cursor: help; }
+
+.sales-subtotal { color: var(--teal-dark); font-weight: 700; }
+.quote-profit { margin: 8px 0 0; }
 
 .quote-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 @media (min-width: 900px) { .quote-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -164,18 +195,25 @@
 .qh-title { display: flex; align-items: center; gap: 12px; }
 .qh-title h1 { margin: 0; }
 .qh-title p { margin: 2px 0 0; }
-.qh-icon { width: 48px; height: 48px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--teal-soft); color: var(--teal); font-size: 1.5rem; }
+.qh-icon { width: 48px; height: 48px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--teal-dark, #0b5d52); color: #fff; font-size: 1.4rem; flex: none; }
 .qh-kpis { display: flex; gap: 10px; flex-wrap: wrap; }
-.qkpi { min-width: 120px; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); display: flex; flex-direction: column; gap: 2px; }
-.qkpi strong { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.qkpi { min-width: 132px; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); display: flex; align-items: center; gap: 10px; }
+.qkpi strong { display: block; font-size: 1.4rem; font-variant-numeric: tabular-nums; line-height: 1.2; }
 .qkpi span { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+.qkpi-icon { flex: none; width: 34px; height: 34px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.05rem; background: var(--canvas); }
+.qkpi-warn .qkpi-icon { background: var(--warning-surface); }
 .qkpi-warn strong { color: #c77700; }
+.qkpi-ok .qkpi-icon { background: var(--success-surface); }
 .qkpi-ok strong { color: var(--success); }
-.qkpi-accent strong { color: var(--teal); }
+.qkpi-accent .qkpi-icon { background: var(--warning-surface); }
+.qkpi-accent strong { color: #a8631f; }
+.qkpi-teal .qkpi-icon { background: var(--teal-soft); }
+.qkpi-teal strong { color: var(--teal-dark); }
 .qtabs { display: flex; flex-direction: row; align-items: stretch; gap: 4px; overflow-x: auto; scrollbar-width: none; margin-bottom: 14px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
 .qtabs::-webkit-scrollbar { display: none; }
-.qtab { flex: none; white-space: nowrap; border: 0; background: transparent; font: inherit; font-weight: 600; font-size: 0.9rem; color: var(--muted); padding: 10px 16px; border-bottom: 2px solid transparent; cursor: pointer; text-decoration: none; }
+.qtab { flex: none; white-space: nowrap; display: inline-flex; align-items: center; border: 0; background: transparent; font: inherit; font-weight: 600; font-size: 0.9rem; color: var(--muted); padding: 10px 16px; border-bottom: 2px solid transparent; cursor: pointer; text-decoration: none; }
 .qtab-active { color: var(--teal-dark); border-bottom-color: var(--teal); }
 .qtab-create { color: var(--teal); }
+.qtab-create.qtab-active { border-bottom-color: var(--teal); }
 
 .qp-logo { height: 44px; width: auto; max-width: 55%; object-fit: contain; display: block; }

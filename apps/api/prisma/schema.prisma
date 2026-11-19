@@ -602,6 +602,7 @@ model Lead {
   addressLine1        String?             @map("address_line1")
   addressLine2        String?             @map("address_line2")
   city                String?
+  district            String?
   state               String?
   postalCode          String?             @map("postal_code")
   countryCode         String?             @map("country_code") @db.Char(2)

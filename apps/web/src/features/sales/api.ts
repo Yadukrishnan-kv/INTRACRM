@@ -8,6 +8,7 @@ import type {
   QuotationSummary,
   QuotationInput,
   QuotationSettings,
+  StaffLookup,
   Warranty,
   WarrantyCatalog,
   WarrantyFile,
@@ -86,6 +87,8 @@ export const salesApi = {
   searchLeads: (q: string) =>
     request<LeadOption[]>('/leads', { query: { q: q || undefined, limit: 20 } }).then((r) => r.data),
   lead: (id: string) => request<LeadOption>(`/leads/${id}`).then((r) => r.data),
+  /** Tenant staff, for "Prepared By". Reuses the leads module's lookups endpoint. */
+  staffLookup: () => request<{ staff: StaffLookup[] }>('/leads/lookups').then((r) => r.data.staff),
 };
 
 /** Error thrown by the unauthenticated public warranty calls. */

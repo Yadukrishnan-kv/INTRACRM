@@ -7,6 +7,7 @@ export const salesKeys = {
   quotationCatalog: ['quotations', 'catalog'] as const,
   engine: ['quotations', 'engine'] as const,
   summary: ['quotations', 'summary'] as const,
+  staffLookup: ['quotations', 'staff-lookup'] as const,
   warrantiesAll: ['warranties'] as const,
   warranties: (q: WarrantyListQuery) => ['warranties', 'list', q] as const,
   warranty: (id: string) => ['warranties', 'detail', id] as const,

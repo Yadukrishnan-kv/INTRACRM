@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../auth/AuthContext';
 import { FormError, FormGrid, TextArea, TextField } from '../../components/form';
 import { EmptyState, ErrorState, Spinner } from '../../components/ui';
 import { formatMoney } from '../../lib/format';
@@ -9,8 +10,10 @@ import { salesApi } from './api';
 import { salesKeys } from './keys';
 import { LeadPicker, LeadSummary } from './LeadPicker';
 import { QuotationPreview } from './QuotationPreview';
+import { QuotationsHeader } from './QuotationsHeader';
 import {
   bpsToPct,
+  CHARGE_PRESETS,
   chargesFromRows,
   computeTotals,
   draftAmounts,
@@ -35,6 +38,9 @@ import { QUOTATION_STATUS_LABELS, type Quotation, type QuotationCatalog, type Qu
 import './sales.css';
 
 type Header = { leadId: string; title: string; validUntilOn: string; expectedCloseOn: string; notes: string; terms: string };
+
+/** Icons for the four standard charge rows, in CHARGE_PRESETS order. */
+const CHARGE_ICONS = ['🚚', '🔧', '📦', '🧾'];
 
 export function QuotationFormPage() {
   const { quotationId } = useParams();
@@ -103,6 +109,12 @@ function QuotationForm({
   const [chargeErrors, setChargeErrors] = useState<Record<string, string>>({});
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof Header, string>>>({});
   const [message, setMessage] = useState<string | null>(null);
+  const { me } = useAuth();
+  const staff = useQuery({ queryKey: salesKeys.staffLookup, queryFn: salesApi.staffLookup, staleTime: 5 * 60_000 });
+  const [assignedTo, setAssignedTo] = useState(() => existing?.assignedToMembershipId ?? '');
+  useEffect(() => {
+    if (!existing && !assignedTo && me?.membershipId) setAssignedTo(me.membershipId);
+  }, [existing, assignedTo, me]);
 
   const set = <K extends keyof Header>(key: K, value: Header[K]) => setHeader((h) => ({ ...h, [key]: value }));
   const setLine = (key: string, patch: Partial<QuotationLineDraft>) =>
@@ -133,6 +145,9 @@ function QuotationForm({
   );
   const profit = draftProfitMinor(lines, step, totals.discountMinor);
   const hasCost = lines.some((l) => l.purchasePrice.trim() !== '');
+  const stepRupees = step / 100;
+  const formulaExampleUnit = 9153 * 1.1;
+  const formulaExampleRounded = Math.ceil(formulaExampleUnit / stepRupees) * stepRupees;
 
   const save = useApiMutation(
     (body: QuotationInput) =>
@@ -193,6 +208,7 @@ function QuotationForm({
       terms: existing ? header.terms.trim() : trimmed(header.terms),
       validUntilOn: header.validUntilOn || undefined,
       expectedCloseOn: header.expectedCloseOn || undefined,
+      assignedToMembershipId: assignedTo || undefined,
       items: result.items,
       charges: chargeResult.charges,
       discountMinor: discountValue ?? 0,
@@ -205,22 +221,19 @@ function QuotationForm({
   const isRevision = !!existing && !isDraft(existing);
   const summary = (
     <dl className="sales-totals">
-      <dt>Items total</dt>
+      <dt>Items Total</dt>
       <dd>{formatMoney(totals.lines.reduce((s, l) => s + l.extendedMinor, 0))}</dd>
       {charges.map((c, i) =>
-        (totals.charges[i]?.extendedMinor ?? 0) > 0 ? (
-          <FragmentRow key={c.key} label={c.description} value={formatMoney(totals.charges[i]!.extendedMinor)} />
+        i < CHARGE_PRESETS.length || (totals.charges[i]?.extendedMinor ?? 0) > 0 ? (
+          <FragmentRow key={c.key} label={c.description} value={formatMoney(totals.charges[i]?.extendedMinor ?? 0)} />
         ) : null,
       )}
-      <dt>Subtotal</dt>
-      <dd>{formatMoney(totals.subtotalMinor)}</dd>
+      <dt className="sales-subtotal">Subtotal</dt>
+      <dd className="sales-subtotal">{formatMoney(totals.subtotalMinor)}</dd>
       <dt>Discount</dt>
       <dd>−{formatMoney(totals.discountMinor)}</dd>
-      <dt>{gstInclusive ? `GST (${gstPct}% included)` : `GST (${gstPct}%)`}</dt>
+      <dt>{gstInclusive ? 'GST (Inclusive)' : `GST (${gstPct}%)`}</dt>
       <dd>{formatMoney(totals.taxMinor)}</dd>
-      {!customerView && hasCost ? (
-        <FragmentRow label="Profit after discount" value={formatMoney(profit)} />
-      ) : null}
     </dl>
   );
   const grandTotal = (
@@ -229,6 +242,8 @@ function QuotationForm({
       <strong>{formatMoney(totals.totalMinor)}</strong>
     </div>
   );
+  const profitNote =
+    !customerView && hasCost ? <p className="quote-profit muted small">Profit after discount: {formatMoney(profit)}</p> : null;
   const lead = useQuery({
     queryKey: ['sales-lead', header.leadId],
     queryFn: () => salesApi.lead(header.leadId),
@@ -247,46 +262,80 @@ function QuotationForm({
 
   return (
     <>
+      <QuotationsHeader forceActiveTab={existing ? undefined : 'create'} leadId={header.leadId || presetLeadId || undefined} />
       <Link to={back} className="back-link">
         ← Back
       </Link>
       <div className="quote-top">
-        <div>
-          <h1>{existing ? `${isDraft(existing) ? 'Edit' : 'Revise'} ${existing.quotationNumber}` : 'Create Quotation'}</h1>
-          <p className="muted small">
-            {isRevision
-              ? `Saving creates revision ${existing!.revision + 1}; the previous figures are kept in the revision history.`
-              : 'Enter the purchase price and margin, or type the selling price directly.'}
-          </p>
+        <div className="quote-top-title">
+          <span className="quote-top-icon" aria-hidden>
+            📄
+          </span>
+          <div>
+            <h1>{existing ? `${isDraft(existing) ? 'Edit' : 'Revise'} ${existing.quotationNumber}` : 'Create Quotation'}</h1>
+            <p className="muted small">
+              {isRevision
+                ? `Saving creates revision ${existing!.revision + 1}; the previous figures are kept in the revision history.`
+                : 'Enter the purchase price and margin, or type the selling price directly.'}
+            </p>
+          </div>
         </div>
         <div className="quote-toggle" role="group" aria-label="View">
           <button type="button" className={!customerView ? 'on' : ''} aria-pressed={!customerView} onClick={() => setCustomerView(false)}>
-            Internal View (Cost &amp; Margin)
+            📄 Internal View (Cost &amp; Margin)
           </button>
           <button type="button" className={customerView ? 'on' : ''} aria-pressed={customerView} onClick={() => setCustomerView(true)}>
-            Customer View (Final Quote)
+            👁 Customer View (Final Quote)
           </button>
         </div>
       </div>
       <div className="quote-layout">
       <form className="stack" onSubmit={(e) => onSubmit(e)} noValidate>
         <section className="card stack">
-          <h2 className="quote-h">Quotation Details</h2>
+          <h2 className="quote-h">
+            <span className="quote-icon" aria-hidden>
+              📄
+            </span>{' '}
+            Quotation Details
+          </h2>
           <div className="quote-details">
-            <ReadField label="Quotation No." value={existing?.quotationNumber ?? 'Assigned on save'} />
-            <ReadField label="Quotation Date" value={today} />
-            <TextField label="Valid Until" type="date" value={header.validUntilOn} onValue={(v) => set('validUntilOn', v)} hint="Optional" />
-            <ReadField label="Customer Name" value={lead.data?.customerName ?? '—'} />
-            <ReadField label="Mobile Number" value={lead.data?.primaryPhone ?? '—'} />
-            <ReadField label="Location" value={lead.data?.city ?? '—'} />
-            <ReadField label="Status" value={statusLabel} pill />
-          </div>
-          <FormGrid>
+            <ReadField icon="📄" label="Quotation No." value={existing?.quotationNumber ?? 'Assigned on save'} />
+            <ReadField icon="📅" label="Quotation Date" value={today} />
+            <div className="field">
+              <span>Valid Until</span>
+              <div className="quote-icon-input">
+                <span aria-hidden>📅</span>
+                <input type="date" value={header.validUntilOn} onChange={(e) => set('validUntilOn', e.target.value)} />
+              </div>
+              <small className="muted">Optional</small>
+            </div>
+            <ReadField icon="👤" label="Customer Name" value={lead.data?.customerName ?? '—'} />
+            <ReadField icon="📞" label="Mobile Number" value={lead.data?.primaryPhone ?? '—'} />
+            <ReadField icon="📍" label="Location" value={lead.data?.city ?? '—'} />
+            <ReadField icon="🏙️" label="District" value={lead.data?.district ?? '—'} />
             {existing || presetLeadId ? (
               <LeadSummary leadId={header.leadId} />
             ) : (
               <LeadPicker value={header.leadId} onChange={(v) => set('leadId', v)} error={fieldErrors.leadId} required label="Related Lead" />
             )}
+            <div className="field">
+              <span>Prepared By</span>
+              <div className="quote-icon-input">
+                <span aria-hidden>🧑</span>
+                <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} aria-label="Prepared by">
+                  <option value="">{staff.isLoading ? 'Loading…' : 'Unassigned'}</option>
+                  {(staff.data ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.fullName}
+                      {s.designation ? ` (${s.designation})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <ReadField icon="🏷️" label="Status" value={statusLabel} pill />
+          </div>
+          <FormGrid>
             <TextField label="Quotation title" value={header.title} maxLength={160} error={fieldErrors.title} onValue={(v) => set('title', v)} placeholder="Optional" />
             <TextField label="Expected close date" type="date" value={header.expectedCloseOn} onValue={(v) => set('expectedCloseOn', v)} hint="Optional" />
           </FormGrid>
@@ -333,6 +382,15 @@ function QuotationForm({
               <div className="btn-row">
                 <button type="button" className="btn btn-primary btn-sm" disabled={lines.length >= 50} onClick={() => setLines((ls) => [...ls, newQuotationLine()])}>
                   + Add Item
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={lines.length >= 50 || !products.length}
+                  title={products.length ? undefined : 'No products in the catalog yet'}
+                  onClick={() => setLines((ls) => [...ls, newQuotationLine()])}
+                >
+                  ⊞ Add from Product
                 </button>
               </div>
             </div>
@@ -422,7 +480,9 @@ function QuotationForm({
               </table>
             </div>
             <p className="quote-formula">
-              <strong>Pricing Formula:</strong> Unit Price = Purchase Price + Margin % &nbsp;|&nbsp; MRP = Round up to next ₹{(step / 100).toLocaleString('en-IN')}
+              <strong>Pricing Formula:</strong> Unit Price = Purchase Price + Margin % &nbsp;|&nbsp; MRP = Round Up to Next ₹{stepRupees.toLocaleString('en-IN')}
+              <br />
+              Example: ₹9,153 + 10% = ₹{formulaExampleUnit.toLocaleString('en-IN', { minimumFractionDigits: 2 })} → ₹{formulaExampleRounded.toLocaleString('en-IN')}
             </p>
           </section>
         )}
@@ -430,18 +490,31 @@ function QuotationForm({
         <div className="quote-pair">
         <section className="card stack">
           <h2 className="quote-h">Additional Charges</h2>
-          {charges.map((c) => (
-            <div key={c.key} className="sales-line-grid">
-              <TextField label="Charge" value={c.description} maxLength={160} error={chargeErrors[c.key]} onValue={(v) => setCharge(c.key, { description: v })} />
-              <TextField label="Amount (₹)" inputMode="decimal" value={c.amount} onValue={(v) => setCharge(c.key, { amount: v })} />
-              <div className="field">
-                <span>&nbsp;</span>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCharges((cs) => cs.filter((x) => x.key !== c.key))}>
-                  Remove
-                </button>
+          {charges.map((c, i) =>
+            i < CHARGE_PRESETS.length ? (
+              <div key={c.key} className="charge-row">
+                <span className="charge-icon" aria-hidden>
+                  {CHARGE_ICONS[i]}
+                </span>
+                <span className="charge-label">{c.description}</span>
+                <div className="quote-icon-input charge-amount">
+                  <span aria-hidden>₹</span>
+                  <input aria-label={c.description} inputMode="decimal" value={c.amount} onChange={(e) => setCharge(c.key, { amount: e.target.value })} />
+                </div>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div key={c.key} className="sales-line-grid">
+                <TextField label="Charge" value={c.description} maxLength={160} error={chargeErrors[c.key]} onValue={(v) => setCharge(c.key, { description: v })} />
+                <TextField label="Amount (₹)" inputMode="decimal" value={c.amount} onValue={(v) => setCharge(c.key, { amount: v })} />
+                <div className="field">
+                  <span>&nbsp;</span>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCharges((cs) => cs.filter((x) => x.key !== c.key))}>
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ),
+          )}
           <div>
             <button type="button" className="btn btn-ghost" disabled={charges.length >= 20} onClick={() => setCharges((cs) => [...cs, { key: `c${Date.now()}${cs.length}`, description: '', amount: '' }])}>
               + Add charge
@@ -452,19 +525,38 @@ function QuotationForm({
         <section className="card stack">
           <h2 className="quote-h">Tax &amp; Discount</h2>
           <div className="field">
-            <span>GST treatment</span>
-            <div className="sales-taxes" role="radiogroup" aria-label="GST treatment">
+            <span>
+              GST Treatment <span className="quote-info" title="Whether the prices you entered already include GST.">ⓘ</span>
+            </span>
+            <div className="quote-radio-group" role="radiogroup" aria-label="GST treatment">
               {([true, false] as const).map((inclusive) => (
-                <button key={String(inclusive)} type="button" role="radio" aria-checked={gstInclusive === inclusive} className={`chip${gstInclusive === inclusive ? ' chip-active' : ''}`} onClick={() => setGstInclusive(inclusive)}>
-                  {inclusive ? 'Inclusive of GST (recommended)' : 'Exclusive of GST'}
+                <button
+                  key={String(inclusive)}
+                  type="button"
+                  role="radio"
+                  aria-checked={gstInclusive === inclusive}
+                  className={`quote-radio${gstInclusive === inclusive ? ' quote-radio-on' : ''}`}
+                  onClick={() => setGstInclusive(inclusive)}
+                >
+                  <span className="quote-radio-dot" aria-hidden />
+                  {inclusive ? 'Inclusive of GST (Recommended)' : 'Exclusive of GST'}
                 </button>
               ))}
             </div>
           </div>
           <FormGrid>
             <TextField label="GST %" inputMode="decimal" value={gstPct} onValue={setGstPct} />
-            <TextField label="Total discount (₹)" inputMode="decimal" value={discount} onValue={setDiscount} hint="Applied to the whole quotation" />
+            <TextField label="Discount (₹)" inputMode="decimal" value={discount} onValue={setDiscount} hint="Applied to the whole quotation" />
           </FormGrid>
+          <TextArea
+            label="Notes (Internal)"
+            rows={3}
+            value={header.notes}
+            maxLength={2000}
+            error={fieldErrors.notes}
+            onValue={(v) => set('notes', v)}
+            placeholder="Site at Koyilandy. Installation after 10 days."
+          />
         </section>
         </div>
 
@@ -494,9 +586,6 @@ function QuotationForm({
             <div className="span-2">
               <TextArea label="Terms and conditions (one per line)" rows={6} value={header.terms} maxLength={4000} error={fieldErrors.terms} onValue={(v) => set('terms', v)} />
             </div>
-            <div className="span-2">
-              <TextArea label="Notes (internal)" rows={3} value={header.notes} maxLength={2000} error={fieldErrors.notes} onValue={(v) => set('notes', v)} />
-            </div>
           </FormGrid>
         </section>
 
@@ -507,20 +596,20 @@ function QuotationForm({
           </Link>
           <span className="quote-spacer" />
           <button type="submit" className="btn btn-ghost" disabled={busy}>
-            {save.isPending ? 'Saving…' : existing ? (isRevision ? 'Save Revision' : 'Save Changes') : 'Save as Draft'}
+            📄 {save.isPending ? 'Saving…' : existing ? (isRevision ? 'Save Revision' : 'Save Changes') : 'Save as Draft'}
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => document.getElementById('quote-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
-            Preview
+            👁 Preview
           </button>
           <button type="button" className="btn btn-ghost" disabled={!existing} title={existing ? undefined : 'Save the quotation first'} onClick={() => existing && void salesApi.quotationPdf(existing.id, existing.quotationNumber)}>
-            Download PDF
+            ⬇ Download PDF
           </button>
           <button type="button" className="btn btn-whatsapp" disabled={!existing} title={existing ? undefined : 'Save the quotation first'} onClick={shareWhatsApp}>
-            Share on WhatsApp
+            💬 Share on WhatsApp
           </button>
           {!existing || isDraft(existing) ? (
             <button type="button" className="btn btn-primary" disabled={busy} onClick={(e) => onSubmit(e, true)}>
-              {saveAndSend.isPending ? 'Sending…' : 'Save & Send'}
+              {saveAndSend.isPending ? 'Sending…' : '✈ Save & Send'}
             </button>
           ) : null}
         </div>
@@ -530,6 +619,7 @@ function QuotationForm({
           <h2 className="quote-h">Quotation Summary</h2>
           {summary}
           {grandTotal}
+          {profitNote}
         </section>
         <div id="quote-preview">
       <QuotationPreview
@@ -561,11 +651,25 @@ function QuotationForm({
   );
 }
 
-function ReadField({ label, value, pill }: { label: string; value: string; pill?: boolean }) {
+function ReadField({ label, value, icon, pill }: { label: string; value: string; icon?: string; pill?: boolean }) {
+  if (pill) {
+    return (
+      <div className="field">
+        <span>{label}</span>
+        <div className="quote-pill">
+          {icon ? <span aria-hidden>{icon} </span> : null}
+          {value}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="field">
       <span>{label}</span>
-      <div className={pill ? 'quote-pill' : 'quote-read'}>{value}</div>
+      <div className="quote-icon-input quote-icon-input-static">
+        {icon ? <span aria-hidden>{icon}</span> : null}
+        <span>{value}</span>
+      </div>
     </div>
   );
 }
