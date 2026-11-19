@@ -36,6 +36,7 @@ export function QuotationPreview(p: QuotationPreviewProps) {
     queryFn: () => salesApi.lead(p.leadId),
     enabled: !!p.leadId,
   });
+  const company = p.companyName.trim() || 'INTRA CRM';
   const terms = p.terms.split('\n').map((t) => t.trim()).filter(Boolean);
   const bank = p.bankDetails.split('\n').map((t) => t.trim()).filter(Boolean);
   const specs = p.specs.filter((s) => s.label.trim());
@@ -46,7 +47,7 @@ export function QuotationPreview(p: QuotationPreviewProps) {
       <h2 className="qp-heading">Quotation preview</h2>
       <div className="qp-sheet">
         <div className="qp-head">
-          <strong className="qp-company">{p.companyName || 'Your company'}</strong>
+          <img className="qp-logo" src="/logo.png" alt={company} />
           <span className="qp-title">QUOTATION</span>
         </div>
         <div className="qp-info">
@@ -100,7 +101,7 @@ export function QuotationPreview(p: QuotationPreviewProps) {
         </table>
         <div className="qp-sum">
           <div className="qp-bank">
-            <strong>{p.companyName}</strong>
+            <strong>{company}</strong>
             {bank.map((b, i) => (
               <div key={i}>{b}</div>
             ))}
@@ -132,7 +133,7 @@ export function QuotationPreview(p: QuotationPreviewProps) {
         ) : null}
         <div className="qp-sign">
           Authorized Signatory
-          <strong>{p.companyName}</strong>
+          <strong>{company}</strong>
         </div>
         {p.address ? <div className="qp-foot">{p.address}</div> : null}
       </div>

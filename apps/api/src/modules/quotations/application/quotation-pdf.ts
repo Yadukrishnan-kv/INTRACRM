@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import type { QuotationSettings } from '../domain/quotation-settings';
+import { DEFAULT_LOGO_DATA_URL } from './default-logo';
 import type { QuotationView } from './quotation.mapper';
 
 export type QuotationPdfInput = {
@@ -11,7 +12,7 @@ export type QuotationPdfInput = {
 };
 
 const TEAL = '#12b0a0';
-const BLUE = '#0b5fc1';
+const BLUE = '#0b5d52';
 const RED = '#b3261e';
 const BEIGE = '#f1ede4';
 const INK = '#111111';
@@ -83,7 +84,7 @@ export async function buildQuotationPdf(input: QuotationPdfInput): Promise<Buffe
 
     // Header
     cell(X, y, W, 70);
-    const logo = logoBuffer(input.settings.logoDataUrl);
+    const logo = logoBuffer(input.settings.logoDataUrl) ?? logoBuffer(DEFAULT_LOGO_DATA_URL);
     if (logo) {
       doc.image(logo, X + 8, y + 8, { fit: [190, 54] });
     } else {

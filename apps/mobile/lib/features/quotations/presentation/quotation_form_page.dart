@@ -8,6 +8,8 @@ import '../../../design_system/components/app_button.dart';
 import '../../../design_system/components/app_loading.dart';
 import '../../../design_system/components/app_scaffold.dart';
 import '../../../design_system/components/app_text_field.dart';
+import '../../../design_system/tokens/app_assets.dart';
+import '../../../design_system/tokens/app_colors.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../l10n/app_strings.dart';
 import '../../leads/application/lead_list_controller.dart';
@@ -405,6 +407,14 @@ class _QuotationFormPageState extends ConsumerState<QuotationFormPage> {
     );
   }
 
+  Widget _h(String text) => Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.xs),
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      );
+
   Widget _summary() {
     final t = _totals;
     TextStyle? bold(BuildContext c) => Theme.of(c).textTheme.titleMedium;
@@ -420,6 +430,18 @@ class _QuotationFormPageState extends ConsumerState<QuotationFormPage> {
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           children: [
+            if (_customerView)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Image.asset(AppAssets.logo, height: 40),
+                    Text('QUOTATION', style: bold(context)?.copyWith(color: AppColors.teal)),
+                  ],
+                ),
+              ),
+            Align(alignment: Alignment.centerLeft, child: _h('Quotation Summary')),
             row('Items total', _money(t.itemsMinor)),
             for (var i = 0; i < _charges.length; i++)
               if (t.chargeMinor[i] > 0) row(_charges[i].description.text, _money(t.chargeMinor[i])),
@@ -427,8 +449,24 @@ class _QuotationFormPageState extends ConsumerState<QuotationFormPage> {
             row('Discount', '−${_money(t.discountMinor)}'),
             row(_gstInclusive ? 'GST (${_gstPct.text}% included)' : 'GST (${_gstPct.text}%)', _money(t.taxMinor)),
             if (!_customerView && _lines.any((l) => l.hasPurchase)) row('Profit after discount', _money(_profit)),
-            const Divider(),
-            row('Grand total', _money(t.totalMinor), style: bold(context)),
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.tealDark,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Grand Total', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  Text(
+                    _money(t.totalMinor),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -551,6 +589,8 @@ class _QuotationFormPageState extends ConsumerState<QuotationFormPage> {
                   onSelectionChanged: (v) => setState(() => _customerView = v.first),
                 ),
                 const SizedBox(height: AppSpacing.md),
+                _h('Quotation Details'),
+                const SizedBox(height: AppSpacing.sm),
                 if (widget.leadId == null && widget.quotationId == null)
                   DropdownButtonFormField<String>(
                     initialValue: _leadId,
@@ -578,7 +618,7 @@ class _QuotationFormPageState extends ConsumerState<QuotationFormPage> {
                   onTap: _pickExpectedClose,
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Text('Item details', style: Theme.of(context).textTheme.titleMedium),
+                _h('Item Details'),
                 for (var index = 0; index < _lines.length; index++) ...[
                   const SizedBox(height: AppSpacing.md),
                   _lineCard(index),
@@ -589,16 +629,21 @@ class _QuotationFormPageState extends ConsumerState<QuotationFormPage> {
                     child: const Text('+ Add item'),
                   ),
                 if (!_customerView)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  Container(
+                    margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: AppColors.tealSoft,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: Text(
-                      'Unit price = purchase price + margin %, rounded up to the next '
-                      '₹${(_roundingStep / 100).toStringAsFixed(0)}.',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      'Pricing Formula: Unit Price = Purchase Price + Margin %  |  '
+                      'MRP = Round up to next ₹${(_roundingStep / 100).toStringAsFixed(0)}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.tealDark),
                     ),
                   ),
                 const SizedBox(height: AppSpacing.sm),
-                Text('Additional charges', style: Theme.of(context).textTheme.titleMedium),
+                _h('Additional Charges'),
                 for (final c in _charges) ...[
                   const SizedBox(height: AppSpacing.sm),
                   Row(children: [
@@ -612,7 +657,7 @@ class _QuotationFormPageState extends ConsumerState<QuotationFormPage> {
                   child: const Text('+ Add charge'),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Text('Tax & discount', style: Theme.of(context).textTheme.titleMedium),
+                _h('Tax & Discount'),
                 SegmentedButton<bool>(
                   segments: const [
                     ButtonSegment(value: true, label: Text('GST included')),
@@ -630,7 +675,7 @@ class _QuotationFormPageState extends ConsumerState<QuotationFormPage> {
                 const SizedBox(height: AppSpacing.md),
                 _summary(),
                 const SizedBox(height: AppSpacing.md),
-                Text('Product specification', style: Theme.of(context).textTheme.titleMedium),
+                _h('Product Specification'),
                 for (var i = 0; i < _specs.length; i++) ...[
                   const SizedBox(height: AppSpacing.sm),
                   Row(children: [

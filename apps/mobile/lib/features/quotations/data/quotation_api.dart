@@ -176,6 +176,13 @@ class QuotationApi {
     );
   }
 
+  Future<Result<ApiSuccess<QuotationSummary>>> summary() {
+    return _client.get(
+      '/quotations/summary',
+      parse: (json) => QuotationSummary.fromJson(json! as Map<String, dynamic>),
+    );
+  }
+
   Future<Result<ApiSuccess<QuotationFollowUpDashboard>>> dashboard() {
     return _client.get(
       '/quotations/engine/dashboard',

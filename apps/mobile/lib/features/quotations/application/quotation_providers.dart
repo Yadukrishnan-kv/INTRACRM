@@ -121,3 +121,11 @@ class QuotationDashboardController extends AsyncNotifier<Result<QuotationFollowU
     };
   }
 }
+
+final quotationSummaryProvider = FutureProvider<QuotationSummary>((ref) async {
+  final result = await ref.read(quotationApiProvider).summary();
+  return switch (result) {
+    Success(:final value) => value.data,
+    Err() => const QuotationSummary(),
+  };
+});
