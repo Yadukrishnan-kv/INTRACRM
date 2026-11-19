@@ -211,6 +211,13 @@ export type QuotationEngineWidget = {
   items: Quotation[];
 };
 
+export type QuotationSummary = {
+  total: number;
+  pending: number;
+  totalValueMinor: number;
+  byStatus: Record<string, { count: number; valueMinor: number }>;
+};
+
 export type QuotationEngineDashboard = {
   generatedAt: string;
   timezone: string;

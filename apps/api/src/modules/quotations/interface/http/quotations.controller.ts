@@ -55,6 +55,12 @@ export class QuotationsController {
     return this.followUp.tickForActor(actor);
   }
 
+  @Get('summary')
+  @RequirePermissions(PERMISSION.quotationRead)
+  summary(@CurrentUser() actor: AuthUser) {
+    return this.quotations.summary(actor);
+  }
+
   @Get()
   @RequirePermissions(PERMISSION.quotationRead)
   list(@CurrentUser() actor: AuthUser, @Query() query: QuotationListQuery) {

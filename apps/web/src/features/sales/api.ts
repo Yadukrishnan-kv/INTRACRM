@@ -5,6 +5,7 @@ import type {
   Quotation,
   QuotationCatalog,
   QuotationEngineDashboard,
+  QuotationSummary,
   QuotationInput,
   QuotationSettings,
   Warranty,
@@ -61,6 +62,7 @@ export const salesApi = {
     id: string,
     body: { version: number; nextFollowUpAt?: string; remindAt?: string; expectedCloseOn?: string; note?: string; logged?: boolean },
   ) => request<Quotation>(`/quotations/${id}/follow-up`, { method: 'POST', body }).then((r) => r.data),
+  quotationSummary: () => request<QuotationSummary>('/quotations/summary').then((r) => r.data),
   engineDashboard: () => request<QuotationEngineDashboard>('/quotations/engine/dashboard').then((r) => r.data),
   runEngine: () =>
     request<{ tenants: number; notified: number }>('/quotations/engine/run', { method: 'POST' }).then((r) => r.data),

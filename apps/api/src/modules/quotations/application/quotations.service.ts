@@ -172,6 +172,31 @@ export class QuotationsService {
     }));
   }
 
+  /** Counts per status plus total and open-pipeline value, for the Quotations page header. */
+  async summary(actor: AuthUser) {
+    const tenantId = this.requireTenant(actor);
+    const groups = await this.prisma.quotation.groupBy({
+      by: ['status'],
+      where: { tenantId, deletedAt: null, lead: { deletedAt: null } },
+      _count: { _all: true },
+      _sum: { totalMinor: true },
+    });
+    const byStatus: Record<string, { count: number; valueMinor: number }> = {};
+    let total = 0;
+    let totalValueMinor = 0;
+    for (const g of groups) {
+      const valueMinor = Number(g._sum.totalMinor ?? 0n);
+      byStatus[g.status] = { count: g._count._all, valueMinor };
+      total += g._count._all;
+      totalValueMinor += valueMinor;
+    }
+    const pending = (PENDING_QUOTATION_STATUSES as readonly string[]).reduce(
+      (n, status) => n + (byStatus[status]?.count ?? 0),
+      0,
+    );
+    return { total, pending, totalValueMinor, byStatus };
+  }
+
   async list(actor: AuthUser, query: QuotationListQuery) {
     const tenantId = this.requireTenant(actor);
     const limit = query.limit ?? DEFAULT_PAGE_LIMIT;
