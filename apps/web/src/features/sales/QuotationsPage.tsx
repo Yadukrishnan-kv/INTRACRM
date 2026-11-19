@@ -1,14 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
+import { Fragment } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { P } from '../../auth/permissions';
-import { Badge, EmptyState, ErrorState, PageHeader, Spinner } from '../../components/ui';
+import { Badge, EmptyState, ErrorState, Spinner } from '../../components/ui';
 import { formatCount, formatDateTime, formatMoney } from '../../lib/format';
 import { useCursorList } from '../../lib/hooks';
 import { salesApi } from './api';
 import { salesKeys } from './keys';
 import { displayQuotationTitle, formatDay, predictionLabel, quotationListQuery, quotationTone } from './logic';
-import { QUOTATION_STATUSES, QUOTATION_STATUS_LABELS } from './types';
+import { QUOTATION_STATUS_LABELS } from './types';
 import './sales.css';
 
 export function QuotationsPage() {
@@ -37,32 +38,59 @@ export function QuotationsPage() {
     );
 
   const engine = useQuery({ queryKey: salesKeys.engine, queryFn: salesApi.engineDashboard });
-  const list = useCursorList(salesKeys.quotations(filter), (cursor) => salesApi.quotations(filter, cursor));
-  const selectedBucket = filter.bucket ?? (filter.pending ? 'pending' : null);
   const allSelected = !filter.status && !filter.bucket && !filter.pending;
+  const list = useCursorList(salesKeys.quotations(filter), (cursor) => salesApi.quotations(filter, cursor));
+  const summary = useQuery({ queryKey: salesKeys.summary, queryFn: salesApi.quotationSummary });
+  const sb = summary.data?.byStatus ?? {};
+  const tabs: Array<{ key: string; label: string; count?: number; active: boolean; onClick: () => void }> = [
+    { key: 'all', label: 'All Quotations', active: allSelected, onClick: () => update({}) },
+    { key: 'draft', label: 'Drafts', count: sb.draft?.count ?? 0, active: filter.status === 'draft', onClick: () => update({ status: 'draft' }) },
+    { key: 'pending', label: 'Pending', count: summary.data?.pending ?? 0, active: !!filter.pending && !filter.bucket, onClick: () => update({ pending: true }) },
+    { key: 'approved', label: 'Approved', count: sb.approved?.count ?? 0, active: filter.status === 'approved', onClick: () => update({ status: 'approved' }) },
+    { key: 'lost', label: 'Rejected', count: sb.lost?.count ?? 0, active: filter.status === 'lost', onClick: () => update({ status: 'lost' }) },
+    { key: 'won', label: 'Converted', count: sb.won?.count ?? 0, active: filter.status === 'won', onClick: () => update({ status: 'won' }) },
+  ];
+  const selectedBucket = filter.bucket ?? (filter.pending ? 'pending' : null);
 
   return (
     <>
-      <PageHeader
-        title="Quotations"
-        subtitle={
-          engine.data ? (
-            <>Pending value {formatMoney(engine.data.pendingValueMinor)}</>
-          ) : (
-            'Create a draft, send it, then follow up until it is won or lost.'
-          )
-        }
-        actions={
-          can(P.quotationCreate) ? (
+      <div className="qh">
+        <div className="qh-title">
+          <span className="qh-icon" aria-hidden>
+            ▤
+          </span>
+          <div>
+            <h1>Quotations</h1>
+            <p className="muted small">Create, manage and track customer quotations</p>
+          </div>
+        </div>
+        <div className="qh-kpis">
+          <Kpi label="Total Quotations" value={formatCount(summary.data?.total ?? 0)} />
+          <Kpi label="Pending" value={formatCount(summary.data?.pending ?? 0)} tone="warn" />
+          <Kpi label="Approved" value={formatCount(summary.data?.byStatus.approved?.count ?? 0)} tone="ok" />
+          <Kpi label="Converted" value={formatCount(summary.data?.byStatus.won?.count ?? 0)} tone="accent" />
+          <Kpi label="Quotation Value" value={compactRupees(summary.data?.totalValueMinor ?? 0)} />
+        </div>
+      </div>
+
+      <nav className="qtabs" aria-label="Quotation views">
+        {tabs.map((t, i) => (
+          <Fragment key={t.key}>
+          {i === 1 && can(P.quotationCreate) ? (
             <Link
-              className="btn btn-primary"
+              className="qtab qtab-create"
               to={filter.leadId ? `/quotations/create?leadId=${filter.leadId}` : '/quotations/create'}
             >
-              New quotation
+              + Create Quotation
             </Link>
-          ) : null
-        }
-      />
+          ) : null}
+          <button type="button" className={`qtab${t.active ? ' qtab-active' : ''}`} aria-pressed={t.active} onClick={t.onClick}>
+            {t.label}
+            {t.count !== undefined ? ` (${formatCount(t.count)})` : ''}
+          </button>
+          </Fragment>
+        ))}
+      </nav>
 
       {filter.leadId ? (
         <p className="muted small">
@@ -92,20 +120,6 @@ export function QuotationsPage() {
           })}
         </div>
       ) : null}
-
-      <div className="sales-chips chip-scroll" role="group" aria-label="Status">
-        <button type="button" className={`chip${allSelected ? ' chip-active' : ''}`} aria-pressed={allSelected} onClick={() => update({})}>
-          All
-        </button>
-        {QUOTATION_STATUSES.map((s) => {
-          const active = filter.status === s;
-          return (
-            <button key={s} type="button" className={`chip${active ? ' chip-active' : ''}`} aria-pressed={active} onClick={() => update({ status: s })}>
-              {QUOTATION_STATUS_LABELS[s]}
-            </button>
-          );
-        })}
-      </div>
 
       {list.isLoading ? (
         <Spinner />
@@ -173,4 +187,21 @@ export function QuotationsPage() {
       )}
     </>
   );
+}
+
+function Kpi({ label, value, tone }: { label: string; value: string; tone?: 'warn' | 'ok' | 'accent' }) {
+  return (
+    <div className={`qkpi${tone ? ` qkpi-${tone}` : ''}`}>
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+/** ₹48.75 L / ₹1.2 Cr style, the way Indian sales teams read totals. */
+function compactRupees(minor: number): string {
+  const rupees = minor / 100;
+  if (rupees >= 1e7) return `₹${(rupees / 1e7).toFixed(2)} Cr`;
+  if (rupees >= 1e5) return `₹${(rupees / 1e5).toFixed(2)} L`;
+  return formatMoney(minor);
 }
