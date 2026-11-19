@@ -3,6 +3,7 @@ export const PRODUCT_SKU_RULE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/;
 
 export const CATALOG_KIND = {
   sources: 'sources',
+  leadCategories: 'lead-categories',
   categories: 'categories',
   products: 'products',
   leadStatuses: 'lead-statuses',
@@ -17,6 +18,7 @@ export const CATALOG_KINDS = [
   CATALOG_KIND.products,
   CATALOG_KIND.categories,
   CATALOG_KIND.sources,
+  CATALOG_KIND.leadCategories,
   CATALOG_KIND.leadStatuses,
   CATALOG_KIND.leadQualities,
   CATALOG_KIND.warrantyPeriods,
@@ -84,6 +86,8 @@ export function catalogKindLabel(kind: CatalogKind): string {
       return 'Categories';
     case CATALOG_KIND.sources:
       return 'Sources';
+    case CATALOG_KIND.leadCategories:
+      return 'Lead categories';
     case CATALOG_KIND.leadStatuses:
       return 'Lead status';
     case CATALOG_KIND.leadQualities:

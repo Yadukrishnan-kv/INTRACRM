@@ -40,6 +40,11 @@ export class LeadListQuery extends CursorPageQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
+  categoryId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
   ownerMembershipId?: string;
 
   @ApiPropertyOptional({ enum: ['open', 'won', 'lost', 'unqualified', 'recycled'] })
@@ -141,6 +146,11 @@ export class CreateLeadRequest {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   @MaxLength(40)
   @Matches(/^[a-z][a-z0-9_]*$/)
@@ -213,6 +223,11 @@ export class UpdateLeadRequest {
   @IsOptional()
   @IsUUID()
   sourceId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

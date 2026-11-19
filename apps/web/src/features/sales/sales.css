@@ -94,3 +94,28 @@
 @media (max-width: 520px) {
   .sales-totals { justify-content: stretch; grid-template-columns: minmax(0, 1fr) auto; }
 }
+
+/* Quotation form: live PDF-style preview beside the form on wide screens. */
+.quote-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (min-width: 1280px) { .quote-layout { grid-template-columns: minmax(0, 1fr) 380px; } .qp { position: sticky; top: 16px; } }
+.qp-heading { font-size: 1rem; margin: 0 0 8px; }
+.qp-sheet { border: 1px solid #222; background: #fff; color: #111; font-size: 10px; line-height: 1.35; }
+.qp-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 10px; border-bottom: 1px solid #222; }
+.qp-company { font-size: 15px; color: #0b5fc1; }
+.qp-title { color: #12b0a0; font-weight: 700; font-size: 12px; }
+.qp-info { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; border-bottom: 1px solid #222; }
+.qp-right { text-align: right; }
+.qp-table { width: 100%; border-collapse: collapse; }
+.qp-table th { background: #12b0a0; color: #fff; font-size: 8px; padding: 4px 3px; }
+.qp-table td { border: 1px solid #222; padding: 3px; text-align: center; vertical-align: middle; }
+.qp-table td.qp-desc { text-align: left; }
+.qp-table .qp-sub td { background: #12b0a0; color: #fff; font-weight: 700; }
+.qp-sum { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #222; }
+.qp-bank { padding: 8px; text-align: center; border-right: 1px solid #222; font-size: 9px; }
+.qp-totals > div { display: flex; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid #222; font-weight: 600; }
+.qp-totals .qp-grand { background: #0b5fc1; color: #fff; font-size: 13px; padding: 10px 8px; }
+.qp-bar { background: #12b0a0; color: #fff; text-align: center; font-weight: 700; padding: 4px; border-top: 1px solid #222; }
+.qp-spec { display: flex; justify-content: space-between; gap: 8px; padding: 3px 8px; background: #f1ede4; border-top: 1px solid #222; }
+.qp-spec span:last-child { color: #b3261e; text-align: right; }
+.qp-terms { padding: 6px 8px; border-top: 1px solid #222; font-size: 9px; }
+.qp-foot { padding: 6px; text-align: center; border-top: 1px solid #222; font-size: 9px; }

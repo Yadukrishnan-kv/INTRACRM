@@ -47,6 +47,7 @@ const KIND_LABELS: Record<CatalogKind, string> = {
   products: 'Products',
   categories: 'Categories',
   sources: 'Sources',
+  'lead-categories': 'Lead categories',
   'lead-statuses': 'Lead status',
   'lead-qualities': 'Lead quality',
   'warranty-periods': 'Warranty periods',

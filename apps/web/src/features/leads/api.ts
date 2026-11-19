@@ -35,6 +35,7 @@ export type LeadListFilters = {
   status?: LeadStatus;
   quality?: string;
   sourceId?: string;
+  categoryId?: string;
   ownerMembershipId?: string;
 };
 

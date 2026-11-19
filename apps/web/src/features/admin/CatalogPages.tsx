@@ -40,7 +40,7 @@ export function CatalogHubPage() {
   return (
     <>
       <BackLink to="/settings/general" label="General settings" />
-      <PageHeader title="Catalog" subtitle="Products, lead sources, statuses, qualities, warranty periods and taxes." />
+      <PageHeader title="Catalog" subtitle="Products, lead sources, lead categories, statuses, qualities, warranty periods and taxes." />
       {query.isError ? <ErrorState error={query.error} onRetry={() => query.refetch()} /> : null}
       <div className="admin-grid">
         <MenuGroup

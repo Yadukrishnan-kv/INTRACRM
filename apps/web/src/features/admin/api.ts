@@ -102,6 +102,7 @@ export const CATALOG_KINDS = [
   'products',
   'categories',
   'sources',
+  'lead-categories',
   'lead-statuses',
   'lead-qualities',
   'warranty-periods',

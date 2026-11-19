@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Res, StreamableFile } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthUser, CurrentUser } from '../../../../common/auth/current-user.decorator';
 import { RequirePermissions } from '../../../../common/auth/require-permissions.decorator';
@@ -12,6 +13,7 @@ import {
   ScheduleQuotationFollowUpRequest,
   SendQuotationBody,
   UpdateQuotationRequest,
+  UpdateQuotationSettingsRequest,
 } from './dto/quotation.dto';
 
 @ApiTags('quotations')
@@ -27,6 +29,18 @@ export class QuotationsController {
   @RequirePermissions(PERMISSION.quotationRead)
   catalog(@CurrentUser() actor: AuthUser) {
     return this.quotations.catalog(actor);
+  }
+
+  @Get('settings')
+  @RequirePermissions(PERMISSION.quotationRead)
+  getSettings(@CurrentUser() actor: AuthUser) {
+    return this.quotations.getSettings(actor);
+  }
+
+  @Patch('settings')
+  @RequirePermissions(PERMISSION.tenantManageSettings)
+  updateSettings(@CurrentUser() actor: AuthUser, @Body() dto: UpdateQuotationSettingsRequest) {
+    return this.quotations.updateSettings(actor, dto);
   }
 
   @Get('engine/dashboard')
@@ -60,6 +74,21 @@ export class QuotationsController {
     @Param('quotationId', ParseUUIDPipe) quotationId: string,
   ) {
     return this.quotations.get(actor, quotationId);
+  }
+
+  @Get(':quotationId/pdf')
+  @RequirePermissions(PERMISSION.quotationRead)
+  async pdf(
+    @CurrentUser() actor: AuthUser,
+    @Param('quotationId', ParseUUIDPipe) quotationId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { buffer, filename } = await this.quotations.pdf(actor, quotationId);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    return new StreamableFile(buffer);
   }
 
   @Patch(':quotationId')

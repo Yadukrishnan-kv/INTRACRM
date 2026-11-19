@@ -144,6 +144,34 @@ export class CatalogController {
     return this.catalog.deleteSource(actor, id);
   }
 
+  @Get('lead-categories')
+  @RequireAnyPermission(...CATALOG_READ)
+  listLeadCategories(@CurrentUser() actor: AuthUser, @Query() query: CatalogListQuery) {
+    return this.catalog.listLeadCategories(actor, query.includeInactive !== false);
+  }
+
+  @Post('lead-categories')
+  @RequirePermissions(PERMISSION.tenantManageSettings)
+  createLeadCategory(@CurrentUser() actor: AuthUser, @Body() dto: CatalogNamedRequest) {
+    return this.catalog.createLeadCategory(actor, dto);
+  }
+
+  @Patch('lead-categories/:id')
+  @RequirePermissions(PERMISSION.tenantManageSettings)
+  updateLeadCategory(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCatalogNamedRequest,
+  ) {
+    return this.catalog.updateLeadCategory(actor, id, dto);
+  }
+
+  @Delete('lead-categories/:id')
+  @RequirePermissions(PERMISSION.tenantManageSettings)
+  deleteLeadCategory(@CurrentUser() actor: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.catalog.deleteLeadCategory(actor, id);
+  }
+
   @Get('lead-qualities')
   @RequireAnyPermission(...CATALOG_READ)
   listQualities(@CurrentUser() actor: AuthUser, @Query() query: CatalogListQuery) {

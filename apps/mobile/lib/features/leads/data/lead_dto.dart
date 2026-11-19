@@ -35,6 +35,8 @@ class LeadDto {
     this.requirement,
     this.sourceId,
     this.sourceName,
+    this.categoryId,
+    this.categoryName,
     this.quality,
     this.estimatedValueMinor,
     this.currency = 'INR',
@@ -68,6 +70,8 @@ class LeadDto {
   final String? requirement;
   final String? sourceId;
   final String? sourceName;
+  final String? categoryId;
+  final String? categoryName;
   final String? quality;
   final int? estimatedValueMinor;
   final String currency;
@@ -98,6 +102,8 @@ class LeadDto {
       requirement: json['requirement'] as String?,
       sourceId: json['sourceId'] as String?,
       sourceName: json['sourceName'] as String?,
+      categoryId: json['categoryId'] as String?,
+      categoryName: json['categoryName'] as String?,
       quality: json['quality'] as String?,
       estimatedValueMinor: _parseInt(json['estimatedValueMinor']),
       currency: json['currency'] as String? ?? 'INR',
@@ -139,6 +145,8 @@ class LeadDto {
       requirement: requirement,
       sourceId: sourceId,
       sourceName: sourceName,
+      categoryId: categoryId,
+      categoryName: categoryName,
       quality: quality,
       estimatedValueMinor: estimatedValueMinor,
       currency: currency,
@@ -174,6 +182,8 @@ class LeadDto {
       'requirement': requirement,
       'sourceId': sourceId,
       'sourceName': sourceName,
+      'categoryId': categoryId,
+      'categoryName': categoryName,
       'quality': quality,
       'estimatedValueMinor': estimatedValueMinor,
       'currency': currency,
@@ -394,10 +404,12 @@ class LeadLookupsDto {
     required this.qualities,
     required this.sources,
     required this.staff,
+    this.categories = const [],
   });
 
   final List<LeadQualityChoice> qualities;
   final List<LeadSourceOption> sources;
+  final List<LeadCategoryOption> categories;
   final List<LeadStaffOption> staff;
 
   factory LeadLookupsDto.fromJson(Map<String, dynamic> json) {
@@ -421,6 +433,15 @@ class LeadLookupsDto {
               name: item['name'] as String? ?? '',
             ),
       ],
+      categories: [
+        for (final item in json['categories'] as List? ?? const [])
+          if (item is Map<String, dynamic>)
+            LeadCategoryOption(
+              id: item['id'] as String,
+              code: item['code'] as String? ?? '',
+              name: item['name'] as String? ?? '',
+            ),
+      ],
       staff: [
         for (final item in json['staff'] as List? ?? const [])
           if (item is Map<String, dynamic>)
@@ -434,6 +455,11 @@ class LeadLookupsDto {
   }
 
   LeadLookups toDomain() {
-    return LeadLookups(qualities: qualities, sources: sources, staff: staff);
+    return LeadLookups(
+      qualities: qualities,
+      sources: sources,
+      categories: categories,
+      staff: staff,
+    );
   }
 }

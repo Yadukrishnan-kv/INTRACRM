@@ -15,11 +15,14 @@ Production-grade PostgreSQL 17 schema for INTRA LEADS.
 8. intra_leads_follow_up_engine.sql
 9. intra_leads_site_visits.sql
 10. intra_leads_quotations.sql
+    - 10a. intra_leads_quotation_pricing.sql
 11. intra_leads_catalog.sql
+    - 11a. intra_leads_lead_categories.sql
 12. intra_leads_comms.sql
 13. intra_leads_billing.sql
 14. intra_leads_quotation_follow_up.sql
 15. intra_leads_targets.sql
+    - 15a. intra_leads_target_categories.sql
 16. intra_leads_staff_performance.sql
 17. intra_leads_warranty.sql
 18. intra_leads_seed_rbac.sql

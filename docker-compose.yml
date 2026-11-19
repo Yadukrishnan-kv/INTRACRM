@@ -39,6 +39,22 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # One-shot: applies every (idempotent) SQL file on each `up`, so new
+  # columns reach existing dev databases without wiping the volume.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: intra-leads-api:local
+    container_name: intra-leads-migrate
+    command: ["apply-sql"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://intra:intra@postgres:5432/intra_leads?schema=public
+    restart: "no"
+
   api:
     build:
       context: .
@@ -50,6 +66,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       NODE_ENV: development
       APP_NAME: intra-leads-api

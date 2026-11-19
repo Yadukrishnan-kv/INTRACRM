@@ -11,6 +11,7 @@ class LeadListFilter {
     this.status,
     this.quality,
     this.sourceId,
+    this.categoryId,
     this.matchUnknownSource = false,
     this.ownerMembershipId,
     this.matchUnassignedOwner = false,
@@ -23,6 +24,7 @@ class LeadListFilter {
   final String? status;
   final String? quality;
   final String? sourceId;
+  final String? categoryId;
   final bool matchUnknownSource;
   final String? ownerMembershipId;
   final bool matchUnassignedOwner;
@@ -41,6 +43,9 @@ class LeadListFilter {
         return false;
       }
     } else if (sourceId != null && lead.sourceId != sourceId) {
+      return false;
+    }
+    if (categoryId != null && lead.categoryId != categoryId) {
       return false;
     }
     if (matchUnassignedOwner) {

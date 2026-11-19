@@ -1,9 +1,10 @@
 // Pure helpers for the sales feature (tested in logic.test.ts).
 import type {
   Quotation,
+  QuotationCharge,
+  QuotationChargeInput,
   QuotationItem,
   QuotationItemInput,
-  QuotationTax,
   WarrantyItem,
   WarrantyItemInput,
 } from './types';
@@ -35,6 +36,8 @@ export function minorToInput(minor: number): string {
 // Port of apps/api/src/modules/quotations/domain/quotation-totals.ts so the
 // form preview matches what the server stores.
 
+export const DEFAULT_GST_BPS = 1800;
+
 export type LineAmounts = {
   extendedMinor: number;
   discountMinor: number;
@@ -43,114 +46,211 @@ export type LineAmounts = {
   lineTotalMinor: number;
 };
 
-export function lineAmounts(item: { quantity: number; unitPriceMinor: number; discountMinor: number; taxBps: number }): LineAmounts {
-  const quantity = wholeQuantity(item.quantity);
-  const unit = Math.max(0, Math.trunc(item.unitPriceMinor));
-  const discount = Math.max(0, Math.trunc(item.discountMinor));
-  const taxBps = Math.min(10000, Math.max(0, Math.trunc(item.taxBps)));
-  const extendedMinor = Math.max(0, Math.round(quantity * unit));
-  const discountMinor = Math.min(extendedMinor, discount);
-  const taxableMinor = extendedMinor - discountMinor;
-  const taxMinor = Math.round((taxableMinor * taxBps) / 10000);
-  return { extendedMinor, discountMinor, taxableMinor, taxMinor, lineTotalMinor: taxableMinor + taxMinor };
-}
-
 export type QuotationTotals = {
   subtotalMinor: number;
   discountMinor: number;
   taxMinor: number;
   totalMinor: number;
   lines: LineAmounts[];
+  charges: LineAmounts[];
 };
 
-export function computeTotals(
-  items: Array<{ quantity: number; unitPriceMinor: number; discountMinor: number; taxBps: number }>,
-): QuotationTotals {
-  const lines = items.map(lineAmounts);
-  const subtotalMinor = lines.reduce((s, l) => s + l.extendedMinor, 0);
-  const discountMinor = lines.reduce((s, l) => s + l.discountMinor, 0);
-  const taxMinor = lines.reduce((s, l) => s + l.taxMinor, 0);
-  return { subtotalMinor, discountMinor, taxMinor, totalMinor: subtotalMinor - discountMinor + taxMinor, lines };
+const clampBps = (bps: number) => Math.min(10000, Math.max(0, Math.trunc(bps)));
+const paise = (v: number | null | undefined) => Math.max(0, Math.trunc(v ?? 0));
+
+/** Splits `total` over `weights`; the shares always add back up to `total`. */
+export function allocateProportionally(total: number, weights: number[]): number[] {
+  const sum = weights.reduce((a, b) => a + b, 0);
+  if (total <= 0 || sum <= 0) return weights.map(() => 0);
+  const raw = weights.map((w) => (total * w) / sum);
+  const shares = raw.map(Math.floor);
+  let left = total - shares.reduce((a, b) => a + b, 0);
+  const order = raw.map((v, index) => ({ index, frac: v - Math.floor(v) })).sort((a, b) => b.frac - a.frac);
+  for (const { index } of order) {
+    if (left <= 0) break;
+    shares[index] = (shares[index] ?? 0) + 1;
+    left -= 1;
+  }
+  return shares;
 }
+
+export function computeTotals(
+  items: Array<{ quantity: number; unitPriceMinor: number; taxBps: number }>,
+  options: {
+    charges?: Array<{ amountMinor: number; taxBps: number }>;
+    discountMinor?: number;
+    gstInclusive?: boolean;
+  } = {},
+): QuotationTotals {
+  const charges = options.charges ?? [];
+  const bases = [
+    ...items.map((i) => Math.max(0, Math.round(wholeQuantity(i.quantity) * paise(i.unitPriceMinor)))),
+    ...charges.map((c) => paise(c.amountMinor)),
+  ];
+  const rates = [...items.map((i) => clampBps(i.taxBps)), ...charges.map((c) => clampBps(c.taxBps))];
+  const subtotalMinor = bases.reduce((s, v) => s + v, 0);
+  const discountMinor = Math.min(subtotalMinor, paise(options.discountMinor));
+  const shares = allocateProportionally(discountMinor, bases);
+  const inclusive = options.gstInclusive === true;
+  const amounts = bases.map((extendedMinor, i): LineAmounts => {
+    const discount = shares[i] ?? 0;
+    const net = extendedMinor - discount;
+    const rate = rates[i] ?? 0;
+    if (inclusive) {
+      const taxableMinor = Math.round((net * 10000) / (10000 + rate));
+      return { extendedMinor, discountMinor: discount, taxableMinor, taxMinor: net - taxableMinor, lineTotalMinor: net };
+    }
+    const taxMinor = Math.round((net * rate) / 10000);
+    return { extendedMinor, discountMinor: discount, taxableMinor: net, taxMinor, lineTotalMinor: net + taxMinor };
+  });
+  return {
+    subtotalMinor,
+    discountMinor,
+    taxMinor: amounts.reduce((s, l) => s + l.taxMinor, 0),
+    totalMinor: amounts.reduce((s, l) => s + l.lineTotalMinor, 0),
+    lines: amounts.slice(0, items.length),
+    charges: amounts.slice(items.length),
+  };
+}
+
+export const roundUpTo = (amountMinor: number, stepMinor: number) =>
+  stepMinor > 1 ? Math.ceil(amountMinor / stepMinor) * stepMinor : amountMinor;
 
 // ---------------------------------------------------------------- quotation line drafts
 
 export type QuotationLineDraft = {
   key: string;
   productId: string;
+  itemCode: string;
   description: string;
+  width: string;
+  height: string;
+  unit: string;
   quantity: string;
+  /** Purchase (vendor) price — internal. When set, the unit price is computed from it. */
+  purchasePrice: string;
+  /** Margin % over the purchase price. */
+  marginPct: string;
+  /** Typed selling price, used when there is no purchase price. */
   unitPrice: string;
-  discount: string;
-  /** Free-text tax % — only used when the tenant has no managed taxes. */
-  taxPct: string;
-  taxRateIds: string[];
 };
+
+export type ChargeDraft = { key: string; description: string; amount: string };
 
 let keySeq = 0;
 export const nextKey = () => `l${++keySeq}`;
 
-/** Mobile defaults: qty 1, discount 0, 18% tax (GST 18 when taxes are managed). */
-export function newQuotationLine(taxes: QuotationTax[]): QuotationLineDraft {
+export const bpsToPct = (bps: number) => String(Number((bps / 100).toFixed(2)));
+
+export const CHARGE_PRESETS = ['Transportation Charge', 'Installation Charge', 'Unloading Charge', 'Other Charges'];
+
+export function newQuotationLine(): QuotationLineDraft {
   return {
     key: nextKey(),
     productId: '',
+    itemCode: '',
     description: '',
+    width: '',
+    height: '',
+    unit: 'Nos',
     quantity: '1',
+    purchasePrice: '',
+    marginPct: '',
     unitPrice: '',
-    discount: '0',
-    taxPct: '18',
-    taxRateIds: defaultTaxIds(taxes),
   };
 }
 
-export function defaultTaxIds(taxes: QuotationTax[]): string[] {
-  const gst = taxes.find((t) => t.code === 'gst_18' || t.rateBps === 1800);
-  return gst ? [gst.id] : [];
-}
+export const presetCharges = (): ChargeDraft[] =>
+  CHARGE_PRESETS.map((description) => ({ key: nextKey(), description, amount: '' }));
 
 export function lineFromItem(item: QuotationItem): QuotationLineDraft {
+  const vendor = item.vendorPriceMinor != null && item.marginType != null;
   return {
     key: nextKey(),
     productId: item.productId ?? '',
+    itemCode: item.itemCode ?? '',
     description: item.description,
+    width: item.width == null ? '' : String(item.width),
+    height: item.height == null ? '' : String(item.height),
+    unit: item.unit || 'Nos',
     quantity: String(item.quantity),
+    purchasePrice: vendor ? minorToInput(item.vendorPriceMinor!) : '',
+    marginPct: vendor ? (item.marginType === 'percent' ? bpsToPct(item.marginValue) : '') : '',
     unitPrice: minorToInput(item.unitPriceMinor),
-    discount: minorToInput(item.discountMinor),
-    taxPct: String(item.taxBps / 100),
-    taxRateIds: [...item.taxRateIds],
   };
 }
 
-/** Same rule as QuotationsService.hydrateTaxes: managed taxes are summed, capped at 100%. */
-export function lineTaxBps(line: Pick<QuotationLineDraft, 'taxRateIds' | 'taxPct'>, taxes: QuotationTax[]): number {
-  if (line.taxRateIds.length) {
-    const byId = new Map(taxes.map((t) => [t.id, t.rateBps]));
-    return Math.min(10000, line.taxRateIds.reduce((sum, id) => sum + (byId.get(id) ?? 0), 0));
+/** Charges of an existing quotation, keeping the standard rows even when unused. */
+export function chargesFromRows(rows: QuotationCharge[]): ChargeDraft[] {
+  const list = presetCharges();
+  for (const row of rows) {
+    const slot = list.find((c) => c.description === row.description && c.amount === '');
+    if (slot) slot.amount = minorToInput(row.amountMinor);
+    else list.push({ key: nextKey(), description: row.description, amount: minorToInput(row.amountMinor) });
   }
-  const pct = Number(line.taxPct.trim());
-  if (!Number.isFinite(pct)) return 0;
-  return Math.min(10000, Math.max(0, Math.round(pct * 100)));
+  return list;
 }
 
-export function draftAmounts(line: QuotationLineDraft, taxes: QuotationTax[]) {
-  return {
-    quantity: wholeQuantity(line.quantity),
-    unitPriceMinor: parseRupees(line.unitPrice) ?? 0,
-    discountMinor: parseRupees(line.discount) ?? 0,
-    taxBps: lineTaxBps(line, taxes),
-  };
+export function gstBps(pctText: string): number | null {
+  const pct = Number(pctText.trim() === '' ? '0' : pctText.trim());
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100) return null;
+  return Math.round(pct * 100);
+}
+
+const hasPurchase = (line: QuotationLineDraft) => line.purchasePrice.trim() !== '';
+
+/** Selling unit price for a draft line, as the server will compute it. */
+export function draftUnitPriceMinor(line: QuotationLineDraft, roundStepMinor: number): number {
+  if (!hasPurchase(line)) return parseRupees(line.unitPrice) ?? 0;
+  const purchase = parseRupees(line.purchasePrice) ?? 0;
+  const pct = Number(line.marginPct.trim() === '' ? '0' : line.marginPct.trim());
+  const marginBps = Number.isFinite(pct) && pct >= 0 ? Math.round(pct * 100) : 0;
+  return roundUpTo(purchase + Math.round((purchase * marginBps) / 10000), roundStepMinor);
+}
+
+export function draftAmounts(line: QuotationLineDraft, roundStepMinor: number, taxBps: number) {
+  return { quantity: wholeQuantity(line.quantity), unitPriceMinor: draftUnitPriceMinor(line, roundStepMinor), taxBps };
+}
+
+export function draftChargeAmounts(charge: ChargeDraft, taxBps: number) {
+  return { amountMinor: parseRupees(charge.amount) ?? 0, taxBps };
+}
+
+/** Internal profit: margin on purchase-priced lines less the total discount (paise). */
+export function draftProfitMinor(lines: QuotationLineDraft[], roundStepMinor: number, discountMinor: number): number {
+  const margin = lines.reduce((sum, l) => {
+    if (!hasPurchase(l)) return sum;
+    return sum + wholeQuantity(l.quantity) * (draftUnitPriceMinor(l, roundStepMinor) - (parseRupees(l.purchasePrice) ?? 0));
+  }, 0);
+  return margin - discountMinor;
 }
 
 export function isBlankLine(line: QuotationLineDraft | WarrantyLineDraft): boolean {
-  return !line.productId && line.description.trim() === '' && ('unitPrice' in line ? line.unitPrice.trim() === '' : true);
+  if (!('purchasePrice' in line)) {
+    return !line.productId && line.description.trim() === '';
+  }
+  return (
+    !line.productId &&
+    line.itemCode.trim() === '' &&
+    line.description.trim() === '' &&
+    line.unitPrice.trim() === '' &&
+    line.purchasePrice.trim() === ''
+  );
 }
 
-export type LineErrors = Partial<Record<'description' | 'quantity' | 'unitPrice' | 'discount' | 'taxPct', string>>;
+export type LineErrors = Partial<
+  Record<'description' | 'quantity' | 'unitPrice' | 'purchasePrice' | 'marginPct' | 'width' | 'height', string>
+>;
+
+function optionalNumber(text: string): number | null | undefined {
+  if (text.trim() === '') return undefined;
+  const n = Number(text.trim());
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
 
 export function validateQuotationLines(
   lines: QuotationLineDraft[],
-  taxes: QuotationTax[],
+  taxBps: number,
 ): { items: QuotationItemInput[]; errors: Record<string, LineErrors>; message: string | null } {
   const items: QuotationItemInput[] = [];
   const errors: Record<string, LineErrors> = {};
@@ -159,16 +259,28 @@ export function validateQuotationLines(
     const e: LineErrors = {};
     const description = line.description.trim();
     if (description.length < 2) e.description = 'At least 2 characters.';
-    else if (description.length > 240) e.description = 'At most 240 characters.';
+    else if (description.length > 1000) e.description = 'At most 1000 characters.';
     const qty = Number(line.quantity.trim());
     if (!Number.isInteger(qty) || qty < 1) e.quantity = 'Whole number, 1 or more.';
-    const unit = parseRupees(line.unitPrice);
-    if (unit === null || unit < 0) e.unitPrice = 'Enter a valid price.';
-    const discount = parseRupees(line.discount);
-    if (discount === null || discount < 0) e.discount = 'Enter a valid discount.';
-    if (!line.taxRateIds.length) {
-      const pct = Number(line.taxPct.trim() || '0');
-      if (!Number.isFinite(pct) || pct < 0 || pct > 100) e.taxPct = '0 to 100.';
+    const width = optionalNumber(line.width);
+    const height = optionalNumber(line.height);
+    if (width === null) e.width = 'Enter a number.';
+    if (height === null) e.height = 'Enter a number.';
+    const price: Partial<QuotationItemInput> = {};
+    if (hasPurchase(line)) {
+      const purchase = parseRupees(line.purchasePrice);
+      if (purchase === null || purchase <= 0) e.purchasePrice = 'Enter the purchase price.';
+      const pct = Number(line.marginPct.trim() === '' ? '0' : line.marginPct.trim());
+      if (!Number.isFinite(pct) || pct < 0) e.marginPct = 'Enter a valid margin %.';
+      if (!e.purchasePrice && !e.marginPct) {
+        price.vendorPriceMinor = purchase ?? 0;
+        price.marginType = 'percent';
+        price.marginValue = Math.round(pct * 100);
+      }
+    } else {
+      const unit = parseRupees(line.unitPrice);
+      if (unit === null || unit < 0) e.unitPrice = 'Enter a valid price.';
+      else price.unitPriceMinor = unit;
     }
     if (Object.keys(e).length) {
       errors[line.key] = e;
@@ -176,11 +288,14 @@ export function validateQuotationLines(
     }
     items.push({
       ...(line.productId ? { productId: line.productId } : {}),
+      ...(line.itemCode.trim() ? { itemCode: line.itemCode.trim() } : {}),
       description,
       quantity: qty,
-      unitPriceMinor: unit ?? 0,
-      discountMinor: discount ?? 0,
-      ...(line.taxRateIds.length ? { taxRateIds: line.taxRateIds } : { taxBps: lineTaxBps(line, taxes) }),
+      ...(width != null ? { width } : {}),
+      ...(height != null ? { height } : {}),
+      unit: line.unit.trim() || 'Nos',
+      taxBps,
+      ...price,
     });
   }
   const message = Object.keys(errors).length
@@ -193,15 +308,37 @@ export function validateQuotationLines(
   return { items, errors, message };
 }
 
+export function validateCharges(
+  charges: ChargeDraft[],
+  taxBps: number,
+): { charges: QuotationChargeInput[]; errors: Record<string, string> } {
+  const out: QuotationChargeInput[] = [];
+  const errors: Record<string, string> = {};
+  for (const c of charges) {
+    if (c.amount.trim() === '') continue;
+    const amount = parseRupees(c.amount);
+    if (c.description.trim().length < 2) errors[c.key] = 'Describe the charge.';
+    else if (amount === null || amount < 0) errors[c.key] = 'Enter a valid amount.';
+    else if (amount > 0) out.push({ description: c.description.trim(), amountMinor: amount, taxBps });
+  }
+  return { charges: out, errors };
+}
+
 /** Existing line → API input (used when deleting a single line from the detail page). */
 export function quotationItemToInput(row: QuotationItem): QuotationItemInput {
+  const vendor = row.vendorPriceMinor != null && row.marginType != null;
   return {
     ...(row.productId ? { productId: row.productId } : {}),
+    ...(row.itemCode ? { itemCode: row.itemCode } : {}),
     description: row.description,
     quantity: row.quantity,
-    unitPriceMinor: row.unitPriceMinor,
-    discountMinor: row.discountMinor,
-    ...(row.taxRateIds.length ? { taxRateIds: row.taxRateIds } : { taxBps: row.taxBps }),
+    ...(row.width != null ? { width: row.width } : {}),
+    ...(row.height != null ? { height: row.height } : {}),
+    unit: row.unit,
+    taxBps: row.taxBps,
+    ...(vendor
+      ? { vendorPriceMinor: row.vendorPriceMinor!, marginType: row.marginType!, marginValue: row.marginValue }
+      : { unitPriceMinor: row.unitPriceMinor }),
   };
 }
 
@@ -222,6 +359,8 @@ export function quotationListQuery(filter: QuotationFilter): QuotationFilter {
 }
 
 export const isDraft = (q: Pick<Quotation, 'status'>) => q.status === 'draft';
+/** Anything not yet won/lost can still be edited (a sent quotation becomes a new revision). */
+export const isEditable = (q: Pick<Quotation, 'status'>) => !['won', 'lost'].includes(q.status);
 export const isPending = (q: Pick<Quotation, 'status'>) => !['draft', 'won', 'lost'].includes(q.status);
 
 /** Status buttons offered on the detail page (send has its own action). */

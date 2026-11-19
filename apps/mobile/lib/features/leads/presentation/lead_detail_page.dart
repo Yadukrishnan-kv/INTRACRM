@@ -487,6 +487,7 @@ class _LeadDetailPageState extends ConsumerState<LeadDetailPage> {
         SectionCard(
           child: Column(
             children: [
+              InfoRow(icon: Icons.category_outlined, label: AppStrings.leadCategory, value: lead.categoryName ?? '—'),
               InfoRow(icon: Icons.campaign_outlined, label: AppStrings.leadSource, value: lead.sourceName ?? '—'),
               InfoRow(icon: Icons.person_outline, label: AppStrings.assignedStaff, value: lead.ownerName ?? 'Unassigned'),
               InfoRow(icon: Icons.inventory_2_outlined, label: 'Product Interest', value: lead.title),

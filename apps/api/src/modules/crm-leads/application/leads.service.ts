@@ -42,6 +42,7 @@ export type { FollowUpView };
 
 const leadInclude = {
   source: true,
+  category: true,
   stage: true,
   owner: { include: { user: true } },
   followUps: {
@@ -88,6 +89,8 @@ export type LeadView = {
   requirement: string | null;
   sourceId: string | null;
   sourceName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
   quality: string | null;
   estimatedValueMinor: number | null;
   currency: string;
@@ -136,10 +139,14 @@ export class LeadsService {
   async lookups(actor: AuthUser) {
     const tenantId = this.requireTenant(actor);
     await this.catalog.ensureDefaults(tenantId, actor.userId);
-    const [sources, pipelines, staff, qualities] = await Promise.all([
+    const [sources, categories, pipelines, staff, qualities] = await Promise.all([
       this.prisma.leadSource.findMany({
         where: { tenantId, deletedAt: null, isActive: true },
         orderBy: { sortOrder: 'asc' },
+      }),
+      this.prisma.leadCategory.findMany({
+        where: { tenantId, deletedAt: null, isActive: true },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       }),
       this.prisma.pipeline.findMany({
         where: { tenantId, deletedAt: null, isActive: true },
@@ -164,6 +171,7 @@ export class LeadsService {
     return {
       qualities: qualities.map((row) => ({ code: row.code, name: row.name })),
       sources: sources.map((row) => ({ id: row.id, code: row.code, name: row.name })),
+      categories: categories.map((row) => ({ id: row.id, code: row.code, name: row.name })),
       pipelines: pipelines.map((pipeline) => ({
         id: pipeline.id,
         name: pipeline.name,
@@ -190,6 +198,7 @@ export class LeadsService {
       deletedAt: null,
       ...(query.quality ? { quality: query.quality } : {}),
       ...(query.sourceId ? { sourceId: query.sourceId } : {}),
+      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
       ...(query.ownerMembershipId ? { ownerMembershipId: query.ownerMembershipId } : {}),
       ...(query.status ? { lifecycleStatus: query.status } : {}),
       ...(query.stageName ? { stage: { name: query.stageName } } : {}),
@@ -271,6 +280,9 @@ export class LeadsService {
     if (dto.sourceId) {
       await this.requireSource(tenantId, dto.sourceId);
     }
+    if (dto.categoryId) {
+      await this.requireCategory(tenantId, dto.categoryId);
+    }
     const quality = dto.quality ? await this.requireQuality(tenantId, dto.quality) : null;
 
     const createdId = await this.prisma.$transaction(async (tx) => {
@@ -298,6 +310,7 @@ export class LeadsService {
           primaryEmail: emptyToNull(dto.primaryEmail)?.toLowerCase() ?? null,
           city: emptyToNull(dto.city),
           sourceId: dto.sourceId ?? null,
+          categoryId: dto.categoryId ?? null,
           pipelineId: pipeline.id,
           stageId: firstStage.id,
           ownerMembershipId: ownerId,
@@ -409,6 +422,9 @@ export class LeadsService {
     if (dto.sourceId) {
       await this.requireSource(tenantId, dto.sourceId);
     }
+    if (dto.categoryId) {
+      await this.requireCategory(tenantId, dto.categoryId);
+    }
     if (dto.quality) {
       await this.requireQuality(tenantId, dto.quality);
     }
@@ -461,6 +477,7 @@ export class LeadsService {
           primaryEmail: next.primaryEmail,
           city: next.city,
           sourceId: next.sourceId,
+          categoryId: dto.categoryId === undefined ? current.categoryId : dto.categoryId,
           quality: next.quality ?? null,
           estimatedValueMinor:
             next.estimatedValueMinor == null ? null : BigInt(next.estimatedValueMinor),
@@ -968,6 +985,21 @@ export class LeadsService {
     return quality.code;
   }
 
+  private async requireCategory(tenantId: string, categoryId: string) {
+    const category = await this.prisma.leadCategory.findFirst({
+      where: { id: categoryId, tenantId, deletedAt: null, isActive: true },
+    });
+    if (!category) {
+      throw new AppException(HttpStatus.UNPROCESSABLE_ENTITY, 'Lead category is not valid', {
+        code: ErrorCodes.VALIDATION_ERROR,
+        errors: [
+          { field: 'categoryId', code: 'invalid', message: 'Choose an active lead category.' },
+        ],
+      });
+    }
+    return category;
+  }
+
   private async requireSource(tenantId: string, sourceId: string) {
     const source = await this.prisma.leadSource.findFirst({
       where: { id: sourceId, tenantId, deletedAt: null, isActive: true },
@@ -1019,6 +1051,8 @@ export class LeadsService {
       requirement: row.requirement,
       sourceId: row.sourceId,
       sourceName: row.source?.name ?? null,
+      categoryId: row.categoryId,
+      categoryName: row.category?.name ?? null,
       quality: row.quality,
       estimatedValueMinor: toMinorNumber(row.estimatedValueMinor),
       currency: row.currency,

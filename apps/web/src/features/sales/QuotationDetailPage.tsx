@@ -19,6 +19,7 @@ import {
   displayQuotationTitle,
   formatDay,
   isDraft,
+  isEditable,
   isPending,
   predictionLabel,
   predictionPercent,
@@ -106,6 +107,7 @@ function QuotationDetail({ q }: { q: Quotation }) {
   });
 
   const canEdit = isDraft(q) && can(P.quotationCreate);
+  const canRevise = isEditable(q) && !isDraft(q) && can(P.quotationCreate);
   const canSend = can(P.quotationSend);
   const next = can(P.quotationAccept) ? statusActions(q) : [];
   const canIssueWarranty = can(P.warrantyCreate) && (q.status === 'approved' || q.status === 'won');
@@ -126,6 +128,26 @@ function QuotationDetail({ q }: { q: Quotation }) {
         }
         actions={
           <div className="btn-row">
+            <button type="button" className="btn btn-ghost" onClick={() => void salesApi.quotationPdf(q.id, q.quotationNumber)}>
+              Download PDF
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                void salesApi.quotationPdf(q.id, q.quotationNumber);
+                const phone = (q.customerPhone ?? '').replace(/\D/g, '');
+                const text = `Quotation ${q.quotationNumber} for ${q.customerName ?? 'you'}: ${formatMoney(q.totalMinor, q.currency)}. Please find the attached PDF.`;
+                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+              }}
+            >
+              Share on WhatsApp
+            </button>
+            {canRevise ? (
+              <Link className="btn btn-ghost" to={`/quotations/${q.id}/edit`}>
+                Revise quotation
+              </Link>
+            ) : null}
             {canEdit ? (
               <>
                 <Link className="btn btn-ghost" to={`/quotations/${q.id}/edit`}>
@@ -293,10 +315,11 @@ function QuotationDetail({ q }: { q: Quotation }) {
             <table className="table">
               <thead>
                 <tr>
+                  <th>Item</th>
                   <th>Description</th>
+                  <th className="num">Size (W×H)</th>
                   <th className="num">Qty</th>
                   <th className="num">Unit price</th>
-                  <th className="num">Discount</th>
                   <th className="num">Tax</th>
                   <th className="num">Line total</th>
                   {canEdit ? <th aria-label="Actions" /> : null}
@@ -305,13 +328,14 @@ function QuotationDetail({ q }: { q: Quotation }) {
               <tbody>
                 {q.items.map((line) => (
                   <tr key={line.id}>
+                    <td>{line.itemCode ?? '—'}</td>
                     <td>
                       {line.description}
                       {line.productName ? <div className="muted small">{line.productName}</div> : null}
                     </td>
+                    <td className="num">{line.width != null || line.height != null ? `${line.width ?? '—'} × ${line.height ?? '—'}` : '—'}</td>
                     <td className="num">{line.quantity}</td>
                     <td className="num">{formatMoney(line.unitPriceMinor, q.currency)}</td>
-                    <td className="num">{line.discountMinor ? formatMoney(line.discountMinor, q.currency) : '—'}</td>
                     <td className="num">{line.taxBps ? formatBps(line.taxBps) : '—'}</td>
                     <td className="num">{formatMoney(line.lineTotalMinor, q.currency)}</td>
                     {canEdit ? (
@@ -339,19 +363,67 @@ function QuotationDetail({ q }: { q: Quotation }) {
               A quotation needs at least one line item, so the last one can't be deleted.
             </p>
           ) : null}
+          {q.charges.length ? (
+            <>
+              <h3 className="sales-pad-head">Additional charges</h3>
+              <table className="table">
+                <tbody>
+                  {q.charges.map((c, i) => (
+                    <tr key={i}>
+                      <td>{c.description}</td>
+                      <td className="num">{c.taxBps ? formatBps(c.taxBps) : '—'}</td>
+                      <td className="num">{formatMoney(c.amountMinor, q.currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : null}
           <div className="sales-pad-foot">
             <dl className="sales-totals">
               <dt>Subtotal</dt>
               <dd>{formatMoney(q.subtotalMinor, q.currency)}</dd>
-              <dt>Discount</dt>
+              <dt>Total discount</dt>
               <dd>−{formatMoney(q.discountMinor, q.currency)}</dd>
-              <dt>Tax</dt>
+              <dt>{q.gstInclusive ? 'GST (included)' : 'GST'}</dt>
               <dd>{formatMoney(q.taxMinor, q.currency)}</dd>
+              {q.items.some((i) => i.vendorPriceMinor != null) ? (
+                <>
+                  <dt>Profit after discount (internal)</dt>
+                  <dd>{formatMoney(q.profitMinor, q.currency)}</dd>
+                </>
+              ) : null}
               <dt className="sales-grand">Total</dt>
               <dd className="sales-grand">{formatMoney(q.totalMinor, q.currency)}</dd>
             </dl>
           </div>
         </section>
+
+        {q.revisions.length ? (
+          <section className="card span-2">
+            <h2>Revision history</h2>
+            <ul className="list">
+              {[...q.revisions].reverse().map((r) => (
+                <li key={r.revision}>
+                  <div className="list-row">
+                    <strong>Revision {r.revision}</strong>
+                    <span>{formatMoney(r.totalMinor, q.currency)}</span>
+                  </div>
+                  <span className="muted small">
+                    Replaced {r.savedAt.slice(0, 10)} · subtotal {formatMoney(r.subtotalMinor, q.currency)}, discount{' '}
+                    {formatMoney(r.discountMinor, q.currency)}, GST {formatMoney(r.taxMinor, q.currency)}
+                  </span>
+                </li>
+              ))}
+              <li>
+                <div className="list-row">
+                  <strong>Revision {q.revision} (current)</strong>
+                  <span>{formatMoney(q.totalMinor, q.currency)}</span>
+                </div>
+              </li>
+            </ul>
+          </section>
+        ) : null}
 
         {can(P.warrantyRead) && (warranties.data?.length ?? 0) > 0 ? (
           <section className="card span-2">

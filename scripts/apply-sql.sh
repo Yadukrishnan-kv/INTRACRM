@@ -30,7 +30,9 @@ intra_leads_follow_ups.sql
 intra_leads_follow_up_engine.sql
 intra_leads_site_visits.sql
 intra_leads_quotations.sql
+intra_leads_quotation_pricing.sql
 intra_leads_catalog.sql
+intra_leads_lead_categories.sql
 intra_leads_comms.sql
 intra_leads_billing.sql
 intra_leads_quotation_follow_up.sql
