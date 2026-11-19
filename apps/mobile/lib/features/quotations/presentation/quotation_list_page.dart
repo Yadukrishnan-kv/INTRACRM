@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/error/result.dart';
 import '../../../design_system/components/app_async_body.dart';
 import '../../../design_system/components/app_scaffold.dart';
+import '../../../design_system/tokens/app_colors.dart';
 import '../../../design_system/tokens/app_spacing.dart';
 import '../../../features/auth/application/auth_controller.dart';
 import '../../../l10n/app_strings.dart';
@@ -22,6 +23,7 @@ class QuotationListPage extends ConsumerWidget {
     final filter = ref.watch(quotationListProvider.notifier).filter;
     final canCreate =
         ref.watch(authControllerProvider).user?.canCreateQuotation == true;
+    final summary = ref.watch(quotationSummaryProvider).asData?.value ?? const QuotationSummary();
     final dash = dashboard.asData?.value;
     final board = dash is Success<QuotationFollowUpDashboard> ? dash.value : null;
 
@@ -46,6 +48,7 @@ class QuotationListPage extends ConsumerWidget {
           : null,
       body: Column(
         children: [
+          _KpiRow(summary: summary),
           if (board != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
@@ -63,29 +66,7 @@ class QuotationListPage extends ConsumerWidget {
                 },
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
-            child: Wrap(
-              spacing: 8,
-              children: [
-                FilterChip(
-                  label: const Text('All'),
-                  selected: filter.status == null && !filter.pending && filter.bucket == null,
-                  onSelected: (_) => ref.read(quotationListProvider.notifier).apply(
-                    QuotationListFilter(leadId: filter.leadId),
-                  ),
-                ),
-                for (final status in QuotationStatuses.all)
-                  FilterChip(
-                    label: Text(QuotationStatuses.title(status)),
-                    selected: filter.status == status && filter.bucket == null && !filter.pending,
-                    onSelected: (_) => ref.read(quotationListProvider.notifier).apply(
-                      QuotationListFilter(status: status, leadId: filter.leadId),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+          _Tabs(summary: summary, filter: filter, ref: ref),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => _refresh(ref),
@@ -147,6 +128,7 @@ class QuotationListPage extends ConsumerWidget {
   Future<void> _refresh(WidgetRef ref) async {
     await ref.read(quotationListProvider.notifier).refresh();
     await ref.read(quotationDashboardProvider.notifier).refresh();
+    ref.invalidate(quotationSummaryProvider);
   }
 }
 
@@ -215,6 +197,90 @@ class _BucketCard extends StatelessWidget {
             Text(title, style: Theme.of(context).textTheme.labelMedium),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _KpiRow extends StatelessWidget {
+  const _KpiRow({required this.summary});
+
+  final QuotationSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final tiles = [
+      ('Total Quotations', '${summary.total}', AppColors.tealDark),
+      ('Pending', '${summary.pending}', AppColors.warning),
+      ('Approved', '${summary.count('approved')}', AppColors.success),
+      ('Converted', '${summary.count('won')}', AppColors.teal),
+      ('Quotation Value', summary.valueLabel, AppColors.tealDark),
+    ];
+    return SizedBox(
+      height: 76,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+        itemCount: tiles.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final (label, value, color) = tiles[i];
+          return Container(
+            width: 128,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Theme.of(context).dividerColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: color, fontWeight: FontWeight.w700)),
+                Text(label, style: Theme.of(context).textTheme.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _Tabs extends StatelessWidget {
+  const _Tabs({required this.summary, required this.filter, required this.ref});
+
+  final QuotationSummary summary;
+  final QuotationListFilter filter;
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    final noBucket = filter.bucket == null;
+    final tabs = <(String, int?, bool, QuotationListFilter)>[
+      ('All Quotations', null, filter.status == null && !filter.pending && noBucket, QuotationListFilter(leadId: filter.leadId)),
+      ('Drafts', summary.count('draft'), filter.status == 'draft' && noBucket && !filter.pending, QuotationListFilter(status: 'draft', leadId: filter.leadId)),
+      ('Pending', summary.pending, filter.pending && noBucket, QuotationListFilter(pending: true, leadId: filter.leadId)),
+      ('Approved', summary.count('approved'), filter.status == 'approved' && noBucket && !filter.pending, QuotationListFilter(status: 'approved', leadId: filter.leadId)),
+      ('Rejected', summary.count('lost'), filter.status == 'lost' && noBucket && !filter.pending, QuotationListFilter(status: 'lost', leadId: filter.leadId)),
+      ('Converted', summary.count('won'), filter.status == 'won' && noBucket && !filter.pending, QuotationListFilter(status: 'won', leadId: filter.leadId)),
+    ];
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+        itemCount: tabs.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final (label, count, selected, next) = tabs[i];
+          return ChoiceChip(
+            label: Text(count == null ? label : '$label ($count)'),
+            selected: selected,
+            onSelected: (_) => ref.read(quotationListProvider.notifier).apply(next),
+          );
+        },
       ),
     );
   }

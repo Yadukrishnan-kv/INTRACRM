@@ -177,3 +177,5 @@
 .qtab { flex: none; white-space: nowrap; border: 0; background: transparent; font: inherit; font-weight: 600; font-size: 0.9rem; color: var(--muted); padding: 10px 16px; border-bottom: 2px solid transparent; cursor: pointer; text-decoration: none; }
 .qtab-active { color: var(--teal-dark); border-bottom-color: var(--teal); }
 .qtab-create { color: var(--teal); }
+
+.qp-logo { height: 44px; width: auto; max-width: 55%; object-fit: contain; display: block; }

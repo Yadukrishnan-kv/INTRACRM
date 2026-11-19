@@ -645,6 +645,45 @@ class QuotationFollowUpBuckets {
   }
 }
 
+/// Counts per status for the Quotations page header and tabs.
+class QuotationSummary {
+  const QuotationSummary({
+    this.total = 0,
+    this.pending = 0,
+    this.totalValueMinor = 0,
+    this.byStatus = const {},
+  });
+
+  final int total;
+  final int pending;
+  final int totalValueMinor;
+  final Map<String, int> byStatus;
+
+  int count(String status) => byStatus[status] ?? 0;
+
+  factory QuotationSummary.fromJson(Map<String, dynamic> json) {
+    final raw = json['byStatus'];
+    return QuotationSummary(
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      pending: (json['pending'] as num?)?.toInt() ?? 0,
+      totalValueMinor: (json['totalValueMinor'] as num?)?.toInt() ?? 0,
+      byStatus: {
+        if (raw is Map)
+          for (final entry in raw.entries)
+            entry.key as String: ((entry.value as Map)['count'] as num?)?.toInt() ?? 0,
+      },
+    );
+  }
+
+  /// ₹48.75 L / ₹1.20 Cr, the way Indian sales teams read totals.
+  String get valueLabel {
+    final rupees = totalValueMinor / 100;
+    if (rupees >= 1e7) return '₹${(rupees / 1e7).toStringAsFixed(2)} Cr';
+    if (rupees >= 1e5) return '₹${(rupees / 1e5).toStringAsFixed(2)} L';
+    return '₹${rupees.toStringAsFixed(0)}';
+  }
+}
+
 class QuotationFollowUpDashboard {
   const QuotationFollowUpDashboard({
     required this.generatedAt,
