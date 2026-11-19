@@ -101,7 +101,7 @@
 .qp-heading { font-size: 1rem; margin: 0 0 8px; }
 .qp-sheet { border: 1px solid #222; background: #fff; color: #111; font-size: 10px; line-height: 1.35; }
 .qp-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 10px; border-bottom: 1px solid #222; }
-.qp-company { font-size: 15px; color: #0b5fc1; }
+.qp-company { font-size: 15px; color: #0b5d52; }
 .qp-title { color: #12b0a0; font-weight: 700; font-size: 12px; }
 .qp-info { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; border-bottom: 1px solid #222; }
 .qp-right { text-align: right; }
@@ -113,9 +113,48 @@
 .qp-sum { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #222; }
 .qp-bank { padding: 8px; text-align: center; border-right: 1px solid #222; font-size: 9px; }
 .qp-totals > div { display: flex; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid #222; font-weight: 600; }
-.qp-totals .qp-grand { background: #0b5fc1; color: #fff; font-size: 13px; padding: 10px 8px; }
+.qp-totals .qp-grand { background: #0b5d52; color: #fff; font-size: 13px; padding: 10px 8px; }
 .qp-bar { background: #12b0a0; color: #fff; text-align: center; font-weight: 700; padding: 4px; border-top: 1px solid #222; }
 .qp-spec { display: flex; justify-content: space-between; gap: 8px; padding: 3px 8px; background: #f1ede4; border-top: 1px solid #222; }
 .qp-spec span:last-child { color: #b3261e; text-align: right; }
 .qp-terms { padding: 6px 8px; border-top: 1px solid #222; font-size: 9px; }
 .qp-foot { padding: 6px; text-align: center; border-top: 1px solid #222; font-size: 9px; }
+
+/* Quotation form redesign: header toggle, details grid, item table, rail, sticky action bar. */
+.quote-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.quote-top h1 { margin: 0; }
+.quote-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 3px; background: var(--card); }
+.quote-toggle button { border: 0; background: transparent; font: inherit; font-weight: 600; font-size: 0.85rem; color: var(--muted); padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+.quote-toggle button.on { background: var(--teal); color: #fff; }
+.quote-h { font-size: 1.05rem; margin: 0; }
+.quote-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.quote-details { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .quote-details { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.quote-read { min-height: 38px; display: flex; align-items: center; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg, #f6f8f8); font-weight: 600; overflow-wrap: anywhere; }
+.quote-pill { display: inline-flex; align-self: flex-start; align-items: center; min-height: 38px; padding: 0 14px; border-radius: var(--radius-sm); background: var(--teal-soft); color: var(--teal-dark); font-weight: 700; }
+
+.quote-items th { font-size: 0.78rem; white-space: nowrap; }
+.quote-items td { vertical-align: top; }
+.quote-items input, .quote-items select, .quote-items textarea { width: 100%; min-width: 0; font: inherit; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card); color: var(--text); }
+.quote-items td.num input { text-align: right; max-width: 110px; margin-left: auto; display: block; }
+.quote-desc { min-width: 240px; display: flex; flex-direction: column; gap: 4px; }
+.quote-size { min-width: 130px; white-space: nowrap; }
+.quote-size input { width: 56px; display: inline-block; }
+.quote-size span { margin: 0 4px; color: var(--muted); }
+.quote-formula { margin: 0; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--teal-soft); color: var(--teal-dark); font-size: 0.82rem; }
+
+.quote-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 900px) { .quote-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.quote-rail { display: flex; flex-direction: column; gap: 16px; }
+@media (min-width: 1280px) { .quote-rail { position: sticky; top: 16px; max-height: calc(100dvh - 32px); overflow-y: auto; } .quote-layout .qp { position: static; } }
+.quote-summary .sales-totals { justify-content: stretch; grid-template-columns: minmax(0, 1fr) auto; margin-top: 8px; }
+.quote-grand { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding: 14px 16px; border-radius: var(--radius); background: var(--teal-dark, #0b5d52); color: #fff; font-size: 1.2rem; }
+.quote-grand span { font-weight: 600; }
+
+.quote-actions { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06); }
+.quote-spacer { flex: 1 1 auto; }
+.btn-whatsapp { background: #e7f8ee; color: #128c4a; border: 1px solid #b6e8cb; }
+.btn-whatsapp:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.qp-sign { padding: 14px 10px 8px; text-align: right; border-top: 1px solid #222; font-size: 9px; display: flex; flex-direction: column; gap: 2px; }

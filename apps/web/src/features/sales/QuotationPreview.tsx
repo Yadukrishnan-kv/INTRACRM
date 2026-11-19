@@ -26,6 +26,7 @@ export type QuotationPreviewProps = {
   companyName: string;
   address: string;
   bankDetails: string;
+  validUntilOn?: string;
 };
 
 /** On-screen mock-up of the customer PDF, updated as the form changes. */
@@ -57,6 +58,7 @@ export function QuotationPreview(p: QuotationPreviewProps) {
           <div className="qp-right">
             <div>No: {p.quotationNumber || 'Assigned on save'}</div>
             <div>Date: {today}</div>
+            {p.validUntilOn ? <div>Valid Until: {new Date(p.validUntilOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div> : null}
           </div>
         </div>
         <table className="qp-table">
@@ -128,6 +130,10 @@ export function QuotationPreview(p: QuotationPreviewProps) {
             ))}
           </div>
         ) : null}
+        <div className="qp-sign">
+          Authorized Signatory
+          <strong>{p.companyName}</strong>
+        </div>
         {p.address ? <div className="qp-foot">{p.address}</div> : null}
       </div>
     </aside>
