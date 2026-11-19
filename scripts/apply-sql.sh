@@ -24,6 +24,7 @@ intra_leads_schema.sql
 intra_leads_partitions.sql
 intra_leads_auth_login_history.sql
 intra_leads_lead_management.sql
+intra_leads_lead_district.sql
 intra_leads_lead_pipeline.sql
 intra_leads_activity_timeline.sql
 intra_leads_follow_ups.sql
