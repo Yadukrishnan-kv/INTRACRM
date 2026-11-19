@@ -36,6 +36,7 @@ class _LeadFormPageState extends ConsumerState<LeadFormPage> {
   LeadLookups? _lookups;
   Lead? _existing;
   String? _sourceId;
+  String? _categoryId;
   String? _quality;
   String? _ownerMembershipId;
   DateTime? _followUpDueAt;
@@ -102,6 +103,7 @@ class _LeadFormPageState extends ConsumerState<LeadFormPage> {
           _value.text = (existing!.estimatedValueMinor! / 100).toStringAsFixed(0);
         }
         _sourceId = existing!.sourceId;
+        _categoryId = existing!.categoryId;
         _quality = existing!.quality;
         _ownerMembershipId = existing!.ownerMembershipId;
       }
@@ -132,6 +134,7 @@ class _LeadFormPageState extends ConsumerState<LeadFormPage> {
       city: _city.text.trim(),
       requirement: _requirement.text.trim(),
       sourceId: _sourceId,
+      categoryId: _categoryId,
       quality: _quality,
       estimatedValueMinor: minor,
       ownerMembershipId: _ownerMembershipId,
@@ -258,6 +261,16 @@ class _LeadFormPageState extends ConsumerState<LeadFormPage> {
                           value != null && value.length > 2000
                           ? 'Requirement is too long'
                           : null,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    DropdownButtonFormField<String>(
+                      initialValue: _categoryId,
+                      decoration: const InputDecoration(labelText: AppStrings.leadCategory),
+                      items: [
+                        for (final category in lookups?.categories ?? const <LeadCategoryOption>[])
+                          DropdownMenuItem(value: category.id, child: Text(category.name)),
+                      ],
+                      onChanged: (value) => setState(() => _categoryId = value),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     Text(

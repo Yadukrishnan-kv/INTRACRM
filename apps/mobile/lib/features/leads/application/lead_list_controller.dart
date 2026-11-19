@@ -13,6 +13,15 @@ final leadApiProvider = Provider<LeadApi>((ref) {
   return LeadApi(ref.watch(apiClientProvider));
 });
 
+/// Active lead categories for the list's category chips (cached offline).
+final leadCategoryOptionsProvider = FutureProvider<List<LeadCategoryOption>>((ref) async {
+  final result = await ref.read(leadRepositoryProvider).lookups();
+  return result.when(
+    success: (value) => value.categories,
+    failure: (_) => const <LeadCategoryOption>[],
+  );
+});
+
 final leadRepositoryProvider = Provider<LeadRepository>((ref) {
   return LeadRepositoryImpl(
     api: LeadApi(ref.watch(apiClientProvider)),

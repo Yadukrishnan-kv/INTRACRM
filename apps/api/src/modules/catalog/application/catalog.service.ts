@@ -88,10 +88,11 @@ export class CatalogService {
   async overview(actor: AuthUser) {
     const tenantId = this.requireTenant(actor);
     await this.defaults.ensureDefaults(tenantId, actor.userId);
-    const [products, categories, sources, statuses, qualities, periods, taxes] = await Promise.all([
+    const [products, categories, sources, leadCategories, statuses, qualities, periods, taxes] = await Promise.all([
       this.prisma.product.count({ where: { tenantId, deletedAt: null } }),
       this.prisma.productCategory.count({ where: { tenantId, deletedAt: null } }),
       this.prisma.leadSource.count({ where: { tenantId, deletedAt: null } }),
+      this.prisma.leadCategory.count({ where: { tenantId, deletedAt: null } }),
       this.prisma.pipelineStage.count({
         where: { tenantId, deletedAt: null, pipeline: { deletedAt: null } },
       }),
@@ -103,6 +104,7 @@ export class CatalogService {
       [CATALOG_KIND.products]: products,
       [CATALOG_KIND.categories]: categories,
       [CATALOG_KIND.sources]: sources,
+      [CATALOG_KIND.leadCategories]: leadCategories,
       [CATALOG_KIND.leadStatuses]: statuses,
       [CATALOG_KIND.leadQualities]: qualities,
       [CATALOG_KIND.warrantyPeriods]: periods,
@@ -121,8 +123,12 @@ export class CatalogService {
     const tenantId = this.requireTenant(actor);
     await this.defaults.ensureDefaults(tenantId, actor.userId);
     const active = { tenantId, deletedAt: null, isActive: true };
-    const [sources, qualities, categories, periods, products, taxes] = await Promise.all([
+    const [sources, leadCategories, qualities, categories, periods, products, taxes] = await Promise.all([
       this.prisma.leadSource.findMany({
+        where: active,
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      }),
+      this.prisma.leadCategory.findMany({
         where: active,
         orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       }),
@@ -156,6 +162,7 @@ export class CatalogService {
     });
     return {
       sources: sources.map((row) => this.toNamed(row)),
+      leadCategories: leadCategories.map((row) => this.toNamed(row)),
       qualities: qualities.map((row) => this.toNamed(row)),
       categories: categories.map((row) => this.toCategory(row)),
       warrantyPeriods: periods.map((row) => this.toPeriod(row)),
@@ -183,6 +190,27 @@ export class CatalogService {
         where: { tenantId, sourceId: id, deletedAt: null },
       });
       return used > 0 ? 'This source is used by live leads.' : null;
+    });
+  }
+
+  listLeadCategories(actor: AuthUser, includeInactive?: boolean) {
+    return this.listNamed(actor, 'leadCategory', includeInactive);
+  }
+
+  createLeadCategory(actor: AuthUser, dto: CatalogNamedRequest) {
+    return this.createNamed(actor, 'leadCategory', dto);
+  }
+
+  updateLeadCategory(actor: AuthUser, id: string, dto: UpdateCatalogNamedRequest) {
+    return this.updateNamed(actor, 'leadCategory', id, dto);
+  }
+
+  deleteLeadCategory(actor: AuthUser, id: string) {
+    return this.deleteNamed(actor, 'leadCategory', id, async (tenantId) => {
+      const used = await this.prisma.lead.count({
+        where: { tenantId, categoryId: id, deletedAt: null },
+      });
+      return used > 0 ? 'This category is used by live leads.' : null;
     });
   }
 
@@ -737,7 +765,7 @@ export class CatalogService {
 
   private async listNamed(
     actor: AuthUser,
-    model: 'leadSource' | 'leadQualityOption' | 'warrantyPeriod',
+    model: 'leadSource' | 'leadCategory' | 'leadQualityOption' | 'warrantyPeriod',
     includeInactive?: boolean,
   ) {
     const tenantId = this.requireTenant(actor);
@@ -758,7 +786,7 @@ export class CatalogService {
 
   private async createNamed(
     actor: AuthUser,
-    model: 'leadSource' | 'leadQualityOption',
+    model: 'leadSource' | 'leadCategory' | 'leadQualityOption',
     dto: CatalogNamedRequest,
   ) {
     const tenantId = this.requireTenant(actor);
@@ -780,7 +808,7 @@ export class CatalogService {
 
   private async updateNamed(
     actor: AuthUser,
-    model: 'leadSource' | 'leadQualityOption',
+    model: 'leadSource' | 'leadCategory' | 'leadQualityOption',
     id: string,
     dto: UpdateCatalogNamedRequest,
   ) {
@@ -789,7 +817,9 @@ export class CatalogService {
       where: { id, tenantId, deletedAt: null },
     });
     if (!current) {
-      this.missing(model === 'leadSource' ? 'Source' : 'Lead quality');
+      this.missing(
+        model === 'leadSource' ? 'Source' : model === 'leadCategory' ? 'Lead category' : 'Lead quality',
+      );
     }
     const code = dto.code ? this.requireCode(dto.code) : current.code;
     if (code !== current.code) {
@@ -817,7 +847,7 @@ export class CatalogService {
 
   private async deleteNamed(
     actor: AuthUser,
-    model: 'leadSource' | 'leadQualityOption' | 'warrantyPeriod',
+    model: 'leadSource' | 'leadCategory' | 'leadQualityOption' | 'warrantyPeriod',
     id: string,
     inUse: (tenantId: string, row: { code: string }) => Promise<string | null>,
   ) {
@@ -848,14 +878,14 @@ export class CatalogService {
   }
 
   private named(
-    model: 'leadSource' | 'leadQualityOption' | 'warrantyPeriod' | 'productCategory',
+    model: 'leadSource' | 'leadCategory' | 'leadQualityOption' | 'warrantyPeriod' | 'productCategory',
   ): NamedStore {
     return this.prisma[model] as unknown as NamedStore;
   }
 
   private async assertUnique(
     tenantId: string,
-    model: 'leadSource' | 'leadQualityOption' | 'warrantyPeriod' | 'productCategory',
+    model: 'leadSource' | 'leadCategory' | 'leadQualityOption' | 'warrantyPeriod' | 'productCategory',
     code: string,
     exceptId?: string,
   ) {

@@ -32,11 +32,46 @@ class LeadListPage extends ConsumerStatefulWidget {
 class _LeadListPageState extends ConsumerState<LeadListPage> {
   var _scope = _LeadScope.all;
   LeadListFilter? _filter;
+  String? _categoryId;
 
   @override
   void initState() {
     super.initState();
     _filter = widget.initialFilter;
+  }
+
+  Widget _categoryChips() {
+    final categories = ref.watch(leadCategoryOptionsProvider).asData?.value ?? const [];
+    if (categories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: const Text('All categories'),
+              selected: _categoryId == null,
+              onSelected: (_) => setState(() => _categoryId = null),
+            ),
+          ),
+          for (final category in categories)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(category.name),
+                selected: _categoryId == category.id,
+                onSelected: (selected) =>
+                    setState(() => _categoryId = selected ? category.id : null),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -87,6 +122,7 @@ class _LeadListPageState extends ConsumerState<LeadListPage> {
               ],
             ),
           ),
+          _categoryChips(),
           if (_filter != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -171,7 +207,8 @@ class _LeadListPageState extends ConsumerState<LeadListPage> {
                 (_scope == _LeadScope.mine && lead.ownerMembershipId == membershipId) ||
                 (_scope == _LeadScope.unassigned &&
                     (lead.ownerMembershipId == null || lead.ownerMembershipId!.isEmpty))) &&
-            (_filter?.matches(lead) ?? true))
+            (_filter?.matches(lead) ?? true) &&
+            (_categoryId == null || lead.categoryId == _categoryId))
           lead,
     ];
   }

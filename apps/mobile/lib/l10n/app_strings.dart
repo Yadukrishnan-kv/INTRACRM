@@ -47,6 +47,7 @@ class AppStrings {
   static const leadTitle = 'Lead title';
   static const requirement = 'Requirement';
   static const leadSource = 'Lead source';
+  static const leadCategory = 'Category';
   static const leadQuality = 'Lead quality';
   static const estimatedValue = 'Estimated value (₹)';
   static const assignedStaff = 'Assigned staff';

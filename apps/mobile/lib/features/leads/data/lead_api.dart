@@ -151,6 +151,7 @@ class LeadApi {
       'city': _blankToNull(input.city),
       'requirement': _blankToNull(input.requirement),
       'sourceId': input.sourceId,
+      'categoryId': input.categoryId,
       'quality': input.quality,
       'estimatedValueMinor': input.estimatedValueMinor,
       // Unassigning is not an edit; ownership changes go through /assign.
@@ -172,6 +173,7 @@ class LeadApi {
       'city': ?_blankToNull(input.city),
       'requirement': ?_blankToNull(input.requirement),
       'sourceId': ?input.sourceId,
+      'categoryId': ?input.categoryId,
       'quality': ?input.quality,
       'estimatedValueMinor': ?input.estimatedValueMinor,
       'ownerMembershipId': ?input.ownerMembershipId,

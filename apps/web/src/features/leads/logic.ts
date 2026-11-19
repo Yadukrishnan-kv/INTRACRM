@@ -9,6 +9,7 @@ export type LeadFormState = {
   city: string;
   requirement: string;
   sourceId: string;
+  categoryId: string;
   quality: string;
   estimatedValue: string;
   ownerMembershipId: string;
@@ -25,6 +26,7 @@ export const EMPTY_LEAD_FORM: LeadFormState = {
   city: '',
   requirement: '',
   sourceId: '',
+  categoryId: '',
   quality: '',
   estimatedValue: '',
   ownerMembershipId: '',
@@ -43,6 +45,7 @@ export function formFromLead(lead: LeadDetail): LeadFormState {
     city: lead.city ?? '',
     requirement: lead.requirement ?? '',
     sourceId: lead.sourceId ?? '',
+    categoryId: lead.categoryId ?? '',
     quality: lead.quality ?? '',
     estimatedValue: lead.estimatedValueMinor == null ? '' : String(Math.round(lead.estimatedValueMinor / 100)),
     ownerMembershipId: lead.ownerMembershipId ?? '',
@@ -114,6 +117,7 @@ export function createLeadBody(form: LeadFormState): Record<string, unknown> {
     ['city', blank(form.city)],
     ['requirement', blank(form.requirement)],
     ['sourceId', blank(form.sourceId)],
+    ['categoryId', blank(form.categoryId)],
     ['quality', blank(form.quality)],
     ['ownerMembershipId', blank(form.ownerMembershipId)],
   ];
@@ -147,6 +151,7 @@ export function updateLeadBody(form: LeadFormState, version: number): Record<str
     city: blank(form.city),
     requirement: blank(form.requirement),
     sourceId: blank(form.sourceId),
+    categoryId: blank(form.categoryId),
     quality: blank(form.quality),
     estimatedValueMinor: typeof value === 'number' ? value : null,
     ...(blank(form.ownerMembershipId) ? { ownerMembershipId: form.ownerMembershipId } : {}),

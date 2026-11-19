@@ -206,6 +206,7 @@ function DetailsTab({ lead, onChangeStage, onMarkLost }: { lead: LeadDetail; onC
   const stages = (board.data?.columns.map((c) => c.stage) ?? []).filter((s) => !(s.isLost && won) && !(s.isWon && lost));
 
   const facts: Array<[string, ReactNode]> = [
+    ['Category', lead.categoryName ?? '—'],
     ['Lead source', lead.sourceName ?? '—'],
     ['Assigned staff', lead.ownerName ?? <span className="muted">Unassigned</span>],
     ['Product interest', lead.title],

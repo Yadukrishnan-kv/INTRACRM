@@ -57,6 +57,7 @@ model Tenant {
   sessions    AuthSession[]
   teams       Team[]
   leadSources LeadSource[]
+  leadCategories LeadCategory[]
   leadQualities LeadQualityOption[]
   pipelines    Pipeline[]
   leads        Lead[]
@@ -457,6 +458,28 @@ model LeadSource {
   @@map("lead_sources")
 }
 
+model LeadCategory {
+  id        String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  code      String
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy String?   @map("deleted_by") @db.Uuid
+  version   Int       @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  leads  Lead[]
+
+  @@index([tenantId, code])
+  @@map("lead_categories")
+}
+
 model LeadQualityOption {
   id        String    @id @default(dbgenerated("app.uuid_v7()")) @db.Uuid
   tenantId  String    @map("tenant_id") @db.Uuid
@@ -562,6 +585,7 @@ model Lead {
   primaryPhone        String?             @map("primary_phone")
   primaryEmail        String?             @map("primary_email") @db.Citext
   sourceId            String?             @map("source_id") @db.Uuid
+  categoryId          String?             @map("category_id") @db.Uuid
   pipelineId          String              @map("pipeline_id") @db.Uuid
   stageId             String              @map("stage_id") @db.Uuid
   ownerMembershipId   String?             @map("owner_membership_id") @db.Uuid
@@ -594,6 +618,7 @@ model Lead {
 
   tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   source      LeadSource?      @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  category    LeadCategory?    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   pipeline    Pipeline         @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
   stage       PipelineStage    @relation(fields: [stageId], references: [id], onDelete: Restrict)
   owner        Membership?       @relation("LeadOwner", fields: [ownerMembershipId], references: [id], onDelete: Restrict)

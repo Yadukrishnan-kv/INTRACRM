@@ -25,6 +25,7 @@ export function LeadsPage() {
   const status = (params.get('status') ?? '') as LeadStatus | '';
   const quality = params.get('quality') ?? '';
   const sourceId = params.get('source') ?? '';
+  const categoryId = params.get('category') ?? '';
   const ownerParam = params.get('owner') ?? '';
   const scopeParam = params.get('scope');
   const scope: LeadScope = scopeParam === 'mine' || scopeParam === 'unassigned' ? scopeParam : 'all';
@@ -64,11 +65,12 @@ export function LeadsPage() {
     status: status || undefined,
     quality: quality || undefined,
     sourceId: sourceId || undefined,
+    categoryId: categoryId || undefined,
     ownerMembershipId: ownerMembershipId || undefined,
   };
   const list = useCursorList(leadKeys.list(filters), (cursor) => leadsApi.list(filters, cursor));
   const leads = useMemo(() => applyScope(list.items, scope, me?.membershipId), [list.items, scope, me?.membershipId]);
-  const hasFilters = !!(q || status || quality || sourceId || ownerParam || scope !== 'all');
+  const hasFilters = !!(q || status || quality || sourceId || categoryId || ownerParam || scope !== 'all');
 
   return (
     <>
@@ -127,6 +129,14 @@ export function LeadsPage() {
           <option value="">All qualities</option>
           {(lookups.data?.qualities ?? []).map((item) => (
             <option key={item.code} value={item.code}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+        <select className="input" value={categoryId} aria-label="Filter by category" onChange={(e) => setParam('category', e.target.value)}>
+          <option value="">All categories</option>
+          {(lookups.data?.categories ?? []).map((item) => (
+            <option key={item.id} value={item.id}>
               {item.name}
             </option>
           ))}

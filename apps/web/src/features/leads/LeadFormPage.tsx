@@ -139,6 +139,14 @@ export function LeadFormPage() {
             <TextArea label="Requirement" value={form.requirement} maxLength={2000} rows={4} error={errors.requirement} onValue={set('requirement')} />
           </div>
           <SelectField
+            label="Category"
+            value={form.categoryId}
+            placeholder="No category"
+            options={(lk?.categories ?? []).map((c) => ({ value: c.id, label: c.name }))}
+            error={errors.categoryId}
+            onValue={set('categoryId')}
+          />
+          <SelectField
             label="Lead source"
             value={form.sourceId}
             placeholder="No source"

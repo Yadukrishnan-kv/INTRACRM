@@ -13,6 +13,8 @@ class Lead {
     this.requirement,
     this.sourceId,
     this.sourceName,
+    this.categoryId,
+    this.categoryName,
     this.quality,
     this.estimatedValueMinor,
     this.currency = 'INR',
@@ -46,6 +48,8 @@ class Lead {
   final String? requirement;
   final String? sourceId;
   final String? sourceName;
+  final String? categoryId;
+  final String? categoryName;
   final String? quality;
   final int? estimatedValueMinor;
   final String currency;
@@ -200,6 +204,18 @@ class LeadSourceOption {
   final String name;
 }
 
+class LeadCategoryOption {
+  const LeadCategoryOption({
+    required this.id,
+    required this.code,
+    required this.name,
+  });
+
+  final String id;
+  final String code;
+  final String name;
+}
+
 class LeadQualityChoice {
   const LeadQualityChoice({
     required this.code,
@@ -215,10 +231,12 @@ class LeadLookups {
     required this.qualities,
     required this.sources,
     required this.staff,
+    this.categories = const [],
   });
 
   final List<LeadQualityChoice> qualities;
   final List<LeadSourceOption> sources;
+  final List<LeadCategoryOption> categories;
   final List<LeadStaffOption> staff;
 }
 
@@ -231,6 +249,7 @@ class CreateLeadInput {
     this.city,
     this.requirement,
     this.sourceId,
+    this.categoryId,
     this.quality,
     this.estimatedValueMinor,
     this.ownerMembershipId,
@@ -246,6 +265,7 @@ class CreateLeadInput {
   final String? city;
   final String? requirement;
   final String? sourceId;
+  final String? categoryId;
   final String? quality;
   final int? estimatedValueMinor;
   final String? ownerMembershipId;

@@ -14,6 +14,8 @@ export type Lead = {
   requirement: string | null;
   sourceId: string | null;
   sourceName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
   quality: string | null;
   estimatedValueMinor: number | null;
   currency: string;
@@ -76,6 +78,7 @@ export type LookupStage = { id: string; name: string; sortOrder: number };
 export type LeadLookups = {
   qualities: Array<{ code: string; name: string }>;
   sources: Array<{ id: string; code: string; name: string }>;
+  categories: Array<{ id: string; code: string; name: string }>;
   pipelines: Array<{ id: string; name: string; isDefault: boolean; stages: LookupStage[] }>;
   staff: Array<{ id: string; fullName: string; designation: string | null }>;
 };

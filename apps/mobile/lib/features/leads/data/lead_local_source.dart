@@ -49,6 +49,10 @@ class LeadLocalSource {
           for (final source in lookups.sources)
             {'id': source.id, 'code': source.code, 'name': source.name},
         ],
+        'categories': [
+          for (final category in lookups.categories)
+            {'id': category.id, 'code': category.code, 'name': category.name},
+        ],
         'staff': [
           for (final staff in lookups.staff)
             {
