@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { FormActions, FormError, FormGrid, TextArea, TextField } from '../../components/form';
-import { EmptyState, ErrorState, PageHeader, Spinner } from '../../components/ui';
+import { FormError, FormGrid, TextArea, TextField } from '../../components/form';
+import { EmptyState, ErrorState, Spinner } from '../../components/ui';
 import { formatMoney } from '../../lib/format';
 import { useApiMutation } from '../../lib/hooks';
 import { salesApi } from './api';
@@ -31,7 +31,7 @@ import {
   type LineErrors,
   type QuotationLineDraft,
 } from './logic';
-import type { Quotation, QuotationCatalog, QuotationInput, QuotationProduct, QuotationSpec } from './types';
+import { QUOTATION_STATUS_LABELS, type Quotation, type QuotationCatalog, type QuotationInput, type QuotationProduct, type QuotationSpec } from './types';
 import './sales.css';
 
 type Header = { leadId: string; title: string; validUntilOn: string; expectedCloseOn: string; notes: string; terms: string };
@@ -221,47 +221,73 @@ function QuotationForm({
       {!customerView && hasCost ? (
         <FragmentRow label="Profit after discount" value={formatMoney(profit)} />
       ) : null}
-      <dt className="sales-grand">Grand total</dt>
-      <dd className="sales-grand">{formatMoney(totals.totalMinor)}</dd>
     </dl>
   );
+  const grandTotal = (
+    <div className="quote-grand">
+      <span>Grand Total</span>
+      <strong>{formatMoney(totals.totalMinor)}</strong>
+    </div>
+  );
+  const lead = useQuery({
+    queryKey: ['sales-lead', header.leadId],
+    queryFn: () => salesApi.lead(header.leadId),
+    enabled: !!header.leadId,
+  });
+  const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const statusLabel = existing ? (QUOTATION_STATUS_LABELS[existing.status] ?? existing.status) : 'Draft';
+  const busy = save.isPending || saveAndSend.isPending;
+  const shareWhatsApp = () => {
+    if (!existing) return;
+    void salesApi.quotationPdf(existing.id, existing.quotationNumber);
+    const phone = (existing.customerPhone ?? '').replace(/\D/g, '');
+    const text = `Quotation ${existing.quotationNumber} for ${existing.customerName ?? 'you'}: ${formatMoney(existing.totalMinor, existing.currency)}. Please find the attached PDF.`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+  };
 
   return (
     <>
       <Link to={back} className="back-link">
         ← Back
       </Link>
-      <PageHeader
-        title={existing ? `${isDraft(existing) ? 'Edit' : 'Revise'} ${existing.quotationNumber}` : 'New quotation'}
-        subtitle={
-          isRevision
-            ? `Saving creates revision ${existing!.revision + 1}; the previous figures are kept in the revision history.`
-            : 'Enter the purchase price and margin, or type the selling price directly.'
-        }
-        actions={
-          <div className="btn-row" role="group" aria-label="View">
-            <button type="button" className={`chip${!customerView ? ' chip-active' : ''}`} aria-pressed={!customerView} onClick={() => setCustomerView(false)}>
-              Internal view (cost &amp; margin)
-            </button>
-            <button type="button" className={`chip${customerView ? ' chip-active' : ''}`} aria-pressed={customerView} onClick={() => setCustomerView(true)}>
-              Customer view (final quote)
-            </button>
-          </div>
-        }
-      />
+      <div className="quote-top">
+        <div>
+          <h1>{existing ? `${isDraft(existing) ? 'Edit' : 'Revise'} ${existing.quotationNumber}` : 'Create Quotation'}</h1>
+          <p className="muted small">
+            {isRevision
+              ? `Saving creates revision ${existing!.revision + 1}; the previous figures are kept in the revision history.`
+              : 'Enter the purchase price and margin, or type the selling price directly.'}
+          </p>
+        </div>
+        <div className="quote-toggle" role="group" aria-label="View">
+          <button type="button" className={!customerView ? 'on' : ''} aria-pressed={!customerView} onClick={() => setCustomerView(false)}>
+            Internal View (Cost &amp; Margin)
+          </button>
+          <button type="button" className={customerView ? 'on' : ''} aria-pressed={customerView} onClick={() => setCustomerView(true)}>
+            Customer View (Final Quote)
+          </button>
+        </div>
+      </div>
       <div className="quote-layout">
       <form className="stack" onSubmit={(e) => onSubmit(e)} noValidate>
-        <section className="card">
+        <section className="card stack">
+          <h2 className="quote-h">Quotation Details</h2>
+          <div className="quote-details">
+            <ReadField label="Quotation No." value={existing?.quotationNumber ?? 'Assigned on save'} />
+            <ReadField label="Quotation Date" value={today} />
+            <TextField label="Valid Until" type="date" value={header.validUntilOn} onValue={(v) => set('validUntilOn', v)} hint="Optional" />
+            <ReadField label="Customer Name" value={lead.data?.customerName ?? '—'} />
+            <ReadField label="Mobile Number" value={lead.data?.primaryPhone ?? '—'} />
+            <ReadField label="Location" value={lead.data?.city ?? '—'} />
+            <ReadField label="Status" value={statusLabel} pill />
+          </div>
           <FormGrid>
             {existing || presetLeadId ? (
               <LeadSummary leadId={header.leadId} />
             ) : (
-              <LeadPicker value={header.leadId} onChange={(v) => set('leadId', v)} error={fieldErrors.leadId} required />
+              <LeadPicker value={header.leadId} onChange={(v) => set('leadId', v)} error={fieldErrors.leadId} required label="Related Lead" />
             )}
-            <div className="span-2">
-              <TextField label="Quotation title" value={header.title} maxLength={160} error={fieldErrors.title} onValue={(v) => set('title', v)} placeholder="Optional" />
-            </div>
-            <TextField label="Valid until" type="date" value={header.validUntilOn} onValue={(v) => set('validUntilOn', v)} hint="Optional" />
+            <TextField label="Quotation title" value={header.title} maxLength={160} error={fieldErrors.title} onValue={(v) => set('title', v)} placeholder="Optional" />
             <TextField label="Expected close date" type="date" value={header.expectedCloseOn} onValue={(v) => set('expectedCloseOn', v)} hint="Optional" />
           </FormGrid>
         </section>
@@ -298,81 +324,112 @@ function QuotationForm({
                 })}
               </tbody>
             </table>
-            <div className="sales-pad-foot">{summary}</div>
+            <div className="sales-pad-foot">{summary}{grandTotal}</div>
           </section>
         ) : (
           <section className="card stack">
-            <h2>Item details</h2>
-            {catalogError ? <p className="muted small">Product catalog unavailable; enter lines manually.</p> : null}
-            {lines.map((line, index) => {
-              const err = lineErrors[line.key] ?? {};
-              const unit = draftUnitPriceMinor(line, step);
-              const computed = line.purchasePrice.trim() !== '';
-              return (
-                <div key={line.key} className="sales-line">
-                  <div className="sales-line-head">
-                    <strong>Item {index + 1}</strong>
-                    <button type="button" className="btn btn-ghost btn-sm" disabled={lines.length === 1} onClick={() => setLines((ls) => ls.filter((l) => l.key !== line.key))}>
-                      Delete item
-                    </button>
-                  </div>
-                  <FormGrid>
-                    {products.length ? (
-                      <label className="field span-2">
-                        <span>Add from product (optional)</span>
-                        <select value={line.productId} onChange={(e) => applyProduct(line, e.target.value)}>
-                          <option value="">No product</option>
-                          {products.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.sku ? `${p.sku} · ${p.name}` : p.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    ) : null}
-                    <TextField label="Item code" value={line.itemCode} maxLength={40} onValue={(v) => setLine(line.key, { itemCode: v })} placeholder="e.g. KW2" />
-                    <div className="span-2">
-                      <TextArea label="Description (one point per line)" required rows={3} value={line.description} maxLength={1000} error={err.description} onValue={(v) => setLine(line.key, { description: v })} />
-                    </div>
-                  </FormGrid>
-                  <div className="sales-line-grid">
-                    <TextField label="Width" inputMode="decimal" value={line.width} error={err.width} onValue={(v) => setLine(line.key, { width: v })} />
-                    <TextField label="Height" inputMode="decimal" value={line.height} error={err.height} onValue={(v) => setLine(line.key, { height: v })} />
-                    <TextField label="Unit" value={line.unit} maxLength={20} onValue={(v) => setLine(line.key, { unit: v })} />
-                    <TextField label="Quantity" inputMode="numeric" value={line.quantity} error={err.quantity} onValue={(v) => setLine(line.key, { quantity: v.replace(/[^\d]/g, '') })} />
-                  </div>
-                  <div className="sales-line-grid">
-                    <TextField label="Purchase price (₹)" inputMode="decimal" value={line.purchasePrice} error={err.purchasePrice} onValue={(v) => setLine(line.key, { purchasePrice: v })} hint="Internal — vendor's price" />
-                    <TextField label="Margin %" inputMode="decimal" value={line.marginPct} error={err.marginPct} onValue={(v) => setLine(line.key, { marginPct: v })} />
-                    {computed ? (
-                      <div className="field">
-                        <span>Unit price (rounded up)</span>
-                        <strong>{formatMoney(unit)}</strong>
-                      </div>
-                    ) : (
-                      <TextField label="Unit price (₹)" inputMode="decimal" value={line.unitPrice} error={err.unitPrice} onValue={(v) => setLine(line.key, { unitPrice: v })} hint="Used when there is no purchase price" />
-                    )}
-                    <div className="field">
-                      <span>Total</span>
-                      <strong>{formatMoney(unit * (Number(line.quantity) || 1))}</strong>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            <div>
-              <button type="button" className="btn btn-ghost" disabled={lines.length >= 50} onClick={() => setLines((ls) => [...ls, newQuotationLine()])}>
-                + Add item
-              </button>
+            <div className="quote-card-head">
+              <h2 className="quote-h">Item Details</h2>
+              <div className="btn-row">
+                <button type="button" className="btn btn-primary btn-sm" disabled={lines.length >= 50} onClick={() => setLines((ls) => [...ls, newQuotationLine()])}>
+                  + Add Item
+                </button>
+              </div>
             </div>
-            <p className="muted small">
-              Pricing formula: unit price = purchase price + margin %, rounded up to the next ₹{(step / 100).toLocaleString('en-IN')}.
+            {catalogError ? <p className="muted small">Product catalog unavailable; enter lines manually.</p> : null}
+            <div className="table-wrap">
+              <table className="table quote-items">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Item Description</th>
+                    <th>Size (W × H)</th>
+                    <th>Unit</th>
+                    <th className="num">Purchase Price (₹)</th>
+                    <th className="num">Margin %</th>
+                    <th className="num">Unit Price (MRP) ₹</th>
+                    <th className="num">Qty</th>
+                    <th className="num">Total (₹)</th>
+                    <th aria-label="Actions" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((line, index) => {
+                    const err = lineErrors[line.key] ?? {};
+                    const unit = draftUnitPriceMinor(line, step);
+                    const computed = line.purchasePrice.trim() !== '';
+                    return (
+                      <tr key={line.key}>
+                        <td>{index + 1}</td>
+                        <td className="quote-desc">
+                          {products.length ? (
+                            <select aria-label="Add from product" value={line.productId} onChange={(e) => applyProduct(line, e.target.value)}>
+                              <option value="">Add from product…</option>
+                              {products.map((pr) => (
+                                <option key={pr.id} value={pr.id}>
+                                  {pr.sku ? `${pr.sku} · ${pr.name}` : pr.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : null}
+                          <input aria-label="Item code" placeholder="Item code" maxLength={40} value={line.itemCode} onChange={(e) => setLine(line.key, { itemCode: e.target.value })} />
+                          <textarea aria-label="Description" aria-invalid={!!err.description} rows={2} maxLength={1000} placeholder="Description (one point per line)" value={line.description} onChange={(e) => setLine(line.key, { description: e.target.value })} />
+                          {err.description ? <small className="field-error">{err.description}</small> : null}
+                        </td>
+                        <td className="quote-size">
+                          <input aria-label="Width" inputMode="decimal" placeholder="W" value={line.width} onChange={(e) => setLine(line.key, { width: e.target.value })} />
+                          <span>×</span>
+                          <input aria-label="Height" inputMode="decimal" placeholder="H" value={line.height} onChange={(e) => setLine(line.key, { height: e.target.value })} />
+                          {err.width || err.height ? <small className="field-error">{err.width ?? err.height}</small> : null}
+                        </td>
+                        <td>
+                          <input aria-label="Unit" maxLength={20} value={line.unit} onChange={(e) => setLine(line.key, { unit: e.target.value })} />
+                        </td>
+                        <td className="num">
+                          <input aria-label="Purchase price" inputMode="decimal" aria-invalid={!!err.purchasePrice} value={line.purchasePrice} onChange={(e) => setLine(line.key, { purchasePrice: e.target.value })} />
+                          {err.purchasePrice ? <small className="field-error">{err.purchasePrice}</small> : null}
+                        </td>
+                        <td className="num">
+                          <input aria-label="Margin %" inputMode="decimal" aria-invalid={!!err.marginPct} value={line.marginPct} onChange={(e) => setLine(line.key, { marginPct: e.target.value })} />
+                          {err.marginPct ? <small className="field-error">{err.marginPct}</small> : null}
+                        </td>
+                        <td className="num">
+                          {computed ? (
+                            <strong>{formatMoney(unit).replace('₹', '')}</strong>
+                          ) : (
+                            <>
+                              <input aria-label="Unit price" inputMode="decimal" aria-invalid={!!err.unitPrice} value={line.unitPrice} onChange={(e) => setLine(line.key, { unitPrice: e.target.value })} />
+                              {err.unitPrice ? <small className="field-error">{err.unitPrice}</small> : null}
+                            </>
+                          )}
+                        </td>
+                        <td className="num">
+                          <input aria-label="Quantity" inputMode="numeric" aria-invalid={!!err.quantity} value={line.quantity} onChange={(e) => setLine(line.key, { quantity: e.target.value.replace(/[^\d]/g, '') })} />
+                          {err.quantity ? <small className="field-error">{err.quantity}</small> : null}
+                        </td>
+                        <td className="num">
+                          <strong>{formatMoney(unit * (Number(line.quantity) || 1)).replace('₹', '')}</strong>
+                        </td>
+                        <td>
+                          <button type="button" className="btn btn-ghost btn-sm" aria-label={`Delete item ${index + 1}`} disabled={lines.length === 1} onClick={() => setLines((ls) => ls.filter((l) => l.key !== line.key))}>
+                            🗑
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="quote-formula">
+              <strong>Pricing Formula:</strong> Unit Price = Purchase Price + Margin % &nbsp;|&nbsp; MRP = Round up to next ₹{(step / 100).toLocaleString('en-IN')}
             </p>
           </section>
         )}
 
+        <div className="quote-pair">
         <section className="card stack">
-          <h2>Additional charges</h2>
+          <h2 className="quote-h">Additional Charges</h2>
           {charges.map((c) => (
             <div key={c.key} className="sales-line-grid">
               <TextField label="Charge" value={c.description} maxLength={160} error={chargeErrors[c.key]} onValue={(v) => setCharge(c.key, { description: v })} />
@@ -393,7 +450,7 @@ function QuotationForm({
         </section>
 
         <section className="card stack">
-          <h2>Tax &amp; discount</h2>
+          <h2 className="quote-h">Tax &amp; Discount</h2>
           <div className="field">
             <span>GST treatment</span>
             <div className="sales-taxes" role="radiogroup" aria-label="GST treatment">
@@ -408,8 +465,8 @@ function QuotationForm({
             <TextField label="GST %" inputMode="decimal" value={gstPct} onValue={setGstPct} />
             <TextField label="Total discount (₹)" inputMode="decimal" value={discount} onValue={setDiscount} hint="Applied to the whole quotation" />
           </FormGrid>
-          {!customerView ? summary : null}
         </section>
+        </div>
 
         <section className="card stack">
           <h2>Product specification</h2>
@@ -444,20 +501,37 @@ function QuotationForm({
         </section>
 
         <FormError message={message} />
-        <FormActions>
+        <div className="quote-actions">
           <Link className="btn btn-ghost" to={back}>
             Cancel
           </Link>
-          <button type="submit" className="btn btn-ghost" disabled={save.isPending || saveAndSend.isPending}>
-            {save.isPending ? 'Saving…' : existing ? (isRevision ? 'Save revision' : 'Save changes') : 'Save as draft'}
+          <span className="quote-spacer" />
+          <button type="submit" className="btn btn-ghost" disabled={busy}>
+            {save.isPending ? 'Saving…' : existing ? (isRevision ? 'Save Revision' : 'Save Changes') : 'Save as Draft'}
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={() => document.getElementById('quote-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+            Preview
+          </button>
+          <button type="button" className="btn btn-ghost" disabled={!existing} title={existing ? undefined : 'Save the quotation first'} onClick={() => existing && void salesApi.quotationPdf(existing.id, existing.quotationNumber)}>
+            Download PDF
+          </button>
+          <button type="button" className="btn btn-whatsapp" disabled={!existing} title={existing ? undefined : 'Save the quotation first'} onClick={shareWhatsApp}>
+            Share on WhatsApp
           </button>
           {!existing || isDraft(existing) ? (
-            <button type="button" className="btn btn-primary" disabled={save.isPending || saveAndSend.isPending} onClick={(e) => onSubmit(e, true)}>
-              {saveAndSend.isPending ? 'Sending…' : 'Save & send'}
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={(e) => onSubmit(e, true)}>
+              {saveAndSend.isPending ? 'Sending…' : 'Save & Send'}
             </button>
           ) : null}
-        </FormActions>
+        </div>
       </form>
+      <div className="quote-rail">
+        <section className="card quote-summary">
+          <h2 className="quote-h">Quotation Summary</h2>
+          {summary}
+          {grandTotal}
+        </section>
+        <div id="quote-preview">
       <QuotationPreview
         quotationNumber={existing?.quotationNumber ?? ''}
         leadId={header.leadId}
@@ -478,9 +552,21 @@ function QuotationForm({
         companyName={catalog?.companyName ?? ''}
         address={catalog?.address ?? ''}
         bankDetails={catalog?.bankDetails ?? ''}
+        validUntilOn={header.validUntilOn}
       />
+        </div>
+      </div>
       </div>
     </>
+  );
+}
+
+function ReadField({ label, value, pill }: { label: string; value: string; pill?: boolean }) {
+  return (
+    <div className="field">
+      <span>{label}</span>
+      <div className={pill ? 'quote-pill' : 'quote-read'}>{value}</div>
+    </div>
   );
 }
 
